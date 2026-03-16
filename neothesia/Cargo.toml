@@ -24,6 +24,7 @@ neothesia-image.workspace = true
 midi-file.workspace = true
 midi-io.workspace = true
 nuon.workspace = true
+ply-engine.workspace = true
 futures-channel.workspace = true
 cosmic-text.workspace = true
 
@@ -44,6 +45,7 @@ rusqlite = { version = "0.30", features = ["bundled"] }
 chrono = "0.4"
 dirs = "6.0"
 thiserror.workspace = true
+serde_json.workspace = true
 
 [[bin]]
 name = "neothesia"

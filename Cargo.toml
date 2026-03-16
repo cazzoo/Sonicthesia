@@ -28,6 +28,7 @@ midi-io = { path = "./midi-io" }
 piano-layout = { path = "./piano-layout" }
 ffmpeg-encoder = { path = "./ffmpeg-encoder" }
 nuon = { path = "./nuon" }
+ply-engine = "1.0.3"
 
 anyhow = "1"
 thiserror = "2.0"
