@@ -1,6 +1,8 @@
 #![allow(clippy::collapsible_match, clippy::single_match)]
 
+mod common;
 mod context;
+mod context_macroquad; // New macroquad-based context
 mod icons;
 mod input_manager;
 mod output_manager;
@@ -12,16 +14,37 @@ mod lumi_controller;
 mod ply_integration;
 mod render;
 
+// Re-export common types for use throughout the codebase
+pub use common::NeothesiaEvent;
+pub use song::Song;
+
+// PLY Rendering (Macroquad) - DEFAULT
+#[cfg(feature = "ply-rendering")]
+mod main_macroquad;
+
+#[cfg(feature = "ply-rendering")]
+use main_macroquad::main as ply_main;
+
+// WGPU Rendering (Legacy)
+#[cfg(feature = "wgpu-rendering")]
 use std::{sync::Arc, time::Duration};
 
+#[cfg(feature = "wgpu-rendering")]
 use context::Context;
+
+#[cfg(feature = "wgpu-rendering")]
 use scene::{Scene, menu_scene, playing_scene};
-use song::Song;
+
+#[cfg(feature = "wgpu-rendering")]
 use utils::window::WindowState;
 
+#[cfg(feature = "wgpu-rendering")]
 use midi_file::midly::MidiMessage;
-use neothesia_core::config;
+
+#[cfg(feature = "wgpu-rendering")]
 use wgpu_jumpstart::{Gpu, Surface, TransformUniform};
+
+#[cfg(feature = "wgpu-rendering")]
 use winit::{
     application::ApplicationHandler,
     event::{ElementState, MouseButton, TouchPhase, WindowEvent},
@@ -29,29 +52,23 @@ use winit::{
     keyboard::NamedKey,
 };
 
+#[cfg(feature = "wgpu-rendering")]
 use crate::utils::window::WinitEvent;
 
-#[derive(Debug)]
-pub enum NeothesiaEvent {
-    /// Go to playing scene
-    Play(song::Song),
-    FreePlay(Option<song::Song>),
-    /// Go to main menu scene
-    MainMenu(Option<song::Song>),
-    /// Show score screen after song completion
-    ShowScore {
-        song: song::Song,
-        score_data: scene::playing_scene::midi_player::ScoreData,
-    },
-    MidiInput {
-        /// The MIDI channel that this message is associated with.
-        channel: u8,
-        /// The MIDI message type and associated data.
-        message: MidiMessage,
-    },
-    Exit,
+// ============================================================================
+// PLY RENDERING ENTRY POINT (DEFAULT)
+// ============================================================================
+
+#[cfg(all(feature = "ply-rendering", not(feature = "wgpu-rendering")))]
+fn main() {
+    ply_main();
 }
 
+// ============================================================================
+// WGPU RENDERING ENTRY POINT (LEGACY)
+// ============================================================================
+
+#[cfg(feature = "wgpu-rendering")]
 struct Neothesia {
     context: Context,
     game_scene: Box<dyn Scene>,
@@ -59,6 +76,7 @@ struct Neothesia {
     surface: Surface,
 }
 
+#[cfg(feature = "wgpu-rendering")]
 impl Neothesia {
     fn new(mut context: Context, surface: Surface) -> Self {
         let song = Song::from_env(&context);
@@ -244,8 +262,10 @@ impl Neothesia {
 }
 
 // This is so stupid, but winit holds us at gunpoint with create_window deprecation
+#[cfg(feature = "wgpu-rendering")]
 struct NeothesiaBootstrap(Option<Neothesia>, EventLoopProxy<NeothesiaEvent>);
 
+#[cfg(feature = "wgpu-rendering")]
 impl ApplicationHandler<NeothesiaEvent> for NeothesiaBootstrap {
     fn resumed(&mut self, event_loop: &winit::event_loop::ActiveEventLoop) {
         if self.0.is_some() {
@@ -257,7 +277,7 @@ impl ApplicationHandler<NeothesiaEvent> for NeothesiaBootstrap {
                 width: 1080.0,
                 height: 720.0,
             })
-            .with_title("Neothesia")
+            .with_title("Neothesia (WGPU Rendering)")
             .with_min_inner_size(winit::dpi::LogicalSize {
                 width: 670.0,
                 height: 620.0,
@@ -370,6 +390,7 @@ impl ApplicationHandler<NeothesiaEvent> for NeothesiaBootstrap {
     }
 }
 
+#[cfg(feature = "wgpu-rendering")]
 fn main() {
     env_logger::Builder::from_env(
         env_logger::Env::default().default_filter_or("info, wgpu_hal=error, oxisynth=error"),
@@ -387,6 +408,7 @@ fn main() {
         .unwrap();
 }
 
+#[cfg(feature = "wgpu-rendering")]
 fn set_window_icon(window: &winit::window::Window) -> Result<(), Box<dyn std::error::Error>> {
     use std::io::Cursor;
 

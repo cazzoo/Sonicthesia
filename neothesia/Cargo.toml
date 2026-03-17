@@ -6,12 +6,16 @@ edition.workspace = true
 default-run = "neothesia"
 
 [features]
-default = ["oxi-synth"]
+default = ["oxi-synth", "ply-rendering"]
 
 profiling-on = ["profiling/profile-with-puffin"]
 synth = []
 fluid-synth = ["synth", "cpal", "fluidlite", "oxisynth"]
 oxi-synth = ["synth", "cpal", "oxisynth"]
+
+# Rendering engine selection
+ply-rendering = []  # Use PLY/macroquad rendering (default)
+wgpu-rendering = [] # Use WGPU rendering (legacy)
 
 [dependencies]
 pollster.workspace = true
@@ -46,6 +50,9 @@ chrono = "0.4"
 dirs = "6.0"
 thiserror.workspace = true
 serde_json.workspace = true
+
+# Macroquad for PLY rendering integration
+macroquad = "0.4"
 
 [[bin]]
 name = "neothesia"

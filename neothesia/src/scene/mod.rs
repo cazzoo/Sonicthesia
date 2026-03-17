@@ -20,6 +20,12 @@ pub trait Scene {
     fn render<'pass>(&'pass mut self, rpass: &mut wgpu_jumpstart::RenderPass<'pass>);
     fn window_event(&mut self, _ctx: &mut Context, _event: &WindowEvent) {}
     fn midi_event(&mut self, _ctx: &mut Context, _channel: u8, _message: &MidiMessage) {}
+    
+    /// Render using PLY/macroquad (new method for PLY rendering)
+    fn render_ply(&mut self, _ctx: &mut crate::context_macroquad::MacroquadContext) {
+        // Default implementation does nothing
+        // Each scene will override this to implement PLY rendering
+    }
 }
 
 pub fn handle_pc_keyboard_to_midi_event(ctx: &mut Context, event: &WindowEvent) {

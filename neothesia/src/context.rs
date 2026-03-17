@@ -1,13 +1,14 @@
 use std::sync::Arc;
 
 use crate::{
-    NeothesiaEvent, TransformUniform, config::Config, input_manager::InputManager,
+    NeothesiaEvent, input_manager::InputManager,
     output_manager::OutputManager, utils::window::WindowState,
     song_library::{SongRepository, SongLibraryDatabase, default_db_path, Error as SongLibraryError},
     ply_integration::PlyInputHandler,
 };
 use neothesia_core::render::{QuadRendererFactory, TextRendererFactory};
-use wgpu_jumpstart::{Gpu, Uniform};
+use neothesia_core::config::Config;
+use wgpu_jumpstart::{Gpu, TransformUniform, Uniform};
 use winit::event_loop::EventLoopProxy;
 
 use winit::window::Window;

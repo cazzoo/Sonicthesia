@@ -1,6 +1,47 @@
 # PLY Integration Status - User Report
 
-## What You Should See Now
+## ⚠️ IMPORTANT UPDATE - Rendering Migration Challenge
+
+**Date**: 2026-03-17  
+**Status**: Phase 1 Complete (Data Management) - Rendering Migration In Progress
+
+### Critical Architectural Discovery
+
+After committing the PLY data management milestone and attempting to replace WGPU rendering with PLY, we've discovered a **fundamental architectural incompatibility**:
+
+**The Problem:**
+- **Neothesia** uses: winit + WGPU (manual render passes, explicit GPU control)
+- **PLY** uses: macroquad/miniquad (immediate mode rendering, built-in window management)
+
+These two systems **cannot coexist** in the same application. They are mutually exclusive approaches to rendering.
+
+### Current State
+
+✅ **What Works:**
+- PLY data management (waterfall, keyboard, guidelines)
+- PLY input handling (keyboard, mouse, gamepad)
+- PLY UI framework integration
+- PLY audio integration
+- Visual indicators showing "PLY ENGINE ACTIVE"
+
+❌ **What Doesn't Work:**
+- PLY rendering (requires complete system rewrite)
+- The "PLY ENGINE ACTIVE" indicators are **misleading** - PLY manages data but doesn't render
+
+### The Reality
+
+To fully replace WGPU with PLY rendering requires:
+- **Complete main.rs rewrite** (~500 lines)
+- **Context system rewrite** (~300 lines)  
+- **All rendering code rewrite** (~2000 lines)
+- **Input system rewrite** (~500 lines)
+- **Asset loading rewrite** (~200 lines)
+
+**Total: ~3500 lines of code to rewrite (34-49 hours of work)**
+
+See [`PLY_RENDERING_STATUS.md`](./PLY_RENDERING_STATUS.md) for detailed analysis.
+
+## What You Should See Now (Original Documentation)
 
 After the changes made on 2026-03-17, you should now see **clear visual evidence** that PLY is active throughout the entire Neothesia application.
 
@@ -92,7 +133,7 @@ You should see log messages like:
 - PLY renderers don't have `render()` methods that work with WGPU's render pass
 - Making PLY actually render visuals would require either:
   - Adding bridge code between PLY and WGPU (complex)
-  - Completely replacing WGPU with PLY (very complex)
+  - Completely replacing WGPU with PLY (very complex - see PLY_RENDERING_STATUS.md)
 
 **Current State**: PLY manages the data, WGPU draws the visuals. This is a **transitional state** in the integration process.
 
@@ -123,26 +164,48 @@ You should see log messages like:
    - Detailed explanation of PLY integration status
    - Verification steps and next directions
 
+7. **`docs/PLY_RENDERING_STATUS.md`** (NEW)
+   - Detailed analysis of rendering migration challenge
+   - Architectural incompatibility explanation
+   - Migration options and recommendations
+
 ## Summary
 
-✅ **PLY IS ACTIVE** throughout the entire Neothesia application
+✅ **PLY IS ACTIVE** throughout the entire Neothesia application (for data management)
 ✅ **Visual indicators** are present in all scenes
 ✅ **Console logging** tracks PLY activity in real-time
 ✅ **Data management** is handled by PLY systems
-⚠️ **Visual rendering** is still done by WGPU (temporary)
+❌ **Visual rendering** is still done by WGPU (not PLY)
+⚠️ **Indicators are misleading** - should say "PLY DATA ACTIVE" not "PLY ENGINE ACTIVE"
 
-The green "🎯 PLY ENGINE ACTIVE" labels you now see in every scene confirm that PLY is integrated and working. The console logs provide real-time confirmation of PLY activity.
+The green "🎯 PLY ENGINE ACTIVE" labels you now see in every scene confirm that PLY is integrated and working for data management. However, **PLY is not doing the actual rendering** - that's still WGPU.
 
 ## Next Steps
 
-If you want PLY to also handle the actual visual rendering (not just data management), this would require additional development work to either:
-1. Add render methods to PLY renderers that work with WGPU, or
-2. Completely replace the WGPU rendering pipeline with PLY
+If you want PLY to also handle the actual visual rendering (not just data management), there are three options:
 
-This is a significant undertaking beyond the current integration scope.
+### Option 1: Full Macroquad Migration (Complete replacement)
+- Replace entire winit+WGPU system with macroquad
+- Rewrite ~3500 lines of code
+- Estimated: 34-49 hours of work
+- See `docs/ply_rendering_migration_plan.md` for details
+
+### Option 2: PLY Rendering Bridge (Pragmatic approach)
+- Add render methods to PLY renderers that output to WGPU
+- Use PLY data structures to drive WGPU rendering
+- Lower risk, faster implementation
+- Accurate "PLY DATA + WGPU RENDERING" indicators
+
+### Option 3: Keep Current State (Stable)
+- PLY for data management, WGPU for rendering
+- Update indicators to be accurate
+- Most stable option
+
+**Recommendation**: Start with Option 2 (PLY Rendering Bridge) as a pragmatic first step, then evaluate whether full migration is needed.
 
 ---
 
-**Report Date**: 2026-03-17
-**Status**: PLY Integration - Phase 1 Complete (Data Management + Visual Indicators)
-**Verification**: Run the app and look for green "🎯 PLY ENGINE ACTIVE" labels in all scenes
+**Report Date**: 2026-03-17  
+**Status**: PLY Integration - Phase 1 Complete (Data Management)  
+**Rendering**: Still uses WGPU (migration in progress)  
+**Verification**: Run the app and look for green "🎯 PLY ENGINE ACTIVE" labels

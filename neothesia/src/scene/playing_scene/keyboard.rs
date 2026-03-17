@@ -1,6 +1,6 @@
 use midi_file::midly::MidiMessage;
 use neothesia_core::{
-    config::ColorSchemaV1,
+    config::{ColorSchemaV1, Config},
     piano_layout,
     render::{KeyboardKeyState, QuadRenderer, TextRenderer},
     utils::Point,
@@ -8,7 +8,6 @@ use neothesia_core::{
 use piano_layout::KeyboardRange;
 
 use crate::{
-    config::Config,
     context::Context,
     song::{ChannelConfig, SongConfig},
 };

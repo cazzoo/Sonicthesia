@@ -85,6 +85,55 @@ impl PlyWaterfallRenderer {
     pub fn layout(&self) -> Option<&KeyboardLayout> {
         self.layout.as_ref()
     }
+
+    /// Render the waterfall using PLY's built-in rendering system
+    /// This uses macroquad for actual rendering
+    pub fn render_ply(&mut self) {
+        if !self.initialized {
+            return;
+        }
+
+        use macroquad::prelude::*;
+
+        let layout = match &self.layout {
+            Some(l) => l,
+            None => return,
+        };
+
+        let range_start = layout.range.start() as usize;
+
+        // Render each note using macroquad drawing functions
+        for note in self.notes.inner().iter() {
+            if layout.range.contains(note.note) && note.channel != 9 {
+                let key = &layout.keys[note.note as usize - range_start];
+
+                // Get color from config
+                let color_idx = note.track_color_id % self.config.color_scheme.len();
+                let ply_color = &self.config.color_scheme[color_idx];
+                let color = Color {
+                    r: ply_color.r / 255.0,
+                    g: ply_color.g / 255.0,
+                    b: ply_color.b / 255.0,
+                    a: ply_color.a / 255.0,
+                };
+
+                // Calculate note position and size
+                let x = key.x();
+                let y = note.start.as_secs_f32();
+                let w = key.width() - 1.0;
+                let h = if note.duration.as_secs_f32() >= 0.1 {
+                    note.duration.as_secs_f32()
+                } else {
+                    0.1
+                };
+
+                // Draw the note using macroquad
+                draw_rectangle(x, y, w, h - 0.01, color);
+            }
+        }
+
+        log::debug!("🎨 PLY Waterfall: Rendered {} notes using macroquad", self.notes.inner().len());
+    }
 }
 
 /// Configuration for PLY waterfall rendering
