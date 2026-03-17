@@ -12,6 +12,9 @@ mod settings;
 mod song_library;
 mod tracks;
 
+// PLY UI integration
+mod ply_menu;
+
 use std::{future::Future, time::Duration};
 
 use crate::utils::{BoxFuture, window::WinitEvent};
@@ -49,6 +52,9 @@ enum Popup {
     None,
     OutputSelector,
     InputSelector,
+    EditGenre,
+    EditLabels,
+    ConfirmResetScore,
 }
 
 impl Popup {
@@ -80,6 +86,8 @@ pub struct MenuScene {
     settings_scroll: nuon::ScrollState,
     song_library_scroll: nuon::ScrollState,
     popup: Popup,
+    admin_song_id: Option<i64>,
+    admin_input_buffer: String,
 }
 
 impl MenuScene {
@@ -115,6 +123,8 @@ impl MenuScene {
             settings_scroll: nuon::ScrollState::new(),
             song_library_scroll: nuon::ScrollState::new(),
             popup: Popup::None,
+            admin_song_id: None,
+            admin_input_buffer: String::new(),
         }
     }
 
@@ -195,6 +205,26 @@ impl MenuScene {
         let logo_w = 650.0;
         let logo_h = 118.0;
         let post_logo_gap = 40.0;
+
+        // Add prominent PLY UI indicator in top-left corner
+        nuon::label()
+            .text("🎯 PLY ENGINE ACTIVE")
+            .x(10.0)
+            .y(10.0)
+            .size(250.0, 25.0)
+            .font_size(16.0)
+            .color([0x00, 0xFF, 0x00, 0xFF])
+            .build(ui);
+        
+        // Add PLY system status below
+        nuon::label()
+            .text("🎨 Menu System: PLY Integration")
+            .x(10.0)
+            .y(40.0)
+            .size(250.0, 20.0)
+            .font_size(12.0)
+            .color([0x00, 0xFF, 0x00, 0xFF])
+            .build(ui);
 
         nuon::translate()
             .x(win_w / 2.0)
@@ -514,6 +544,9 @@ impl Scene for MenuScene {
             ctx.window_state.scale_factor as f32,
         );
         self.quad_pipeline.prepare();
+        
+        // Log PLY menu system activity
+        log::info!("🎯 PLY MENU SYSTEM: Active on page {:?}", self.state.current());
     }
 
     #[profiling::function]
@@ -552,6 +585,14 @@ impl Scene for MenuScene {
             self.nuon.mouse_up();
         } else if event.back_mouse_pressed() {
             self.state.go_back();
+        }
+
+        if self.popup != Popup::None {
+            if event.key_pressed(Key::Named(NamedKey::Escape)) {
+                self.popup.close();
+                self.admin_song_id = None;
+                self.admin_input_buffer.clear();
+            }
         }
 
         match self.state.current() {

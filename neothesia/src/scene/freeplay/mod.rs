@@ -129,6 +129,25 @@ impl FreeplayScene {
         let mut ui = std::mem::replace(&mut self.nuon, nuon::Ui::new());
         let window_size = ctx.window_state.logical_size;
 
+        // Add PLY active indicator at top-left
+        nuon::label()
+            .text("🎯 PLY ENGINE ACTIVE")
+            .x(10.0)
+            .y(55.0)
+            .size(250.0, 25.0)
+            .font_size(16.0)
+            .color([0x00, 0xFF, 0x00, 0xFF])
+            .build(&mut ui);
+        
+        nuon::label()
+            .text("🎨 Freeplay: PLY Integration")
+            .x(10.0)
+            .y(85.0)
+            .size(250.0, 20.0)
+            .font_size(12.0)
+            .color([0x00, 0xFF, 0x00, 0xFF])
+            .build(&mut ui);
+
         // Render ribbon background (always visible)
         nuon::quad()
             .size(window_size.width, 40.0)
@@ -402,6 +421,9 @@ impl Scene for FreeplayScene {
         self.quad_renderer_fg.clear();
 
         let time = 0.0;
+
+        // Log PLY freeplay activity
+        log::info!("🎯 PLY FREEPLAY: Active with {} keys", self.keyboard.layout().keys.len());
 
         self.guidelines.update(
             &mut self.quad_renderer_bg,

@@ -26,7 +26,7 @@ pub struct NoteList {
 }
 
 impl NoteList {
-    fn new(tracks: &[MidiTrack], hidden_tracks: &[usize], track_channel_configs: &[TrackChannelConfig]) -> Self {
+    pub fn new(tracks: &[MidiTrack], hidden_tracks: &[usize], track_channel_configs: &[TrackChannelConfig]) -> Self {
         let mut notes: Vec<_> = tracks
             .iter()
             .filter(|track| !hidden_tracks.contains(&track.track_id))
@@ -54,12 +54,22 @@ impl NoteList {
         }
     }
 
+    pub fn empty() -> Self {
+        Self {
+            inner: Rc::new([]),
+        }
+    }
+
     pub fn inner(&self) -> &Rc<[MidiNote]> {
         &self.inner
     }
 
-    fn len(&self) -> usize {
+    pub fn len(&self) -> usize {
         self.inner.len()
+    }
+    
+    pub fn is_empty(&self) -> bool {
+        self.inner.is_empty()
     }
 }
 

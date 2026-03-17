@@ -10,9 +10,9 @@ use piano_layout::KeyboardRange;
 use crate::{
     config::Config,
     context::Context,
-    render::KeyboardRenderer,
     song::{ChannelConfig, SongConfig},
 };
+use neothesia_core::render::KeyboardRenderer;
 
 pub struct Keyboard {
     renderer: KeyboardRenderer,

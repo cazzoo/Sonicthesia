@@ -111,7 +111,7 @@ impl SynthBackend {
     }
 }
 
-enum SynthEvent {
+pub enum SynthEvent {
     SetGain(f32),
     Midi(oxisynth::MidiEvent),
 }

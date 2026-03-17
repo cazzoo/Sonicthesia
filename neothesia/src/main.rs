@@ -9,6 +9,8 @@ mod song;
 mod song_library;
 mod utils;
 mod lumi_controller;
+mod ply_integration;
+mod render;
 
 use std::{sync::Arc, time::Duration};
 
@@ -18,7 +20,7 @@ use song::Song;
 use utils::window::WindowState;
 
 use midi_file::midly::MidiMessage;
-use neothesia_core::{config, render};
+use neothesia_core::config;
 use wgpu_jumpstart::{Gpu, Surface, TransformUniform};
 use winit::{
     application::ApplicationHandler,
@@ -79,6 +81,9 @@ impl Neothesia {
         event: &WindowEvent,
     ) {
         self.context.window_state.window_event(event);
+
+        // Handle PLY input events
+        self.context.ply_input_handler.handle_event(event);
 
         match event {
             // Windows sets size to 0 on minimise
@@ -177,6 +182,10 @@ impl Neothesia {
     fn update(&mut self, delta: Duration) {
         #[cfg(debug_assertions)]
         self.context.fps_ticker.tick();
+
+        // Update PLY input handler
+        self.context.ply_input_handler.update();
+        log::trace!("🎯 PLY INPUT: Handler updated in main loop");
 
         self.game_scene.update(&mut self.context, delta);
     }

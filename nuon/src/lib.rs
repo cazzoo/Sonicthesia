@@ -1053,8 +1053,8 @@ impl Button {
         self
     }
 
-    pub fn label(mut self, label: impl Into<Cow<'static, str>>) -> Self {
-        self.label = label.into();
+    pub fn label(mut self, label: impl Into<String>) -> Self {
+        self.label = Cow::Owned(label.into());
         self
     }
 

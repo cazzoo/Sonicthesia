@@ -1,7 +1,10 @@
 use std::collections::VecDeque;
 use std::path::PathBuf;
 
-use crate::{context::Context, output_manager::OutputDescriptor, song::Song, NeothesiaEvent, song_library::SongRepository};
+use crate::{
+    context::Context, output_manager::OutputDescriptor, song::Song, song_library::SongRepository,
+    NeothesiaEvent,
+};
 
 type InputDescriptor = midi_io::MidiInputPort;
 
@@ -49,7 +52,8 @@ pub struct UiState {
     // Song Library
     pub song_library_scroll: f32,
     pub song_library_entries: Vec<crate::song_library::SongEntry>,
-    pub song_library_filter: String,
+    pub song_library_filter: crate::song_library::FilterState,
+    pub song_library_admin_mode: bool,
 }
 
 impl UiState {
@@ -80,7 +84,8 @@ impl UiState {
             hand_selection: HandSelection::default(),
             song_library_scroll: 0.0,
             song_library_entries: Vec::new(),
-            song_library_filter: String::new(),
+            song_library_filter: crate::song_library::FilterState::default(),
+            song_library_admin_mode: false,
         }
     }
 
@@ -113,7 +118,10 @@ impl UiState {
     }
 
     pub fn load_song_library(&mut self, db: &crate::song_library::SongLibraryDatabase) {
-        match db.list_songs(&crate::song_library::SortPreference::default(), &crate::song_library::FilterState::default()) {
+        match db.list_songs(
+            &crate::song_library::SortPreference::default(),
+            &self.song_library_filter,
+        ) {
             Ok(entries) => self.song_library_entries = entries,
             Err(e) => eprintln!("Failed to load song library: {}", e),
         }
@@ -121,6 +129,26 @@ impl UiState {
 
     pub fn refresh_song_library(&mut self, db: &crate::song_library::SongLibraryDatabase) {
         self.song_library_entries.clear();
+        self.load_song_library(db);
+    }
+
+    pub fn set_song_library_filter(
+        &mut self,
+        db: &crate::song_library::SongLibraryDatabase,
+        filter: crate::song_library::FilterState,
+    ) {
+        self.song_library_filter = filter;
+        self.load_song_library(db);
+    }
+
+    pub fn update_song_library_filter<F>(
+        &mut self,
+        db: &crate::song_library::SongLibraryDatabase,
+        f: F,
+    ) where
+        F: FnOnce(&mut crate::song_library::FilterState),
+    {
+        f(&mut self.song_library_filter);
         self.load_song_library(db);
     }
 }

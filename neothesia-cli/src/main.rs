@@ -100,14 +100,15 @@ impl Recorder {
             midi.measures.clone(),
         );
 
-        let mut waterfall = WaterfallRenderer::new(
-            &gpu,
-            &midi.tracks,
-            &[],
-            &config,
-            &transform_uniform,
-            keyboard_layout,
-        );
+         let mut waterfall = WaterfallRenderer::new(
+             &gpu,
+             &midi.tracks,
+             &[],
+             &[],
+             &config,
+             &transform_uniform,
+             keyboard_layout,
+         );
 
         let playback = midi_file::PlaybackState::new(Duration::from_secs(3), midi.tracks.clone());
 

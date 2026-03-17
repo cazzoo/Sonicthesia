@@ -1,11 +1,10 @@
 use nuon::TextJustify;
 use std::hash::Hash;
-use std::sync::Arc;
 
 use crate::{context::Context, song::Song, utils::BoxFuture};
 use crate::song_library::{SongEntry, difficulty_label, SongRepository};
 
-use super::{MsgFn, on_async, icons, neo_btn_icon, UiState};
+use super::{MsgFn, on_async, icons, neo_btn_icon, neo_btn, UiState};
 
 impl super::MenuScene {
     pub fn song_library_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
@@ -41,6 +40,19 @@ impl super::MenuScene {
                     }
                     self.state.refresh_song_library(&ctx.song_library_db);
                 }
+
+                nuon::translate().x(-w - padding).add_to_current(ui);
+
+                let is_admin = self.state.song_library_admin_mode;
+                if neo_btn_icon(ui, w, h, "\u{F303}") {
+                    self.state.song_library_admin_mode = !self.state.song_library_admin_mode;
+                }
+
+                nuon::quad()
+                    .size(8.0, 8.0)
+                    .color(if is_admin { [80, 180, 80] } else { [100, 100, 100] })
+                    .border_radius([4.0; 4])
+                    .build(ui);
 
                 nuon::translate().x(-w - padding).add_to_current(ui);
             });
@@ -137,7 +149,8 @@ impl super::MenuScene {
 
                         nuon::translate().build(ui, |ui| {
                             for entry in row_entries {
-                                self.song_card(&*ctx, ui, &entry, card_w, card_h);
+                                let admin_mode = self.state.song_library_admin_mode;
+                                self.song_card(&*ctx, ui, &entry, card_w, card_h, admin_mode);
                                 nuon::translate().x(card_w + gap).add_to_current(ui);
                             }
                         });
@@ -146,9 +159,151 @@ impl super::MenuScene {
                     }
                 }
             });
+
+        if self.popup != super::Popup::None {
+            self.song_library_admin_popup_ui(ctx, ui);
+        }
     }
 
-    fn song_card(&mut self, _ctx: &Context, ui: &mut nuon::Ui, entry: &SongEntry, w: f32, h: f32) {
+    fn song_library_admin_popup_ui(&mut self, ctx: &Context, ui: &mut nuon::Ui) {
+        let win_w = ctx.window_state.logical_size.width;
+        let win_h = ctx.window_state.logical_size.height;
+        let popup_w = 400.0;
+        let popup_h = 200.0;
+
+        nuon::translate()
+            .x(nuon::center_x(win_w, popup_w))
+            .y(nuon::center_y(win_h, popup_h))
+            .build(ui, |ui| {
+                nuon::quad()
+                    .size(popup_w, popup_h)
+                    .color([30, 30, 35])
+                    .border_radius([12.0; 4])
+                    .build(ui);
+
+                let title = match self.popup {
+                    super::Popup::EditGenre => "Edit Genre",
+                    super::Popup::EditLabels => "Edit Labels",
+                    super::Popup::ConfirmResetScore => "Reset Score",
+                    _ => "Admin",
+                };
+
+                nuon::translate().y(20.0).add_to_current(ui);
+                nuon::label()
+                    .size(popup_w, 30.0)
+                    .text(title)
+                    .font_size(20.0)
+                    .text_justify(nuon::TextJustify::Center)
+                    .build(ui);
+
+                nuon::translate().y(40.0).add_to_current(ui);
+
+                match self.popup {
+                    super::Popup::EditGenre | super::Popup::EditLabels => {
+                        let buffer_for_label = self.admin_input_buffer.to_string();
+                        nuon::label()
+                            .size(popup_w - 40.0, 20.0)
+                            .text(if self.popup == super::Popup::EditGenre { "Genre:" } else { "Labels (comma separated):" })
+                            .font_size(14.0)
+                            .text_justify(nuon::TextJustify::Left)
+                            .build(ui);
+
+                        nuon::translate().y(20.0).add_to_current(ui);
+
+                        let input_w = popup_w - 40.0;
+                        let input_h = 32.0;
+                        if nuon::button()
+                            .size(input_w, input_h)
+                            .color([50, 50, 55])
+                            .border_radius([4.0; 4])
+                            .label(buffer_for_label.as_str())
+                            .build(ui)
+                        {
+                        }
+
+                        nuon::translate().y(input_h + 20.0).add_to_current(ui);
+                    }
+                    super::Popup::ConfirmResetScore => {
+                        nuon::label()
+                            .size(popup_w - 40.0, 40.0)
+                            .text("Are you sure you want to reset this song's score?")
+                            .font_size(14.0)
+                            .text_justify(nuon::TextJustify::Center)
+                            .build(ui);
+
+                        nuon::translate().y(50.0).add_to_current(ui);
+                    }
+                    _ => {}
+                }
+
+                let btn_w = 120.0;
+                let btn_h = 36.0;
+                let btn_gap = 20.0;
+
+                let popup_close = self.popup;
+                let admin_song_id = self.admin_song_id;
+                let admin_buffer = self.admin_input_buffer.clone();
+
+                nuon::translate().x(-btn_w - btn_gap / 2.0).add_to_current(ui);
+                if neo_btn()
+                    .size(btn_w, btn_h)
+                    .color([80, 80, 80])
+                    .label("Cancel")
+                    .build(ui)
+                {
+                    self.popup = super::Popup::None;
+                    self.admin_song_id = None;
+                    self.admin_input_buffer.clear();
+                }
+
+                nuon::translate().x(btn_w + btn_gap).add_to_current(ui);
+                if neo_btn()
+                    .size(btn_w, btn_h)
+                    .color([80, 180, 80])
+                    .label("Save")
+                    .build(ui)
+                {
+                    if let Some(song_id) = admin_song_id {
+                        let db = &ctx.song_library_db;
+                        match popup_close {
+                            super::Popup::EditGenre => {
+                                let genre = if admin_buffer.is_empty() {
+                                    None
+                                } else {
+                                    Some(admin_buffer.clone())
+                                };
+                                let _ = db.update_genre(song_id, genre);
+                            }
+                            super::Popup::EditLabels => {
+                                let labels: Vec<String> = admin_buffer
+                                    .split(',')
+                                    .map(|s| s.trim().to_string())
+                                    .filter(|s| !s.is_empty())
+                                    .collect();
+                                let _ = db.update_labels(song_id, labels);
+                            }
+                            super::Popup::ConfirmResetScore => {
+                                let _ = db.reset_score(song_id);
+                            }
+                            _ => {}
+                        }
+                        self.state.refresh_song_library(db);
+                    }
+                    self.popup = super::Popup::None;
+                    self.admin_song_id = None;
+                    self.admin_input_buffer.clear();
+                }
+            });
+
+        nuon::translate().x(0.0).y(0.0).build(ui, |ui| {
+            nuon::quad()
+                .size(win_w, win_h)
+                .color([0, 0, 0, 150])
+                .build(ui);
+        });
+    }
+
+    fn song_card(&mut self, _ctx: &Context, ui: &mut nuon::Ui, entry: &SongEntry, w: f32, h: f32, admin_mode: bool) {
         let pad = 16.0;
 
         nuon::quad()
@@ -243,6 +398,69 @@ impl super::MenuScene {
                 .color([255, 255, 255, 10])
                 .border_radius([12.0; 4])
                 .build(ui);
+        }
+
+        if admin_mode {
+            let btn_size = 24.0;
+            let btn_gap = 4.0;
+            let btn_x = w - pad - btn_size;
+            let btn_y = pad;
+
+            nuon::translate().pos(btn_x, btn_y).build(ui, |ui| {
+                let genre_id = nuon::Id::hash_with(|h| {
+                    "admin_genre".hash(h);
+                    entry.id.hash(h);
+                });
+                if nuon::button()
+                    .id(genre_id)
+                    .size(btn_size, btn_size)
+                    .color([80, 120, 180])
+                    .border_radius([4.0; 4])
+                    .label("G")
+                    .build(ui)
+                {
+                    self.popup = super::Popup::EditGenre;
+                    self.admin_song_id = Some(entry.id);
+                    self.admin_input_buffer = entry.genre.clone().unwrap_or_default();
+                }
+
+                nuon::translate().x(btn_size + btn_gap).add_to_current(ui);
+
+                let labels_id = nuon::Id::hash_with(|h| {
+                    "admin_labels".hash(h);
+                    entry.id.hash(h);
+                });
+                if nuon::button()
+                    .id(labels_id)
+                    .size(btn_size, btn_size)
+                    .color([120, 80, 180])
+                    .border_radius([4.0; 4])
+                    .label("L")
+                    .build(ui)
+                {
+                    self.popup = super::Popup::EditLabels;
+                    self.admin_song_id = Some(entry.id);
+                    self.admin_input_buffer = entry.labels.join(", ");
+                }
+
+                nuon::translate().x(btn_size + btn_gap).add_to_current(ui);
+
+                let reset_id = nuon::Id::hash_with(|h| {
+                    "admin_reset".hash(h);
+                    entry.id.hash(h);
+                });
+                if nuon::button()
+                    .id(reset_id)
+                    .size(btn_size, btn_size)
+                    .color([180, 80, 80])
+                    .border_radius([4.0; 4])
+                    .label("X")
+                    .build(ui)
+                {
+                    self.popup = super::Popup::ConfirmResetScore;
+                    self.admin_song_id = Some(entry.id);
+                }
+            });
         }
     }
 }

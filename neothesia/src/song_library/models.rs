@@ -7,6 +7,8 @@ pub struct SongMetadata {
     pub track_count: usize,
     pub note_count: usize,
     pub tempo_changes: usize,
+    pub genre: Option<String>,
+    pub labels: Vec<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -22,6 +24,8 @@ pub struct SongEntry {
     pub best_score: Option<f32>,
     pub last_played_at: Option<DateTime<Utc>>,
     pub created_at: DateTime<Utc>,
+    pub genre: Option<String>,
+    pub labels: Vec<String>,
 }
 
 #[derive(Debug, Clone, Copy, Default)]
@@ -37,6 +41,8 @@ pub enum SortPreference {
     LastPlayedAsc,
     LastScoreDesc,
     LastScoreAsc,
+    GenreAsc,
+    GenreDesc,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -46,6 +52,9 @@ pub struct FilterState {
     pub played_only: bool,
     pub unplayed_only: bool,
     pub search_query: Option<String>,
+    pub genre: Option<String>,
+    pub score_min: Option<f32>,
+    pub score_max: Option<f32>,
 }
 
 pub fn calculate_difficulty(metadata: &SongMetadata) -> u8 {
@@ -55,13 +64,13 @@ pub fn calculate_difficulty(metadata: &SongMetadata) -> u8 {
     } else {
         0.0
     };
-    
+
     let track_factor = metadata.track_count as f32 / 10.0;
     let tempo_factor = (metadata.tempo_changes as f32 / 50.0).min(1.0);
-    
+
     // Weighted score (0-10)
     let score = (note_density / 5.0) * 5.0 + track_factor * 3.0 + tempo_factor * 2.0;
-    
+
     score.clamp(1.0, 10.0) as u8
 }
 

@@ -4,6 +4,7 @@ use neothesia_core::render::{
     waterfall::TrackChannelConfig, GlowRenderer, GuidelineRenderer, NoteLabels, QuadRenderer,
     TextRenderer,
 };
+use crate::render::ply::{PlyRendererCoordinator, waterfall::PlyWaterfallRenderer};
 use std::time::Duration;
 use winit::{
     event::WindowEvent,
@@ -15,9 +16,10 @@ use self::top_bar::TopBar;
 use super::{NuonRenderer, Scene};
 use crate::{
     song_library::SongRepository,
-    context::Context, render::WaterfallRenderer, scene::MouseToMidiEventState, song::Song,
+    context::Context, scene::MouseToMidiEventState, song::Song,
     utils::window::WinitEvent, NeothesiaEvent,
 };
+use neothesia_core::render::{WaterfallRenderer, KeyboardRenderer};
 
 mod keyboard;
 pub use keyboard::Keyboard;
@@ -112,6 +114,9 @@ pub struct PlayingScene {
 
     // Track song ID for library statistics updates
     current_song_id: Option<i64>,
+
+    // PLY renderer coordinator
+    ply_renderer: PlyRendererCoordinator,
 }
 
 impl PlayingScene {
@@ -154,6 +159,10 @@ impl PlayingScene {
                 }
             })
             .collect();
+
+        // Clone tracks and measures before song is moved
+        let tracks_clone = song.file.tracks.clone();
+        let measures_clone = song.file.measures.clone();
 
         let mut waterfall = WaterfallRenderer::new(
             &ctx.gpu,
@@ -200,6 +209,19 @@ impl PlayingScene {
         let midi_file_gain = ctx.config.audio_gain() * ctx.config.playback_gain();
         ctx.output_manager.connection().set_gain(midi_file_gain);
 
+        // Initialize PLY renderer coordinator
+        let mut ply_renderer = PlyRendererCoordinator::new();
+        ply_renderer.initialize(
+            &tracks_clone,
+            &hidden_tracks,
+            &track_channel_configs,
+            &ctx.config,
+            &keyboard_layout,
+            measures_clone,
+            ctx.config.vertical_guidelines(),
+            ctx.config.horizontal_guidelines(),
+        );
+        log::info!("🎨 PLY Renderer Coordinator initialized in PlayingScene");
 
         Self {
             keyboard,
@@ -226,6 +248,8 @@ impl PlayingScene {
             runtime_gain: RuntimeGain::neutral(),
             cached_keyboard_gain: None,
             current_song_id,
+
+            ply_renderer,
         }
     }
 
@@ -416,6 +440,18 @@ impl Scene for PlayingScene {
 
         let time = self.update_midi_player(ctx, delta);
         self.waterfall.update(time);
+
+        // Update PLY renderer coordinator
+        self.ply_renderer.update(
+            time,
+            ctx.config.animation_speed(),
+            ctx.window_state.scale_factor as f32,
+            self.keyboard.pos().y,
+        );
+        log::info!("🎯 PLY RENDERER ACTIVE: Updated playing scene at time={:.2}", time);
+        log::info!("🎯 PLY Waterfall: {} notes tracked", self.ply_renderer.waterfall_mut().map(|w| w.notes().inner().len()).unwrap_or(0));
+        log::info!("🎯 PLY Keyboard: {} keys managed", self.ply_renderer.keyboard_mut().map(|k| k.layout().keys.len()).unwrap_or(0));
+
         self.guidelines.update(
             &mut self.quad_renderer_bg,
             ctx.config.animation_speed(),
@@ -455,6 +491,28 @@ impl Scene for PlayingScene {
                 .topbar_expand_animation
                 .animate_bool(5.0, 80.0, ctx.frame_timestamp),
         );
+
+        // Add prominent PLY active indicator in top-left corner
+        let ply_buffer = TextRenderer::gen_buffer_with_attr(
+            18.0,
+            "🎯 PLY ENGINE ACTIVE",
+            cosmic_text::Attrs::new()
+                .family(cosmic_text::Family::Name("Roboto"))
+                .color(cosmic_text::Color::rgb(0x00, 0xFF, 0x00)),
+        );
+        self.text_renderer.queue_buffer(10.0, 10.0, ply_buffer);
+        
+        // Add PLY system status below the main indicator
+        let ply_status = TextRenderer::gen_buffer_with_attr(
+            14.0,
+            &format!("🎨 Waterfall: {} notes",
+                self.ply_renderer.waterfall_mut().map(|w| w.notes().inner().len()).unwrap_or(0)),
+            cosmic_text::Attrs::new()
+                .family(cosmic_text::Family::Name("Roboto"))
+                .color(cosmic_text::Color::rgb(0x00, 0xFF, 0x00)),
+        );
+        self.text_renderer.queue_buffer(10.0, 35.0, ply_status);
+
         self.text_renderer.update(
             ctx.window_state.physical_size,
             ctx.window_state.scale_factor as f32,
