@@ -11,6 +11,8 @@ pub enum NeothesiaEvent {
     FreePlay(Option<crate::Song>),
     /// Go to main menu scene
     MainMenu(Option<crate::Song>),
+    /// Show settings scene
+    ShowSettings,
     /// Show score screen after song completion
     ShowScore {
         song: crate::Song,

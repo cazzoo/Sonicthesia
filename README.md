@@ -53,7 +53,7 @@ Neothesia supports two rendering engines that can be selected via Cargo feature 
 - **Engine**: WGPU-based rendering
 - **Status**: Stable, fully functional
 - **Feature**: `wgpu-rendering`
-- **Build**: `cargo build --features wgpu-rendering --no-default-features`
+- **Build**: `cargo build --features wgpu-rendering,oxi-synth --no-default-features`
 
 **Note**: PLY rendering is the default and will be the primary rendering engine going forward. WGPU rendering remains available as a fallback option.
 

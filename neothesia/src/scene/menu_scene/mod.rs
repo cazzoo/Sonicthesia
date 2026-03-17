@@ -12,8 +12,13 @@ mod settings;
 mod song_library;
 mod tracks;
 
-// PLY UI integration
+// PLY UI integration (only when ply-rendering feature is enabled)
+#[cfg(feature = "ply-rendering")]
 mod ply_menu;
+// Note: ply_settings is not used in Macroquad version
+// The PlySettingsScene in ply_scene.rs has its own implementation
+// mod ply_settings;
+// pub use ply_settings::{PlySettingsMenu, SettingsAction};
 
 use std::{future::Future, time::Duration};
 

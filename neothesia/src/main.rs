@@ -2,7 +2,9 @@
 
 mod common;
 mod context;
-mod context_macroquad; // New macroquad-based context
+// PLY-specific macroquad context (only when ply-rendering feature is enabled)
+#[cfg(feature = "ply-rendering")]
+mod context_macroquad;
 mod icons;
 mod input_manager;
 mod output_manager;
@@ -11,7 +13,12 @@ mod song;
 mod song_library;
 mod utils;
 mod lumi_controller;
+
+// PLY integration modules (only when ply-rendering feature is enabled)
+#[cfg(feature = "ply-rendering")]
 mod ply_integration;
+
+#[cfg(feature = "ply-rendering")]
 mod render;
 
 // Re-export common types for use throughout the codebase
@@ -101,6 +108,7 @@ impl Neothesia {
         self.context.window_state.window_event(event);
 
         // Handle PLY input events
+        #[cfg(feature = "ply-rendering")]
         self.context.ply_input_handler.handle_event(event);
 
         match event {
@@ -182,6 +190,9 @@ impl Neothesia {
                 let to = scene::score_scene::ScoreScene::new(&mut self.context, song, score_data);
                 self.game_scene = Box::new(to);
             }
+            NeothesiaEvent::ShowSettings => {
+                // Settings are handled in the menu scene, ignore this event
+            }
             NeothesiaEvent::MidiInput { channel, message } => {
                 self.game_scene
                     .midi_event(&mut self.context, channel, &message);
@@ -202,7 +213,10 @@ impl Neothesia {
         self.context.fps_ticker.tick();
 
         // Update PLY input handler
+        #[cfg(feature = "ply-rendering")]
         self.context.ply_input_handler.update();
+
+        #[cfg(feature = "ply-rendering")]
         log::trace!("🎯 PLY INPUT: Handler updated in main loop");
 
         self.game_scene.update(&mut self.context, delta);

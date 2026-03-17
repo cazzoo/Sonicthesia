@@ -8,7 +8,7 @@ use std::time::Duration;
 // Use existing modules from crate root
 use crate::context_macroquad::MacroquadContext;
 use crate::song::Song;
-use crate::scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene};
+use crate::scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene};
 use crate::NeothesiaEvent;
 
 struct MacroquadNeothesia {
@@ -60,6 +60,9 @@ impl MacroquadNeothesia {
             }
             NeothesiaEvent::MainMenu(song) => {
                 self.current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
+            }
+            NeothesiaEvent::ShowSettings => {
+                self.current_scene = Box::new(PlySettingsScene::new()) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::ShowScore { song, score_data } => {
                 self.current_scene = Box::new(PlyScoreScene::new(song, score_data)) as Box<dyn PlyScene>;

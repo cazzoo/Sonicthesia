@@ -7,7 +7,10 @@ pub mod synth_backend;
 #[cfg(feature = "synth")]
 pub use synth_backend::SynthBackend;
 
+#[cfg(feature = "ply-rendering")]
 pub mod ply_bridge;
+
+#[cfg(feature = "ply-rendering")]
 pub use ply_bridge::{PlyAudioBridge, PlyOutputWrapper, PlyAudioIntegration};
 
 use std::{
