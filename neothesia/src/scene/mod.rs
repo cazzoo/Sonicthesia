@@ -3,6 +3,10 @@ pub mod menu_scene;
 pub mod playing_scene;
 pub mod score_scene;
 
+// PLY-specific scene implementations
+pub mod ply_scene;
+pub use ply_scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene};
+
 use crate::{
     NeothesiaEvent, context::Context, scene::playing_scene::Keyboard, utils::window::WinitEvent,
 };

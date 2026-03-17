@@ -3,87 +3,80 @@
 //! This file replaces the winit+WGPU system with macroquad for full PLY rendering integration.
 
 use macroquad::prelude::*;
-use std::sync::Arc;
+use std::time::Duration;
 
 // Use existing modules from crate root
 use crate::context_macroquad::MacroquadContext;
 use crate::song::Song;
-
-#[derive(Debug)]
-pub enum NeothesiaEvent {
-    Play(Song),
-    FreePlay(Option<Song>),
-    MainMenu(Option<Song>),
-    ShowScore {
-        song: Song,
-        score_data: crate::scene::playing_scene::midi_player::ScoreData,
-    },
-    MidiInput {
-        channel: u8,
-        message: midi_file::midly::MidiMessage,
-    },
-    Exit,
-}
+use crate::scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene};
+use crate::NeothesiaEvent;
 
 struct MacroquadNeothesia {
     context: MacroquadContext,
-    // For now, we'll use a simple placeholder instead of the full scene system
-    // The full scene system integration will come later
+    current_scene: Box<dyn PlyScene>,
+    event_queue: Vec<NeothesiaEvent>,
 }
 
 impl MacroquadNeothesia {
     fn new() -> Self {
         let context = MacroquadContext::new();
-        let _song = Song::from_env_macroquad(&context);
+        let song = Song::from_env_macroquad(&context);
+        
+        // Start with the menu scene
+        let current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
 
         Self {
             context,
+            current_scene,
+            event_queue: Vec::new(),
         }
     }
 
-    fn update(&mut self, _delta: std::time::Duration) {
+    fn update(&mut self, delta: Duration) {
         // Update PLY input handler
         self.context.ply_input_handler.update();
 
         // Update window state
         self.context.window_state.update();
+        
+        // Update current scene and check for events
+        if let Some(event) = self.current_scene.update(&mut self.context, delta) {
+            self.event_queue.push(event);
+        }
+        
+        // Process events
+        while let Some(event) = self.event_queue.pop() {
+            self.handle_event(event);
+        }
+    }
+    
+    fn handle_event(&mut self, event: NeothesiaEvent) {
+        match event {
+            NeothesiaEvent::Play(song) => {
+                self.current_scene = Box::new(PlyPlayingScene::new(song)) as Box<dyn PlyScene>;
+            }
+            NeothesiaEvent::FreePlay(song) => {
+                self.current_scene = Box::new(PlyFreeplayScene::new(song)) as Box<dyn PlyScene>;
+            }
+            NeothesiaEvent::MainMenu(song) => {
+                self.current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
+            }
+            NeothesiaEvent::ShowScore { song, score_data } => {
+                self.current_scene = Box::new(PlyScoreScene::new(song, score_data)) as Box<dyn PlyScene>;
+            }
+            NeothesiaEvent::MidiInput { .. } => {
+                // TODO: Handle MIDI input in scenes
+                log::debug!("MIDI input received (not yet handled in PLY scenes)");
+            }
+            NeothesiaEvent::Exit => {
+                // Will be handled in main loop
+            }
+        }
     }
 
     fn render(&mut self) {
-        clear_background(BLACK);
-
-        // Draw PLY rendering indicator
-        draw_text(
-            "🎨 PLY RENDERING ACTIVE",
-            10.0,
-            10.0,
-            18.0,
-            Color::from_rgba(0, 255, 0, 255),
-        );
-
-        draw_text(
-            &format!("FPS: {}", get_fps()),
-            10.0,
-            35.0,
-            14.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
-
-        draw_text(
-            "PLY Migration in Progress",
-            10.0,
-            60.0,
-            16.0,
-            Color::from_rgba(255, 200, 0, 255),
-        );
-
-        draw_text(
-            "Scene system integration coming soon",
-            10.0,
-            85.0,
-            14.0,
-            Color::from_rgba(200, 200, 200, 255),
-        );
+        // Render current scene
+        self.current_scene.render(&mut self.context);
     }
 }
 
@@ -96,13 +89,18 @@ pub async fn main() {
 
     let mut app = MacroquadNeothesia::new();
     let mut last_frame_time = std::time::Instant::now();
+    let mut should_exit = false;
 
     loop {
         let delta = last_frame_time.elapsed();
         last_frame_time = std::time::Instant::now();
 
-        // Handle window events
-        if is_key_pressed(KeyCode::Escape) {
+        // Check for exit event in queue
+        if app.event_queue.iter().any(|e| matches!(e, NeothesiaEvent::Exit)) {
+            should_exit = true;
+        }
+
+        if should_exit {
             break;
         }
 
