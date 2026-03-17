@@ -18,9 +18,11 @@ pub struct Button {
     color: [u8; 3],
     hover_color: [u8; 3],
     pressed_color: [u8; 3],
+    focus_color: [u8; 3],
     border_radius: [f32; 4],
     text_alignment: TextAlignment,
     font_size: f32,
+    focusable: bool,
 }
 
 impl Button {
@@ -37,9 +39,11 @@ impl Button {
             color: [67, 67, 67],
             hover_color: [87, 87, 87],
             pressed_color: [97, 97, 97],
+            focus_color: [160, 81, 255],
             border_radius: [5.0; 4],
             text_alignment: TextAlignment::Center,
             font_size: 16.0,
+            focusable: true,
         }
     }
     
@@ -111,6 +115,12 @@ impl Button {
         self
     }
     
+    /// Set whether the button is focusable
+    pub fn focusable(mut self, focusable: bool) -> Self {
+        self.focusable = focusable;
+        self
+    }
+    
     /// Build and render the button, returning whether it was clicked
     pub fn build(self, ui: &mut PlyUi) -> bool {
         use std::collections::hash_map::DefaultHasher;
@@ -135,11 +145,19 @@ impl Button {
         let x = self.x + offset_x;
         let y = self.y + offset_y;
         
+        // Register as focusable if enabled
+        if self.focusable {
+            ui.register_focusable(widget_id, self.label.clone(), super::WidgetType::Button, (x, y, self.width, self.height));
+        }
+        
         let state = ui.update_widget_state(widget_id, (x, y, self.width, self.height));
+        let is_focused = ui.is_focused(widget_id);
         
         // Determine background color based on state
         let bg_color = if state.pressed {
             self.pressed_color
+        } else if is_focused {
+            self.focus_color
         } else if state.hovered {
             self.hover_color
         } else {
@@ -155,6 +173,18 @@ impl Button {
             color: color_to_rgba(bg_color, 255),
             border_radius: self.border_radius,
         });
+        
+        // Draw focus indicator
+        if is_focused {
+            ui.add_command(super::RenderCommand::Quad {
+                x: x - 2.0,
+                y: y - 2.0,
+                width: self.width + 4.0,
+                height: self.height + 4.0,
+                color: [160, 81, 255, 255],
+                border_radius: [self.border_radius[0] + 2.0; 4],
+            });
+        }
         
         // Draw label or icon
         if !self.label.is_empty() {

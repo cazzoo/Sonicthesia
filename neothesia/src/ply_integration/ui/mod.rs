@@ -5,6 +5,7 @@
 
 use std::collections::HashMap;
 use std::hash::Hash;
+use winit::keyboard::Key as WinitKey;
 
 pub mod widgets;
 pub mod layout;
@@ -37,8 +38,53 @@ pub struct PlyUi {
     /// Active widget (being interacted with)
     active: Option<u64>,
     
+    /// Focused widget (for keyboard navigation)
+    focused: Option<u64>,
+    
+    /// All focusable widgets in order
+    focusable_widgets: Vec<FocusableWidget>,
+    
+    /// Current focus index
+    focus_index: usize,
+    
     /// Render commands
     commands: Vec<RenderCommand>,
+    
+    /// Keyboard state
+    keyboard_state: KeyboardState,
+}
+
+/// Focusable widget information
+#[derive(Debug, Clone)]
+struct FocusableWidget {
+    id: u64,
+    label: String,
+    widget_type: WidgetType,
+    rect: (f32, f32, f32, f32), // x, y, width, height
+}
+
+/// Widget type for keyboard navigation
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum WidgetType {
+    Button,
+    Toggle,
+    Spinner,
+    Picker,
+    Other,
+}
+
+/// Keyboard state
+#[derive(Debug, Clone, Default)]
+struct KeyboardState {
+    tab_pressed: bool,
+    shift_pressed: bool,
+    enter_pressed: bool,
+    escape_pressed: bool,
+    space_pressed: bool,
+    up_pressed: bool,
+    down_pressed: bool,
+    left_pressed: bool,
+    right_pressed: bool,
 }
 
 /// Layout state for positioning widgets
@@ -71,7 +117,11 @@ impl PlyUi {
             mouse_down: false,
             hovered: None,
             active: None,
+            focused: None,
+            focusable_widgets: Vec::new(),
+            focus_index: 0,
             commands: Vec::new(),
+            keyboard_state: KeyboardState::default(),
         }
     }
     
@@ -86,6 +136,8 @@ impl PlyUi {
         }
         
         self.mouse_pressed = false;
+        self.keyboard_state = KeyboardState::default();
+        self.focusable_widgets.clear();
     }
     
     /// End the current frame and get render data
@@ -205,6 +257,161 @@ impl PlyUi {
     pub fn add_command(&mut self, command: RenderCommand) {
         self.commands.push(command);
     }
+    
+    /// Handle keyboard event
+    pub fn handle_key_event(&mut self, key: &WinitKey) -> KeyboardAction {
+        use winit::keyboard::NamedKey;
+        
+        match key {
+            WinitKey::Named(NamedKey::Tab) => {
+                // Handle tab navigation
+                if self.keyboard_state.shift_pressed {
+                    self.focus_previous();
+                    KeyboardAction::FocusChanged
+                } else {
+                    self.focus_next();
+                    KeyboardAction::FocusChanged
+                }
+            }
+            WinitKey::Named(NamedKey::Enter) => {
+                self.keyboard_state.enter_pressed = true;
+                if let Some(focused_id) = self.focused {
+                    KeyboardAction::Activate(focused_id)
+                } else {
+                    KeyboardAction::None
+                }
+            }
+            WinitKey::Named(NamedKey::Escape) => {
+                self.keyboard_state.escape_pressed = true;
+                KeyboardAction::Cancel
+            }
+            WinitKey::Named(NamedKey::Space) => {
+                self.keyboard_state.space_pressed = true;
+                if let Some(focused_id) = self.focused {
+                    KeyboardAction::Activate(focused_id)
+                } else {
+                    KeyboardAction::None
+                }
+            }
+            WinitKey::Named(NamedKey::ArrowUp) => {
+                self.keyboard_state.up_pressed = true;
+                if let Some(focused_id) = self.focused {
+                    KeyboardAction::AdjustValue(focused_id, 1)
+                } else {
+                    KeyboardAction::None
+                }
+            }
+            WinitKey::Named(NamedKey::ArrowDown) => {
+                self.keyboard_state.down_pressed = true;
+                if let Some(focused_id) = self.focused {
+                    KeyboardAction::AdjustValue(focused_id, -1)
+                } else {
+                    KeyboardAction::None
+                }
+            }
+            WinitKey::Named(NamedKey::ArrowLeft) => {
+                self.keyboard_state.left_pressed = true;
+                if let Some(focused_id) = self.focused {
+                    KeyboardAction::AdjustValue(focused_id, -1)
+                } else {
+                    KeyboardAction::None
+                }
+            }
+            WinitKey::Named(NamedKey::ArrowRight) => {
+                self.keyboard_state.right_pressed = true;
+                if let Some(focused_id) = self.focused {
+                    KeyboardAction::AdjustValue(focused_id, 1)
+                } else {
+                    KeyboardAction::None
+                }
+            }
+            _ => KeyboardAction::None,
+        }
+    }
+    
+    /// Register a focusable widget
+    pub fn register_focusable(&mut self, id: u64, label: String, widget_type: WidgetType, rect: (f32, f32, f32, f32)) {
+        // Check if widget already exists
+        if !self.focusable_widgets.iter().any(|w| w.id == id) {
+            self.focusable_widgets.push(FocusableWidget {
+                id,
+                label,
+                widget_type,
+                rect,
+            });
+            
+            // Auto-focus first widget if none is focused
+            if self.focused.is_none() && !self.focusable_widgets.is_empty() {
+                self.focused = Some(self.focusable_widgets[0].id);
+                self.focus_index = 0;
+            }
+        }
+    }
+    
+    /// Focus next widget
+    pub fn focus_next(&mut self) {
+        if self.focusable_widgets.is_empty() {
+            return;
+        }
+        
+        self.focus_index = (self.focus_index + 1) % self.focusable_widgets.len();
+        self.focused = Some(self.focusable_widgets[self.focus_index].id);
+        log::debug!("Focused widget: {:?}", self.focusable_widgets[self.focus_index].label);
+    }
+    
+    /// Focus previous widget
+    pub fn focus_previous(&mut self) {
+        if self.focusable_widgets.is_empty() {
+            return;
+        }
+        
+        if self.focus_index == 0 {
+            self.focus_index = self.focusable_widgets.len() - 1;
+        } else {
+            self.focus_index -= 1;
+        }
+        self.focused = Some(self.focusable_widgets[self.focus_index].id);
+        log::debug!("Focused widget: {:?}", self.focusable_widgets[self.focus_index].label);
+    }
+    
+    /// Set focused widget by ID
+    pub fn set_focus(&mut self, id: u64) {
+        if let Some(index) = self.focusable_widgets.iter().position(|w| w.id == id) {
+            self.focus_index = index;
+            self.focused = Some(id);
+        }
+    }
+    
+    /// Get current focused widget ID
+    pub fn focused_widget(&self) -> Option<u64> {
+        self.focused
+    }
+    
+    /// Check if widget is focused
+    pub fn is_focused(&self, id: u64) -> bool {
+        self.focused == Some(id)
+    }
+    
+    /// Reset focus
+    pub fn reset_focus(&mut self) {
+        self.focused = None;
+        self.focus_index = 0;
+    }
+    
+    /// Get keyboard state
+    pub fn keyboard_state(&self) -> &KeyboardState {
+        &self.keyboard_state
+    }
+}
+
+/// Keyboard action result
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum KeyboardAction {
+    None,
+    FocusChanged,
+    Activate(u64),
+    Cancel,
+    AdjustValue(u64, i32),
 }
 
 impl Default for PlyUi {

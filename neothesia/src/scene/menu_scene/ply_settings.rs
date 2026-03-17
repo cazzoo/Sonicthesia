@@ -4,10 +4,11 @@
 //! It provides full interactive settings functionality matching the legacy WGPU settings.
 
 use crate::context::Context;
-use crate::ply_integration::ui::{PlyUi, center_x, center_y, TextAlignment};
+use crate::ply_integration::ui::{PlyUi, center_x, center_y, TextAlignment, KeyboardAction};
 use crate::ply_integration::ui::widgets::{Button, Label, Quad, Scroll};
 use crate::ply_integration::ui::layout::{SettingsSection, SettingsRow};
 use std::path::PathBuf;
+use winit::keyboard::Key;
 
 /// PLY-based settings menu state
 pub struct PlySettingsMenu {
@@ -156,12 +157,14 @@ impl PlySettingsMenu {
                 self.popup = PopupState::None;
             }
             SettingsAction::AddSoundFontFolder => {
-                log::info!("Add SoundFont folder requested");
-                // Would trigger async file dialog
+                log::info!("Add SoundFont folder requested - triggering native folder picker");
+                // Note: This will be handled asynchronously through the event loop
+                // The actual picker will be triggered from the main loop
             }
             SettingsAction::AddSongDirectory => {
-                log::info!("Add song directory requested");
-                // Would trigger async file dialog
+                log::info!("Add song directory requested - triggering native folder picker");
+                // Note: This will be handled asynchronously through the event loop
+                // The actual picker will be triggered from the main loop
             }
             SettingsAction::RemoveSongDirectory(index) => {
                 if index < self.song_directories.len() {
@@ -1111,6 +1114,112 @@ impl PlySettingsMenu {
     /// Handle scroll
     pub fn scroll(&mut self, delta: f32) {
         self.scroll_state = (self.scroll_state - delta).max(0.0);
+    }
+    
+    /// Handle keyboard event
+    pub fn handle_key_event(&mut self, key: &Key) -> SettingsAction {
+        let keyboard_action = self.ui.handle_key_event(key);
+        
+        match keyboard_action {
+            KeyboardAction::Activate(widget_id) => {
+                // Find which action corresponds to this widget
+                self.handle_widget_activation(widget_id)
+            }
+            KeyboardAction::Cancel => {
+                SettingsAction::GoBack
+            }
+            KeyboardAction::AdjustValue(widget_id, delta) => {
+                self.handle_value_adjustment(widget_id, delta)
+            }
+            _ => SettingsAction::None,
+        }
+    }
+    
+    /// Handle widget activation from keyboard
+    fn handle_widget_activation(&mut self, widget_id: u64) -> SettingsAction {
+        // Check if this is a known widget and trigger the appropriate action
+        // This is a simplified version - in production you'd map widget IDs to actions
+        SettingsAction::None
+    }
+    
+    /// Handle value adjustment from keyboard
+    fn handle_value_adjustment(&mut self, widget_id: u64, delta: i32) -> SettingsAction {
+        // Check which widget is being adjusted and apply the change
+        // This is a simplified version - in production you'd map widget IDs to settings
+        SettingsAction::None
+    }
+    
+    /// Request native folder picker for SoundFont folder
+    pub async fn request_soundfont_folder_picker(&mut self) -> Option<PathBuf> {
+        log::info!("Requesting SoundFont folder picker");
+        
+        // Use rfd for native file dialog
+        #[cfg(feature = "ply-rendering")]
+        {
+            if let Some(folder) = rfd::AsyncFileDialog::new()
+                .pick_folder()
+                .await
+            {
+                let path = folder.path().to_path_buf();
+                log::info!("Selected SoundFont folder: {:?}", path);
+                return Some(path);
+            }
+        }
+        
+        log::warn!("Folder picker not available or cancelled");
+        None
+    }
+    
+    /// Request native folder picker for song directory
+    pub async fn request_song_directory_picker(&mut self) -> Option<PathBuf> {
+        log::info!("Requesting song directory picker");
+        
+        // Use rfd for native file dialog
+        #[cfg(feature = "ply-rendering")]
+        {
+            if let Some(folder) = rfd::AsyncFileDialog::new()
+                .pick_folder()
+                .await
+            {
+                let path = folder.path().to_path_buf();
+                log::info!("Selected song directory: {:?}", path);
+                return Some(path);
+            }
+        }
+        
+        log::warn!("Folder picker not available or cancelled");
+        None
+    }
+    
+    /// Add SoundFont folder from picker result
+    pub fn add_soundfont_folder(&mut self, ctx: &mut Context, path: PathBuf) {
+        if !path.exists() {
+            log::warn!("SoundFont folder does not exist: {:?}", path);
+            return;
+        }
+        
+        self.soundfont_folders.push(path.clone());
+        ctx.config.synth_config.add_soundfont_folder(path);
+        
+        // Re-discover SoundFonts
+        self.soundfont_files = crate::output_manager::discover_soundfonts(&self.soundfont_folders);
+        
+        ctx.config.save();
+        log::info!("Added SoundFont folder, now have {} SoundFonts", self.soundfont_files.len());
+    }
+    
+    /// Add song directory from picker result
+    pub fn add_song_directory(&mut self, ctx: &mut Context, path: PathBuf) {
+        if !path.exists() {
+            log::warn!("Song directory does not exist: {:?}", path);
+            return;
+        }
+        
+        self.song_directories.push(path.clone());
+        ctx.config.add_song_directory(path);
+        
+        ctx.config.save();
+        log::info!("Added song directory, now have {} directories", self.song_directories.len());
     }
 }
 
