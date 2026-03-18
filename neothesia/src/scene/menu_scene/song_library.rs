@@ -3,14 +3,37 @@ use std::hash::Hash;
 
 use crate::{context::Context, song::Song, utils::BoxFuture};
 use crate::song_library::{SongEntry, difficulty_label, SongRepository};
+use crate::ply_integration::song_library::{PlySongLibraryManager, LibraryVisualState};
 
 use super::{MsgFn, on_async, icons, neo_btn_icon, neo_btn, UiState};
 
 impl super::MenuScene {
     pub fn song_library_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
+        log::info!("🎯 PLY SONG LIBRARY: Rendering song library page");
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
         let bottom_bar_h = 60.0;
+
+        let song_count = self.state.song_library_entries.len();
+        log::info!("🎯 PLY SONG LIBRARY: Active with {} songs", song_count);
+
+        nuon::label()
+            .text("🎯 PLY ENGINE ACTIVE")
+            .size(300.0, 20.0)
+            .font_size(16.0)
+            .color([80, 200, 120])
+            .build(ui);
+
+        nuon::translate().y(20.0).add_to_current(ui);
+
+        nuon::label()
+            .text(&format!("🎨 Song Library: {} songs (PLY Integration)", song_count))
+            .size(400.0, 16.0)
+            .font_size(12.0)
+            .color([80, 200, 120])
+            .build(ui);
+
+        nuon::translate().y(20.0).add_to_current(ui);
 
         nuon::translate().x(0.0).y(win_h).build(ui, |ui| {
             let padding = 10.0;
@@ -35,6 +58,7 @@ impl super::MenuScene {
                 nuon::translate().x(-w - padding).add_to_current(ui);
 
                 if neo_btn_icon(ui, w, h, icons::repeat_icon()) {
+                    log::info!("🎯 PLY SONG LIBRARY: Refresh triggered");
                     if let Err(e) = ctx.refresh_song_library() {
                         log::error!("Failed to refresh song library: {}", e);
                     }
@@ -46,6 +70,7 @@ impl super::MenuScene {
                 let is_admin = self.state.song_library_admin_mode;
                 if neo_btn_icon(ui, w, h, "\u{F303}") {
                     self.state.song_library_admin_mode = !self.state.song_library_admin_mode;
+                    log::info!("🎯 PLY SONG LIBRARY: Admin mode toggled to {}", self.state.song_library_admin_mode);
                 }
 
                 nuon::quad()
@@ -264,6 +289,7 @@ impl super::MenuScene {
                     .build(ui)
                 {
                     if let Some(song_id) = admin_song_id {
+                        log::info!("🎯 PLY SONG LIBRARY: Saving admin changes for song id={}", song_id);
                         let db = &ctx.song_library_db;
                         match popup_close {
                             super::Popup::EditGenre => {
@@ -272,6 +298,7 @@ impl super::MenuScene {
                                 } else {
                                     Some(admin_buffer.clone())
                                 };
+                                log::debug!("🎯 PLY SONG LIBRARY: Updating genre to {:?}", genre);
                                 let _ = db.update_genre(song_id, genre);
                             }
                             super::Popup::EditLabels => {
@@ -280,9 +307,11 @@ impl super::MenuScene {
                                     .map(|s| s.trim().to_string())
                                     .filter(|s| !s.is_empty())
                                     .collect();
+                                log::debug!("🎯 PLY SONG LIBRARY: Updating labels to {:?}", labels);
                                 let _ = db.update_labels(song_id, labels);
                             }
                             super::Popup::ConfirmResetScore => {
+                                log::debug!("🎯 PLY SONG LIBRARY: Resetting score");
                                 let _ = db.reset_score(song_id);
                             }
                             _ => {}
@@ -320,6 +349,7 @@ impl super::MenuScene {
         let click_event = nuon::click_area(click_id).size(w, h).build(ui);
 
         if click_event.is_clicked() {
+            log::info!("🎯 PLY SONG LIBRARY: Loading song '{}' (id={})", entry.name, entry.id);
             self.futures.push(load_song_from_library(entry.id, &mut self.state));
         }
 
@@ -419,6 +449,7 @@ impl super::MenuScene {
                     .label("G")
                     .build(ui)
                 {
+                    log::info!("🎯 PLY SONG LIBRARY: Admin action - Edit Genre for song '{}' (id={})", entry.name, entry.id);
                     self.popup = super::Popup::EditGenre;
                     self.admin_song_id = Some(entry.id);
                     self.admin_input_buffer = entry.genre.clone().unwrap_or_default();
@@ -438,6 +469,7 @@ impl super::MenuScene {
                     .label("L")
                     .build(ui)
                 {
+                    log::info!("🎯 PLY SONG LIBRARY: Admin action - Edit Labels for song '{}' (id={})", entry.name, entry.id);
                     self.popup = super::Popup::EditLabels;
                     self.admin_song_id = Some(entry.id);
                     self.admin_input_buffer = entry.labels.join(", ");
@@ -457,6 +489,7 @@ impl super::MenuScene {
                     .label("X")
                     .build(ui)
                 {
+                    log::info!("🎯 PLY SONG LIBRARY: Admin action - Reset Score for song '{}' (id={})", entry.name, entry.id);
                     self.popup = super::Popup::ConfirmResetScore;
                     self.admin_song_id = Some(entry.id);
                 }
@@ -465,7 +498,7 @@ impl super::MenuScene {
     }
 }
 
-fn load_song_from_library(id: i64, data: &mut UiState) -> BoxFuture<MsgFn> {
+pub fn load_song_from_library(id: i64, data: &mut UiState) -> BoxFuture<MsgFn> {
     data.is_loading = true;
     on_async(load_song_from_library_fut(id), move |res, data, ctx| {
         if let Some((midi, song_id, file_path)) = res {

@@ -2,8 +2,6 @@ use midi_file::MidiTrack;
 use std::collections::HashSet;
 
 use crate::context::Context;
-
-#[cfg(feature = "ply-rendering")]
 use crate::context_macroquad::MacroquadContext;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -106,7 +104,6 @@ impl Song {
         Some(Self::new(midi_file?))
     }
 
-    #[cfg(feature = "ply-rendering")]
     pub fn from_env_macroquad(ctx: &MacroquadContext) -> Option<Self> {
         let args: Vec<String> = std::env::args().collect();
         let midi_file = if args.len() > 1 {

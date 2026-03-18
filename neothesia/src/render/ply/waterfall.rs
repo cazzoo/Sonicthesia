@@ -1,13 +1,13 @@
 //! PLY-based waterfall renderer for Neothesia
-//! 
+//!
 //! This module provides a bridge between Neothesia's existing waterfall rendering
 //! and the PLY engine, allowing for gradual migration.
 
 use midi_file::{MidiNote, MidiTrack};
-use std::rc::Rc;
+use neothesia_core::render::waterfall::{NoteList, TrackChannelConfig};
 use neothesia_core::{config, render};
-use neothesia_core::render::waterfall::{TrackChannelConfig, NoteList};
 use piano_layout::KeyboardLayout;
+use std::rc::Rc;
 
 /// PLY-based waterfall renderer for Neothesia
 pub struct PlyWaterfallRenderer {
@@ -46,7 +46,7 @@ impl PlyWaterfallRenderer {
     ) {
         // Create note list from MIDI data
         self.notes = NoteList::new(tracks, hidden_tracks, track_channel_configs);
-        
+
         // Configure renderer
         self.config = RenderConfig::from_neothesia_config(config, layout);
         self.layout = Some(layout.clone());
@@ -60,27 +60,27 @@ impl PlyWaterfallRenderer {
         }
         self.current_time = time;
     }
-    
+
     /// Get the notes list
     pub fn notes(&self) -> &NoteList {
         &self.notes
     }
-    
+
     /// Get current time
     pub fn current_time(&self) -> f32 {
         self.current_time
     }
-    
+
     /// Get animation speed
     pub fn animation_speed(&self) -> f32 {
         self.config.animation_speed
     }
-    
+
     /// Check if initialized
     pub fn is_initialized(&self) -> bool {
         self.initialized
     }
-    
+
     /// Get layout
     pub fn layout(&self) -> Option<&KeyboardLayout> {
         self.layout.as_ref()
@@ -132,7 +132,10 @@ impl PlyWaterfallRenderer {
             }
         }
 
-        log::debug!("🎨 PLY Waterfall: Rendered {} notes using macroquad", self.notes.inner().len());
+        log::debug!(
+            "🎨 PLY Waterfall: Rendered {} notes using macroquad",
+            self.notes.inner().len()
+        );
     }
 }
 
@@ -153,9 +156,9 @@ impl RenderConfig {
         Self {
             animation_speed: 1.0,
             color_scheme: vec![
-                ply_engine::color::Color::rgb(255.0, 0.0, 0.0),   // RED
-                ply_engine::color::Color::rgb(0.0, 0.0, 255.0),   // BLUE
-                ply_engine::color::Color::rgb(0.0, 255.0, 0.0),   // GREEN
+                ply_engine::color::Color::rgb(255.0, 0.0, 0.0), // RED
+                ply_engine::color::Color::rgb(0.0, 0.0, 255.0), // BLUE
+                ply_engine::color::Color::rgb(0.0, 255.0, 0.0), // GREEN
                 ply_engine::color::Color::rgb(255.0, 255.0, 0.0), // YELLOW
             ],
             background_color: ply_engine::color::Color::rgb(0.0, 0.0, 0.0), // BLACK
@@ -169,7 +172,9 @@ impl RenderConfig {
     ) -> Self {
         Self {
             animation_speed: config.animation_speed(),
-            color_scheme: config.color_schema().iter()
+            color_scheme: config
+                .color_schema()
+                .iter()
                 .map(|c| ply_engine::color::Color::u_rgba(c.base.0, c.base.1, c.base.2, 255))
                 .collect(),
             background_color: {

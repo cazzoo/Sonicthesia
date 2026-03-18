@@ -13,6 +13,8 @@ pub enum NeothesiaEvent {
     MainMenu(Option<crate::Song>),
     /// Show settings scene
     ShowSettings,
+    /// Show song library scene
+    ShowSongLibrary(Option<crate::Song>),
     /// Show score screen after song completion
     ShowScore {
         song: crate::Song,

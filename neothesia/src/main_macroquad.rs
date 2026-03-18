@@ -17,7 +17,7 @@ fn create_conf() -> Conf {
 // Use existing modules from crate root
 use crate::context_macroquad::MacroquadContext;
 use crate::song::Song;
-use crate::scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene};
+use crate::scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene, PlySongLibraryScene};
 use crate::NeothesiaEvent;
 
 struct MacroquadNeothesia {
@@ -62,23 +62,32 @@ impl MacroquadNeothesia {
     fn handle_event(&mut self, event: NeothesiaEvent) {
         match event {
             NeothesiaEvent::Play(song) => {
+                log::info!("🎯 EVENT: Play song '{}'", song.file.name);
                 self.current_scene = Box::new(PlyPlayingScene::new(song)) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::FreePlay(song) => {
+                log::info!("🎯 EVENT: FreePlay with song: {:?}", song.as_ref().map(|s| &s.file.name));
                 self.current_scene = Box::new(PlyFreeplayScene::new(song)) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::MainMenu(song) => {
+                log::info!("🎯 EVENT: MainMenu with song: {:?}", song.as_ref().map(|s| &s.file.name));
                 self.current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::ShowSettings => {
-                self.current_scene = Box::new(PlySettingsScene::new()) as Box<dyn PlyScene>;
+                let mut scene = PlySettingsScene::new();
+                scene.initialize(&mut self.context);
+                self.current_scene = Box::new(scene) as Box<dyn PlyScene>;
+            }
+            NeothesiaEvent::ShowSongLibrary(song) => {
+                let mut scene = PlySongLibraryScene::new(song);
+                scene.load_songs(&mut self.context);
+                self.current_scene = Box::new(scene) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::ShowScore { song, score_data } => {
                 self.current_scene = Box::new(PlyScoreScene::new(song, score_data)) as Box<dyn PlyScene>;
             }
-            NeothesiaEvent::MidiInput { .. } => {
-                // TODO: Handle MIDI input in scenes
-                log::debug!("MIDI input received (not yet handled in PLY scenes)");
+            NeothesiaEvent::MidiInput { channel, message } => {
+                self.current_scene.handle_midi_event(channel, &message);
             }
             NeothesiaEvent::Exit => {
                 // Will be handled in main loop

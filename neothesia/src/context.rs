@@ -4,10 +4,8 @@ use crate::{
     NeothesiaEvent, input_manager::InputManager,
     output_manager::OutputManager, utils::window::WindowState,
     song_library::{SongRepository, SongLibraryDatabase, default_db_path, Error as SongLibraryError},
+    ply_integration::PlyInputHandler,
 };
-
-#[cfg(feature = "ply-rendering")]
-use crate::ply_integration::PlyInputHandler;
 
 use neothesia_core::render::{QuadRendererFactory, TextRendererFactory};
 use neothesia_core::config::Config;
@@ -29,7 +27,6 @@ pub struct Context {
     pub output_manager: OutputManager,
     pub input_manager: InputManager,
 
-    #[cfg(feature = "ply-rendering")]
     pub ply_input_handler: PlyInputHandler,
 
     pub config: Config,
@@ -90,7 +87,6 @@ impl Context {
             output_manager: Default::default(),
             input_manager: InputManager::new(proxy.clone()),
 
-            #[cfg(feature = "ply-rendering")]
             ply_input_handler: PlyInputHandler::new(proxy.clone()),
 
             config,

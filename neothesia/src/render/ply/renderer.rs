@@ -1,21 +1,23 @@
 //! PLY-based rendering coordinator for Neothesia
-//! 
+//!
 //! This module provides a bridge between Neothesia's existing rendering architecture
 //! and the PLY engine, allowing for gradual migration.
 
-use ply_engine::prelude::*;
-use ply_engine::math::Dimensions;
 use neothesia_core::config::Config;
 use piano_layout::KeyboardLayout;
+use ply_engine::math::Dimensions;
+use ply_engine::prelude::*;
 use std::sync::Arc;
 use std::time::Duration;
 
-use super::{PlyWaterfallRenderer, PlyKeyboardRenderer, PlyGuidelineRenderer, PlyNoteLabelsRenderer};
-use neothesia_core::render::waterfall::TrackChannelConfig;
+use super::{
+    PlyGuidelineRenderer, PlyKeyboardRenderer, PlyNoteLabelsRenderer, PlyWaterfallRenderer,
+};
 use midi_file::MidiTrack;
+use neothesia_core::render::waterfall::TrackChannelConfig;
 
 /// Main PLY rendering coordinator for Neothesia
-/// 
+///
 /// This coordinator manages all PLY-based rendering components and provides
 /// a unified interface that matches Neothesia's existing architecture.
 pub struct PlyRendererCoordinator {
@@ -111,13 +113,7 @@ impl PlyRendererCoordinator {
         // Update note labels
         if let Some(note_labels) = &mut self.note_labels {
             if let Some(keyboard) = &self.keyboard {
-                note_labels.update(
-                    keyboard.layout(),
-                    animation_speed,
-                    time,
-                    scale,
-                    keyboard_y,
-                );
+                note_labels.update(keyboard.layout(), animation_speed, time, scale, keyboard_y);
             }
         }
     }

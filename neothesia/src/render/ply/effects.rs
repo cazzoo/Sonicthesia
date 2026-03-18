@@ -3,10 +3,10 @@
 //! This module provides PLY-integrated visual effects including
 //! glow effects, background animations, and particle effects.
 
-use ply_engine::prelude::*;
-use ply_engine::color::Color;
-use std::time::Duration;
 use piano_layout::KeyboardLayout;
+use ply_engine::color::Color;
+use ply_engine::prelude::*;
+use std::time::Duration;
 
 /// PLY-based glow effect renderer
 pub struct PlyGlowRenderer {
@@ -48,7 +48,15 @@ impl PlyGlowRenderer {
     }
 
     /// Add a glow instance
-    pub fn push(&mut self, key_id: u8, color: (u8, u8, u8), x: f32, y: f32, width: f32, delta: Duration) {
+    pub fn push(
+        &mut self,
+        key_id: u8,
+        color: (u8, u8, u8),
+        x: f32,
+        y: f32,
+        width: f32,
+        delta: Duration,
+    ) {
         if self.glows.len() >= self.max_glows {
             return;
         }
@@ -184,11 +192,7 @@ impl PlyBackgroundRenderer {
             BackgroundMode::Notes | BackgroundMode::Particles => {
                 // Animated notes effect - darker base with subtle animation
                 let t = (self.time * 0.2).sin() * 0.5 + 0.5;
-                Color::rgb(
-                    0.01 + 0.005 * t,
-                    0.01 + 0.002 * t,
-                    0.02 + 0.01 * t,
-                )
+                Color::rgb(0.01 + 0.005 * t, 0.01 + 0.002 * t, 0.02 + 0.01 * t)
             }
         }
     }
@@ -252,13 +256,13 @@ impl PlyParticleRenderer {
             // Simple pseudo-random values
             seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
             let rand1 = (seed % 1000) as f32 / 1000.0;
-            
+
             seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
             let rand2 = (seed % 1000) as f32 / 1000.0;
-            
+
             seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
             let rand3 = (seed % 1000) as f32 / 1000.0;
-            
+
             seed = seed.wrapping_mul(1103515245).wrapping_add(12345);
             let rand4 = (seed % 1000) as f32 / 1000.0;
 
@@ -432,9 +436,13 @@ mod tests {
     #[test]
     fn test_shader_effects() {
         let mut effects = PlyShaderEffects::new();
-        
-        effects.glow_mut().push(60, (255, 0, 0), 100.0, 200.0, 10.0, Duration::from_secs(1));
-        effects.particles_mut().spawn(100.0, 200.0, Color::rgb(0.0, 255.0, 0.0), 5);
+
+        effects
+            .glow_mut()
+            .push(60, (255, 0, 0), 100.0, 200.0, 10.0, Duration::from_secs(1));
+        effects
+            .particles_mut()
+            .spawn(100.0, 200.0, Color::rgb(0.0, 255.0, 0.0), 5);
 
         effects.update(Duration::from_millis(100));
 

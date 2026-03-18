@@ -4,10 +4,12 @@
 //! replacing the WGPU rendering pipeline with PLY's built-in rendering.
 
 use macroquad::prelude::*;
+use midi_file::MidiNote;
 use neothesia_core::config::Config;
 use piano_layout::KeyboardLayout;
-use midi_file::MidiNote;
 use std::rc::Rc;
+
+use super::piano_keyboard::PianoKeyboardRenderer;
 
 /// Macroquad-based waterfall renderer
 pub struct MacroquadWaterfallRenderer {
@@ -25,7 +27,9 @@ struct WaterfallConfig {
 
 impl MacroquadWaterfallRenderer {
     pub fn new(notes: Rc<[MidiNote]>, layout: KeyboardLayout, config: &Config) -> Self {
-        let colors = config.color_schema().iter()
+        let colors = config
+            .color_schema()
+            .iter()
             .map(|c| Color {
                 r: c.base.0 as f32 / 255.0,
                 g: c.base.1 as f32 / 255.0,
@@ -72,7 +76,10 @@ impl MacroquadWaterfallRenderer {
             }
         }
 
-        log::trace!("🎨 PLY RENDERING: Drew {} waterfall notes", self.notes.len());
+        log::trace!(
+            "🎨 PLY RENDERING: Drew {} waterfall notes",
+            self.notes.len()
+        );
     }
 }
 
@@ -94,23 +101,27 @@ struct KeyState {
 
 impl MacroquadKeyboardRenderer {
     pub fn new(layout: KeyboardLayout, config: &Config) -> Self {
-        let keys = layout.keys.iter().map(|key| {
-            let color = if key.kind().is_sharp() {
-                Color::from_hex(0x1a1a1a)
-            } else {
-                Color::from_hex(0xffffff)
-            };
+        let keys = layout
+            .keys
+            .iter()
+            .map(|key| {
+                let color = if key.kind().is_sharp() {
+                    Color::from_hex(0x1a1a1a)
+                } else {
+                    Color::from_hex(0xffffff)
+                };
 
-            KeyState {
-                note: key.note_id(),
-                x: key.x(),
-                y: layout.height,
-                width: key.width(),
-                height: 120.0, // Standard key height
-                color,
-                is_sharp: key.kind().is_sharp(),
-            }
-        }).collect();
+                KeyState {
+                    note: key.note_id(),
+                    x: key.x(),
+                    y: layout.height,
+                    width: key.width(),
+                    height: 120.0, // Standard key height
+                    color,
+                    is_sharp: key.kind().is_sharp(),
+                }
+            })
+            .collect();
 
         Self { layout, keys }
     }
@@ -118,7 +129,14 @@ impl MacroquadKeyboardRenderer {
     pub fn render(&self) {
         for key in &self.keys {
             draw_rectangle(key.x, key.y, key.width, key.height, key.color);
-            draw_rectangle_lines(key.x, key.y, key.width, key.height, 1.0, Color::from_hex(0x000000));
+            draw_rectangle_lines(
+                key.x,
+                key.y,
+                key.width,
+                key.height,
+                1.0,
+                Color::from_hex(0x000000),
+            );
         }
 
         log::trace!("🎨 PLY RENDERING: Drew {} keyboard keys", self.keys.len());
@@ -154,7 +172,14 @@ impl MacroquadGuidelineRenderer {
         // Vertical guidelines
         if self.vertical {
             for key in self.layout.keys.iter() {
-                draw_line(key.x() + key.width() / 2.0, 0.0, key.x() + key.width() / 2.0, 10000.0, 1.0, line_color);
+                draw_line(
+                    key.x() + key.width() / 2.0,
+                    0.0,
+                    key.x() + key.width() / 2.0,
+                    10000.0,
+                    1.0,
+                    line_color,
+                );
             }
         }
 
@@ -174,6 +199,7 @@ impl MacroquadGuidelineRenderer {
 pub struct PlyMacroquadRenderer {
     waterfall: Option<MacroquadWaterfallRenderer>,
     keyboard: Option<MacroquadKeyboardRenderer>,
+    enhanced_keyboard: Option<PianoKeyboardRenderer>,
     guidelines: Option<MacroquadGuidelineRenderer>,
 }
 
@@ -182,6 +208,7 @@ impl PlyMacroquadRenderer {
         Self {
             waterfall: None,
             keyboard: None,
+            enhanced_keyboard: None,
             guidelines: None,
         }
     }
@@ -194,11 +221,15 @@ impl PlyMacroquadRenderer {
         self.keyboard = Some(renderer);
     }
 
+    pub fn set_enhanced_keyboard(&mut self, renderer: PianoKeyboardRenderer) {
+        self.enhanced_keyboard = Some(renderer);
+    }
+
     pub fn set_guidelines(&mut self, renderer: MacroquadGuidelineRenderer) {
         self.guidelines = Some(renderer);
     }
 
-    pub fn render(&mut self, time: f32, animation_speed: f32) {
+    pub fn render(&mut self, time: f32, animation_speed: f32, dt: f32) {
         clear_background(BLACK);
 
         if let Some(waterfall) = &self.waterfall {
@@ -209,10 +240,21 @@ impl PlyMacroquadRenderer {
             guidelines.render(time, animation_speed);
         }
 
-        if let Some(keyboard) = &self.keyboard {
+        if let Some(enhanced_keyboard) = &mut self.enhanced_keyboard {
+            enhanced_keyboard.update(dt);
+            enhanced_keyboard.render();
+        } else if let Some(keyboard) = &self.keyboard {
             keyboard.render();
         }
 
         log::info!("🎨 PLY RENDERING ACTIVE: Frame rendered using macroquad");
+    }
+
+    pub fn enhanced_keyboard_mut(&mut self) -> Option<&mut PianoKeyboardRenderer> {
+        self.enhanced_keyboard.as_mut()
+    }
+
+    pub fn enhanced_keyboard(&self) -> Option<&PianoKeyboardRenderer> {
+        self.enhanced_keyboard.as_ref()
     }
 }

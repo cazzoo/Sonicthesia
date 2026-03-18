@@ -333,6 +333,20 @@ impl Ui {
         self.mouse_down = false;
     }
 
+    // WGPU-ONLY CODE DE-ACTIVATED: Pointer position methods for nuon UI system
+    // These methods are only needed for WGPU rendering (nuon UI system)
+    // PLY rendering uses a different UI system (PLY UI in ply_integration/ui/mod.rs)
+    //
+    /// Get the current pointer position
+    // pub fn pointer_position(&self) -> Point {
+    //     self.pointer_pos
+    // }
+
+    /// Set the pointer position directly (useful for restoring state)
+    // pub fn set_pointer_position(&mut self, pos: Point) {
+    //     self.pointer_pos = pos;
+    // }
+
     pub fn done(&mut self) {
         self.layers.clear();
         self.mouse_pressed = false;

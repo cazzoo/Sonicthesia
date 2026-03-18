@@ -1,5 +1,5 @@
 //! PLY UI Integration Module
-//! 
+//!
 //! This module provides a PLY-based UI framework that mirrors the functionality
 //! of the existing Nuon UI framework, enabling gradual migration from Nuon to PLY.
 
@@ -17,6 +17,9 @@ mod tests;
 use widgets::*;
 use layout::*;
 
+// Import unified input system
+use crate::ply_integration::input::{InputPriority, InputPriorityManager};
+
 /// PLY-based UI state manager
 pub struct PlyUi {
     /// Current layout stack
@@ -32,13 +35,13 @@ pub struct PlyUi {
     mouse_pressed: bool,
     mouse_down: bool,
     
-    /// Hovered widget
+    /// Hovered widget (internal only, used to update focused when mouse has priority)
     hovered: Option<u64>,
     
     /// Active widget (being interacted with)
     active: Option<u64>,
     
-    /// Focused widget (for keyboard navigation)
+    /// Focused widget (the ONLY focus indicator)
     focused: Option<u64>,
     
     /// All focusable widgets in order
@@ -52,6 +55,9 @@ pub struct PlyUi {
     
     /// Keyboard state
     keyboard_state: KeyboardState,
+    
+    /// Unified input priority manager
+    priority_manager: InputPriorityManager,
 }
 
 /// Focusable widget information
@@ -122,6 +128,7 @@ impl PlyUi {
             focus_index: 0,
             commands: Vec::new(),
             keyboard_state: KeyboardState::default(),
+            priority_manager: InputPriorityManager::new(),
         }
     }
     
@@ -148,6 +155,18 @@ impl PlyUi {
     /// Handle mouse movement
     pub fn mouse_move(&mut self, x: f32, y: f32) {
         self.pointer_pos = (x, y);
+        // Update priority manager with mouse position
+        self.priority_manager.update_mouse_position(x, y);
+        
+        // When mouse has priority, hovered widget becomes the focused widget
+        if self.priority_manager.has_mouse_priority() {
+            if let Some(hovered) = self.hovered {
+                self.focused = Some(hovered);
+            } else {
+                // No widget hovered, clear focus
+                self.focused = None;
+            }
+        }
     }
     
     /// Handle mouse button press
@@ -217,7 +236,7 @@ impl PlyUi {
         // Check if mouse is over widget (in scissor rect)
         let mouseover = self.in_scissor_rect(px, py) && px >= x && px <= x + w && py >= y && py <= y + h;
         
-        // Update hovered state
+        // Update hovered state internally
         if mouseover {
             self.hovered = Some(id);
         } else if self.hovered == Some(id) {
@@ -238,8 +257,23 @@ impl PlyUi {
             false
         };
         
+        // When mouse has priority, hovered widget becomes the focused widget
+        if self.priority_manager.has_mouse_priority() {
+            if let Some(hovered) = self.hovered {
+                self.focused = Some(hovered);
+            } else if self.hovered == Some(id) {
+                // This widget is no longer hovered
+                if self.focused == Some(id) {
+                    self.focused = None;
+                }
+            }
+        }
+        
+        // Use focused state for visual feedback (single focus indicator)
+        let is_focused = self.focused == Some(id);
+        
         let state = WidgetState {
-            hovered: is_hovered && !is_active,
+            hovered: is_focused && !is_active, // Use focused instead of hovered
             pressed: is_active,
             clicked,
         };
@@ -261,6 +295,9 @@ impl PlyUi {
     /// Handle keyboard event
     pub fn handle_key_event(&mut self, key: &WinitKey) -> KeyboardAction {
         use winit::keyboard::NamedKey;
+        
+        // Set keyboard priority when keyboard input is detected
+        self.priority_manager.set_keyboard_priority();
         
         match key {
             WinitKey::Named(NamedKey::Tab) => {
@@ -356,6 +393,8 @@ impl PlyUi {
         
         self.focus_index = (self.focus_index + 1) % self.focusable_widgets.len();
         self.focused = Some(self.focusable_widgets[self.focus_index].id);
+        // Clear hover state when keyboard navigates (prevents visual conflicts)
+        self.hovered = None;
         log::debug!("Focused widget: {:?}", self.focusable_widgets[self.focus_index].label);
     }
     
@@ -371,6 +410,8 @@ impl PlyUi {
             self.focus_index -= 1;
         }
         self.focused = Some(self.focusable_widgets[self.focus_index].id);
+        // Clear hover state when keyboard navigates (prevents visual conflicts)
+        self.hovered = None;
         log::debug!("Focused widget: {:?}", self.focusable_widgets[self.focus_index].label);
     }
     
@@ -379,6 +420,8 @@ impl PlyUi {
         if let Some(index) = self.focusable_widgets.iter().position(|w| w.id == id) {
             self.focus_index = index;
             self.focused = Some(id);
+            // Clear hover state when setting focus programmatically
+            self.hovered = None;
         }
     }
     
@@ -401,6 +444,40 @@ impl PlyUi {
     /// Get keyboard state
     pub fn keyboard_state(&self) -> &KeyboardState {
         &self.keyboard_state
+    }
+    
+    /// Update UI state (call each frame)
+    pub fn update(&mut self, delta_time: f64) {
+        // Update priority manager timeout state
+        self.priority_manager.update(delta_time);
+    }
+    
+    /// Get current input priority
+    pub fn get_input_priority(&self) -> InputPriority {
+        self.priority_manager.get_priority()
+    }
+    
+    /// Check if mouse has priority
+    pub fn has_mouse_priority(&self) -> bool {
+        self.priority_manager.has_mouse_priority()
+    }
+    
+    /// Check if keyboard has priority
+    pub fn has_keyboard_priority(&self) -> bool {
+        self.priority_manager.has_keyboard_priority()
+    }
+    
+    /// Check if mouse cursor should be visible (true when mouse has priority or no priority)
+    pub fn should_show_cursor(&self) -> bool {
+        self.priority_manager.should_show_cursor()
+    }
+    
+    /// Set cursor visibility callback
+    pub fn set_cursor_visibility_callback<F>(&mut self, callback: F)
+    where
+        F: Fn(bool) + Send + 'static,
+    {
+        self.priority_manager.set_cursor_visibility_callback(callback);
     }
 }
 

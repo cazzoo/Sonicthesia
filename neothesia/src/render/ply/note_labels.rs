@@ -1,10 +1,10 @@
 //! PLY-based note labels renderer for Neothesia
-//! 
+//!
 //! This module provides a bridge between Neothesia's existing note label rendering
 //! and the PLY engine, allowing for gradual migration.
 
-use piano_layout::KeyboardLayout;
 use neothesia_core::render::waterfall::NoteList;
+use piano_layout::KeyboardLayout;
 
 /// PLY-based note labels renderer for Neothesia
 pub struct PlyNoteLabelsRenderer {

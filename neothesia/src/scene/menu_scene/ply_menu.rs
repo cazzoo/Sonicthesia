@@ -1,31 +1,49 @@
 //! PLY-based Main Menu Implementation
 //!
-//! This module demonstrates how to migrate the main menu from Nuon to PLY UI.
+//! This module demonstrates how to migrate the main menu from Nuon to PLY UI
+//! using the unified input system for a single focus indicator.
 
 use crate::context::Context;
 use crate::ply_integration::ui::{PlyUi, center_x, center_y, TextAlignment};
 use crate::ply_integration::ui::widgets::{Button, Label, Quad};
+use crate::ply_integration::input::UnifiedInputManager;
 use crate::song::Song;
 
 /// PLY-based main menu state
 pub struct PlyMainMenu {
     ui: PlyUi,
     song: Option<Song>,
+    input_manager: UnifiedInputManager,
 }
 
 impl PlyMainMenu {
-    /// Create a new PLY-based main menu
+    /// Create a new PLY-based main menu with unified input system
     pub fn new(song: Option<Song>) -> Self {
+        let mut input_manager = UnifiedInputManager::new();
+        
+        // Initialize cursor visibility callback
+        input_manager.focus().priority().set_cursor_visibility_callback(Box::new(|visible| {
+            if visible {
+                macroquad::input::show_mouse(true);
+            } else {
+                macroquad::input::show_mouse(false);
+            }
+        }));
+        
         Self {
             ui: PlyUi::new(),
             song,
+            input_manager,
         }
     }
     
-    /// Update the main menu UI
+    /// Update the main menu UI with unified input system
     pub fn update(&mut self, ctx: &mut Context) -> MenuAction {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
+        
+        // Update unified input manager
+        self.input_manager.update(0.016); // ~60fps
         
         // Begin frame
         self.ui.begin_frame(win_w, win_h);
@@ -148,8 +166,10 @@ impl PlyMainMenu {
         }
     }
     
-    /// Handle mouse movement
+    /// Handle mouse movement with unified input system
     pub fn mouse_move(&mut self, x: f32, y: f32) {
+        // Update unified input manager's mouse position
+        self.input_manager.focus().priority().update_mouse_position(x, y);
         self.ui.mouse_move(x, y);
     }
     
@@ -166,6 +186,11 @@ impl PlyMainMenu {
     /// Handle scroll
     pub fn scroll(&mut self, delta: f32) {
         // TODO: Handle scroll for scrollable areas
+    }
+    
+    /// Get the unified input manager for external event handling
+    pub fn input_manager(&mut self) -> &mut UnifiedInputManager {
+        &mut self.input_manager
     }
 }
 

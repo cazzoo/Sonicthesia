@@ -1,12 +1,13 @@
 //! PLY-based Settings Menu Implementation
 //!
-//! This module demonstrates how to migrate the settings menu from Nuon to PLY UI.
-//! It provides full interactive settings functionality matching the legacy WGPU settings.
+//! This module demonstrates how to migrate the settings menu from Nuon to PLY UI
+//! using the unified input system for a single focus indicator.
 
 use crate::context::Context;
 use crate::ply_integration::ui::{PlyUi, center_x, center_y, TextAlignment, KeyboardAction};
 use crate::ply_integration::ui::widgets::{Button, Label, Quad, Scroll};
 use crate::ply_integration::ui::layout::{SettingsSection, SettingsRow};
+use crate::ply_integration::input::UnifiedInputManager;
 use std::path::PathBuf;
 use winit::keyboard::Key;
 
@@ -30,6 +31,8 @@ pub struct PlySettingsMenu {
     outputs: Vec<String>,
     /// Available input devices
     inputs: Vec<String>,
+    /// Unified input manager for single focus indicator
+    input_manager: UnifiedInputManager,
 }
 
 /// SoundFont entry
@@ -54,8 +57,19 @@ impl Default for PopupState {
 }
 
 impl PlySettingsMenu {
-    /// Create a new PLY-based settings menu
+    /// Create a new PLY-based settings menu with unified input system
     pub fn new() -> Self {
+        let mut input_manager = UnifiedInputManager::new();
+        
+        // Initialize cursor visibility callback
+        input_manager.focus().priority().set_cursor_visibility_callback(Box::new(|visible| {
+            if visible {
+                macroquad::input::show_mouse(true);
+            } else {
+                macroquad::input::show_mouse(false);
+            }
+        }));
+        
         Self {
             ui: PlyUi::new(),
             scroll_state: 0.0,
@@ -67,6 +81,7 @@ impl PlySettingsMenu {
             is_loading: false,
             outputs: Vec::new(),
             inputs: Vec::new(),
+            input_manager,
         }
     }
     
@@ -92,10 +107,13 @@ impl PlySettingsMenu {
                    self.soundfont_files.len(), self.outputs.len(), self.inputs.len());
     }
     
-    /// Update the settings menu UI and handle actions
+    /// Update the settings menu UI and handle actions with unified input system
     pub fn update(&mut self, ctx: &mut Context) -> SettingsAction {
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
+        
+        // Update unified input manager
+        self.input_manager.update(0.016); // ~60fps
         
         // Begin frame
         self.ui.begin_frame(win_w, win_h);
@@ -1096,8 +1114,10 @@ impl PlySettingsMenu {
         }
     }
     
-    /// Handle mouse movement
+    /// Handle mouse movement with unified input system
     pub fn mouse_move(&mut self, x: f32, y: f32) {
+        // Update unified input manager's mouse position
+        self.input_manager.focus().priority().update_mouse_position(x, y);
         self.ui.mouse_move(x, y);
     }
     
@@ -1114,6 +1134,11 @@ impl PlySettingsMenu {
     /// Handle scroll
     pub fn scroll(&mut self, delta: f32) {
         self.scroll_state = (self.scroll_state - delta).max(0.0);
+    }
+    
+    /// Get the unified input manager for external event handling
+    pub fn input_manager(&mut self) -> &mut UnifiedInputManager {
+        &mut self.input_manager
     }
     
     /// Handle keyboard event
@@ -1154,16 +1179,13 @@ impl PlySettingsMenu {
         log::info!("Requesting SoundFont folder picker");
         
         // Use rfd for native file dialog
-        #[cfg(feature = "ply-rendering")]
+        if let Some(folder) = rfd::AsyncFileDialog::new()
+            .pick_folder()
+            .await
         {
-            if let Some(folder) = rfd::AsyncFileDialog::new()
-                .pick_folder()
-                .await
-            {
-                let path = folder.path().to_path_buf();
-                log::info!("Selected SoundFont folder: {:?}", path);
-                return Some(path);
-            }
+            let path = folder.path().to_path_buf();
+            log::info!("Selected SoundFont folder: {:?}", path);
+            return Some(path);
         }
         
         log::warn!("Folder picker not available or cancelled");
@@ -1175,16 +1197,13 @@ impl PlySettingsMenu {
         log::info!("Requesting song directory picker");
         
         // Use rfd for native file dialog
-        #[cfg(feature = "ply-rendering")]
+        if let Some(folder) = rfd::AsyncFileDialog::new()
+            .pick_folder()
+            .await
         {
-            if let Some(folder) = rfd::AsyncFileDialog::new()
-                .pick_folder()
-                .await
-            {
-                let path = folder.path().to_path_buf();
-                log::info!("Selected song directory: {:?}", path);
-                return Some(path);
-            }
+            let path = folder.path().to_path_buf();
+            log::info!("Selected song directory: {:?}", path);
+            return Some(path);
         }
         
         log::warn!("Folder picker not available or cancelled");

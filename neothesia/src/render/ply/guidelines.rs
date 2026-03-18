@@ -1,5 +1,5 @@
 //! PLY-based guideline renderer for Neothesia
-//! 
+//!
 //! This module provides a bridge between Neothesia's existing guideline rendering
 //! and the PLY engine, allowing for gradual migration.
 

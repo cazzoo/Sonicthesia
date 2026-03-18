@@ -6,16 +6,12 @@ edition.workspace = true
 default-run = "neothesia"
 
 [features]
-default = ["oxi-synth", "ply-rendering"]
+default = ["oxi-synth"]
 
 profiling-on = ["profiling/profile-with-puffin"]
 synth = []
 fluid-synth = ["synth", "cpal", "fluidlite", "oxisynth"]
 oxi-synth = ["synth", "cpal", "oxisynth"]
-
-# Rendering engine selection
-ply-rendering = ["ply-engine", "macroquad"]  # Use PLY/macroquad rendering (default)
-wgpu-rendering = [] # Use WGPU rendering (legacy)
 
 [dependencies]
 pollster.workspace = true
@@ -28,7 +24,7 @@ neothesia-image.workspace = true
 midi-file.workspace = true
 midi-io.workspace = true
 nuon.workspace = true
-ply-engine = { workspace = true, optional = true }
+ply-engine.workspace = true
 futures-channel.workspace = true
 cosmic-text.workspace = true
 
@@ -52,8 +48,7 @@ thiserror.workspace = true
 serde_json.workspace = true
 
 # Macroquad for PLY rendering (renamed from macroquad-ply to avoid duplicate symbols)
-# When ply-rendering is enabled, we use macroquad-ply instead of macroquad to avoid conflicts
-macroquad = { package = "macroquad-ply", version = "0.4", optional = true }
+macroquad = { package = "macroquad-ply", version = "0.4" }
 
 [[bin]]
 name = "neothesia"

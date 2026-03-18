@@ -3,11 +3,9 @@ pub mod menu_scene;
 pub mod playing_scene;
 pub mod score_scene;
 
-// PLY-specific scene implementations (only when ply-rendering feature is enabled)
-#[cfg(feature = "ply-rendering")]
+// PLY-specific scene implementations
 pub mod ply_scene;
-#[cfg(feature = "ply-rendering")]
-pub use ply_scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene};
+pub use ply_scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene, PlySongLibraryScene};
 
 use crate::{
     NeothesiaEvent, context::Context, scene::playing_scene::Keyboard, utils::window::WinitEvent,
@@ -28,7 +26,6 @@ pub trait Scene {
     fn midi_event(&mut self, _ctx: &mut Context, _channel: u8, _message: &MidiMessage) {}
     
     /// Render using PLY/macroquad (new method for PLY rendering)
-    #[cfg(feature = "ply-rendering")]
     fn render_ply(&mut self, _ctx: &mut crate::context_macroquad::MacroquadContext) {
         // Default implementation does nothing
         // Each scene will override this to implement PLY rendering

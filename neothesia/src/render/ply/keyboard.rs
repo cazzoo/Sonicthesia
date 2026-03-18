@@ -1,10 +1,10 @@
 //! PLY-based keyboard renderer for Neothesia
-//! 
+//!
 //! This module provides a bridge between Neothesia's existing keyboard rendering
 //! and the PLY engine, allowing for gradual migration.
 
-use piano_layout::KeyboardLayout;
 use neothesia_core::config::Config;
+use piano_layout::KeyboardLayout;
 
 /// PLY-based keyboard renderer for Neothesia
 pub struct PlyKeyboardRenderer {
@@ -73,7 +73,7 @@ impl PlyKeyboardRenderer {
             .iter()
             .map(|id| KeyState::new(id.is_black()))
             .collect();
-        
+
         self.layout = layout;
         self.key_states = key_states;
     }
@@ -122,11 +122,11 @@ impl KeyState {
         if let Some(color) = self.pressed_by_user {
             return color;
         }
-        
+
         if let Some(color) = self.pressed_by_file {
             return color;
         }
-        
+
         // Default key color
         if self.is_black {
             [0.1, 0.1, 0.1, 1.0]

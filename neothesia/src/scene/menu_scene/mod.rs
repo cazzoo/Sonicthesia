@@ -12,13 +12,7 @@ mod settings;
 mod song_library;
 mod tracks;
 
-// PLY UI integration (only when ply-rendering feature is enabled)
-#[cfg(feature = "ply-rendering")]
-mod ply_menu;
-// Note: ply_settings is not used in Macroquad version
-// The PlySettingsScene in ply_scene.rs has its own implementation
-// mod ply_settings;
-// pub use ply_settings::{PlySettingsMenu, SettingsAction};
+// PLY UI integration removed - PlyUi components have been removed as part of Nuon cleanup
 
 use std::{future::Future, time::Duration};
 
@@ -147,7 +141,23 @@ impl MenuScene {
             return;
         }
 
+        // WGPU-ONLY CODE DE-ACTIVATED: Mouse state preservation for nuon UI system
+        // This code is only needed for WGPU rendering (nuon UI system)
+        // PLY rendering uses a different UI system (PLY UI in ply_integration/ui/mod.rs)
+        //
+        // CRITICAL FIX: Save mouse state BEFORE replacing the UI
+        // The old code used mem::replace which created a brand new Ui with
+        // default mouse state (pointer_pos = (-1,-1), mouse_pressed = false).
+        // This broke hover detection and click handling.
+        // We now preserve both pointer position and mouse_pressed state.
+        // let saved_pointer_pos = self.nuon.pointer_position();
+        // let saved_mouse_pressed = self.nuon.mouse_pressed;
+
+        // Replace with new Ui (which resets all state including pointer_pos)
         let mut nuon = std::mem::replace(&mut self.nuon, nuon::Ui::new());
+
+        // Restore pointer position to the new Ui so hover detection works
+        // nuon.set_pointer_position(saved_pointer_pos);
 
         match self.state.current() {
             Page::Exit => self.exit_page_ui(ctx, &mut nuon),
@@ -157,6 +167,9 @@ impl MenuScene {
             Page::TrackSelection => self.tracks_page_ui(ctx, &mut nuon),
             Page::PlayMode => self.play_mode_page_ui(ctx, &mut nuon),
         }
+
+        // Restore mouse_pressed state for click detection
+        // nuon.mouse_pressed = saved_mouse_pressed;
 
         self.nuon = nuon;
     }

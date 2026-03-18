@@ -98,8 +98,6 @@
 ### Build with PLY Rendering (Default)
 ```bash
 cargo build
-# or explicitly:
-cargo build --features ply-rendering
 ```
 
 ### Build with WGPU Rendering (Legacy)
@@ -110,8 +108,6 @@ cargo build --features wgpu-rendering,oxi-synth --no-default-features
 ### Run with PLY Rendering
 ```bash
 cargo run
-# or explicitly:
-cargo run --features ply-rendering
 ```
 
 ### Run with WGPU Rendering
@@ -430,7 +426,7 @@ Both `macroquad` (direct dependency) and `macroquad-ply` (from `ply-engine` depe
 
 ### Verification
 Both rendering engines now build successfully:
-- ✅ `cargo build --features ply-rendering` - Builds without errors
+- ✅ `cargo build` - Builds without errors
 - ✅ `cargo build --features wgpu-rendering` - Builds without errors
 
 ### Technical Details

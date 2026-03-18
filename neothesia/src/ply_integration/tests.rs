@@ -350,98 +350,10 @@ mod tests {
     }
 
     // Integration tests for UI module
+    // Note: PlyUi tests removed - PlyUi has been removed as part of Nuon cleanup
+    
     #[test]
-    fn test_ply_ui_creation() {
-        let ui = ui::PlyUi::new();
-        assert_eq!(ui.current_offset(), (0.0, 0.0));
-    }
-
-    #[test]
-    fn test_ply_ui_default() {
-        let ui = ui::PlyUi::default();
-        assert_eq!(ui.current_offset(), (0.0, 0.0));
-    }
-
-    #[test]
-    fn test_ply_ui_begin_end_frame() {
-        let mut ui = ui::PlyUi::new();
-        
-        ui.begin_frame(1280.0, 720.0);
-        let commands = ui.end_frame();
-        assert!(commands.is_empty());
-    }
-
-    #[test]
-    fn test_ply_ui_mouse_movement() {
-        let mut ui = ui::PlyUi::new();
-        
-        ui.mouse_move(100.0, 200.0);
-        ui.mouse_down();
-        ui.mouse_up();
-    }
-
-    #[test]
-    fn test_ply_ui_layer_stack() {
-        let mut ui = ui::PlyUi::new();
-        
-        ui.push_layer();
-        ui.translate(10.0, 20.0);
-        assert_eq!(ui.current_offset(), (10.0, 20.0));
-        
-        ui.pop_layer();
-        assert_eq!(ui.current_offset(), (0.0, 0.0));
-    }
-
-    #[test]
-    fn test_ply_ui_scissor_rect() {
-        let mut ui = ui::PlyUi::new();
-        
-        ui.set_scissor_rect(10.0, 20.0, 100.0, 200.0);
-        assert!(ui.in_scissor_rect(50.0, 100.0));
-        assert!(!ui.in_scissor_rect(5.0, 100.0)); // Outside x
-        assert!(!ui.in_scissor_rect(50.0, 10.0)); // Outside y
-    }
-
-    #[test]
-    fn test_ply_ui_widget_state() {
-        let mut ui = ui::PlyUi::new();
-        
-        ui.begin_frame(1280.0, 720.0);
-        let state = ui.update_widget_state(123, (100.0, 100.0, 200.0, 50.0));
-        
-        assert!(!state.hovered);
-        assert!(!state.pressed);
-        assert!(!state.clicked);
-    }
-
-    #[test]
-    fn test_ply_ui_render_command() {
-        use ui::RenderCommand;
-        
-        let cmd = RenderCommand::Quad {
-            x: 10.0,
-            y: 20.0,
-            width: 100.0,
-            height: 50.0,
-            color: [255, 0, 0, 255],
-            border_radius: [5.0, 5.0, 5.0, 5.0],
-        };
-        
-        match cmd {
-            RenderCommand::Quad { x, y, width, height, color, border_radius } => {
-                assert_eq!(x, 10.0);
-                assert_eq!(y, 20.0);
-                assert_eq!(width, 100.0);
-                assert_eq!(height, 50.0);
-                assert_eq!(color, [255, 0, 0, 255]);
-                assert_eq!(border_radius, [5.0, 5.0, 5.0, 5.0]);
-            }
-            _ => panic!("Expected Quad command"),
-        }
-    }
-
-    #[test]
-    fn test_ply_ui_text_alignment() {
+    fn test_ui_text_alignment() {
         use ui::TextAlignment;
         
         let _ = TextAlignment::Left;

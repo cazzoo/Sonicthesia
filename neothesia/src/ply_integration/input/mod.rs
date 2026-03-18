@@ -17,11 +17,19 @@ mod keyboard;
 mod mouse;
 mod gamepad;
 mod keyboard_to_midi;
+mod priority_manager;
+mod focus_manager;
+mod unified_input;
+mod cursor;
 
 pub use keyboard::PlyKeyboardHandler;
 pub use mouse::PlyMouseHandler;
 pub use gamepad::PlyGamepadHandler;
 pub use keyboard_to_midi::KeyboardToMidiConverter;
+pub use priority_manager::{InputPriority, InputPriorityManager};
+pub use focus_manager::{FocusManager, FocusableElement, ElementType, KeyboardInput, FocusAction};
+pub use unified_input::{UnifiedInputManager, InputAction};
+pub use cursor::{init_cursor_with_callback, set_cursor_visibility, is_cursor_visible};
 
 /// Neothesia input actions that can be triggered
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
