@@ -5,6 +5,15 @@
 use macroquad::prelude::*;
 use std::time::Duration;
 
+/// Create the Macroquad configuration with anti-aliasing enabled
+fn create_conf() -> Conf {
+    Conf {
+        window_title: "Neothesia".to_string(),
+        sample_count: 4, // Enable 4x MSAA anti-aliasing
+        ..Default::default()
+    }
+}
+
 // Use existing modules from crate root
 use crate::context_macroquad::MacroquadContext;
 use crate::song::Song;
@@ -83,7 +92,7 @@ impl MacroquadNeothesia {
     }
 }
 
-#[macroquad::main("Neothesia")]
+#[macroquad::main(create_conf)]
 pub async fn main() {
     env_logger::Builder::from_env(
         env_logger::Env::default().default_filter_or("info"),
