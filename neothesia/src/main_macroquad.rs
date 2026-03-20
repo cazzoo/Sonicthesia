@@ -111,10 +111,27 @@ pub async fn main() {
     let mut app = MacroquadNeothesia::new();
     let mut last_frame_time = std::time::Instant::now();
     let mut should_exit = false;
+    let mut frame_count: u32 = 0;
 
     loop {
         let delta = last_frame_time.elapsed();
         last_frame_time = std::time::Instant::now();
+
+        // Log window and input state periodically
+        frame_count += 1;
+        if frame_count % 60 == 0 {
+            // Every 60 frames (~1 second at 60fps)
+            let screen_w = screen_width();
+            let screen_h = screen_height();
+            let (mouse_x, mouse_y) = mouse_position();
+            let mouse_left = is_mouse_button_pressed(MouseButton::Left);
+            let mouse_down = is_mouse_button_down(MouseButton::Left);
+            
+            log::info!(
+                "[MAIN] Frame {}: Screen={:.0}x{:.0}, Mouse=({:.1},{:.1}), Left: pressed={} down={}",
+                frame_count, screen_w, screen_h, mouse_x, mouse_y, mouse_left, mouse_down
+            );
+        }
 
         // Check for exit event in queue
         if app.event_queue.iter().any(|e| matches!(e, NeothesiaEvent::Exit)) {

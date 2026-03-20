@@ -708,6 +708,44 @@ impl PlyScene for PlyPlayingScene {
 
         let dt = delta.as_secs_f32();
 
+        // Comprehensive mouse input logging
+        let screen_w = screen_width();
+        let screen_h = screen_height();
+        let mouse_pos = mouse_position();
+        let mouse_is_down = is_mouse_button_down(MouseButton::Left);
+        let mouse_is_pressed = is_mouse_button_pressed(MouseButton::Left);
+        let mouse_is_released = is_mouse_button_released(MouseButton::Left);
+        
+        // Log all mouse buttons
+        let left_pressed = is_mouse_button_pressed(MouseButton::Left);
+        let right_pressed = is_mouse_button_pressed(MouseButton::Right);
+        let middle_pressed = is_mouse_button_pressed(MouseButton::Middle);
+        
+        log::debug!(
+            "[DEBUG] [PlyPlayingScene::update] === MOUSE INPUT DUMP ==="
+        );
+        log::debug!(
+            "[DEBUG] [PlyPlayingScene::update] Screen size: {:.0}x{:.0}", screen_w, screen_h
+        );
+        log::debug!(
+            "[DEBUG] [PlyPlayingScene::update] Mouse position: ({:.1}, {:.1})", mouse_pos.0, mouse_pos.1
+        );
+        log::debug!(
+            "[DEBUG] [PlyPlayingScene::update] Mouse buttons - Left: pressed={} down={} released={}, Right: pressed={}, Middle: pressed={}",
+            left_pressed, mouse_is_down, mouse_is_released, right_pressed, middle_pressed
+        );
+        log::debug!(
+            "[DEBUG] [PlyPlayingScene::update] Previous state: mouse_was_pressed={}", self.mouse_was_pressed
+        );
+        
+        // Check if mouse is over the piano keyboard area
+        let keyboard_y_start = screen_h - 150.0; // Approximate keyboard area
+        let is_over_keyboard = mouse_pos.1 >= keyboard_y_start;
+        log::debug!(
+            "[DEBUG] [PlyPlayingScene::update] Mouse over keyboard area (y>={:.1}): {}", keyboard_y_start, is_over_keyboard
+        );
+        
+        log::debug!("[DEBUG] [PlyPlayingScene::update] Entry - dt={:.4}", dt);
         self.piano_keyboard.update(dt);
 
         if is_key_pressed(KeyCode::Escape) {
@@ -718,10 +756,8 @@ impl PlyScene for PlyPlayingScene {
             self.paused = !self.paused;
         }
 
-        let mouse_is_pressed = is_mouse_button_pressed(MouseButton::Left);
-        let mouse_pos = mouse_position();
-
-        if mouse_is_pressed && !self.mouse_was_pressed {
+        if mouse_is_down && !self.mouse_was_pressed {
+            log::debug!("[DEBUG] [PlyPlayingScene::update] Mouse just pressed - calling handle_mouse_input()");
             if let Some(notes) = self.piano_keyboard.handle_mouse_input(
                 Vec2::new(mouse_pos.0, mouse_pos.1),
                 MouseButton::Left,
@@ -737,7 +773,8 @@ impl PlyScene for PlyPlayingScene {
                         .midi_event(0u8.into(), message);
                 }
             }
-        } else if !mouse_is_pressed && self.mouse_was_pressed {
+        } else if !mouse_is_down && self.mouse_was_pressed {
+            log::debug!("[DEBUG] [PlyPlayingScene::update] Mouse just released - calling handle_mouse_input()");
             if let Some(notes) = self.piano_keyboard.handle_mouse_input(
                 Vec2::new(mouse_pos.0, mouse_pos.1),
                 MouseButton::Left,
@@ -753,7 +790,8 @@ impl PlyScene for PlyPlayingScene {
                         .midi_event(0u8.into(), message);
                 }
             }
-        } else if mouse_is_pressed && self.mouse_was_pressed {
+        } else if mouse_is_down && self.mouse_was_pressed {
+            log::debug!("[DEBUG] [PlyPlayingScene::update] Mouse dragging - calling handle_mouse_drag()");
             if let Some(notes) = self
                 .piano_keyboard
                 .handle_mouse_drag(Vec2::new(mouse_pos.0, mouse_pos.1))
@@ -770,8 +808,9 @@ impl PlyScene for PlyPlayingScene {
             }
         }
 
-        self.mouse_was_pressed = mouse_is_pressed;
+        self.mouse_was_pressed = mouse_is_down;
 
+        log::debug!("[DEBUG] [PlyPlayingScene::update] Exit - update complete");
         None
     }
 
@@ -888,17 +927,54 @@ impl PlyScene for PlyFreeplayScene {
 
         let dt = delta.as_secs_f32();
 
+        // Comprehensive mouse input logging
+        let screen_w = screen_width();
+        let screen_h = screen_height();
+        let mouse_pos = mouse_position();
+        let mouse_is_down = is_mouse_button_down(MouseButton::Left);
+        let mouse_is_pressed = is_mouse_button_pressed(MouseButton::Left);
+        let mouse_is_released = is_mouse_button_released(MouseButton::Left);
+        
+        // Log all mouse buttons
+        let left_pressed = is_mouse_button_pressed(MouseButton::Left);
+        let right_pressed = is_mouse_button_pressed(MouseButton::Right);
+        let middle_pressed = is_mouse_button_pressed(MouseButton::Middle);
+        
+        log::debug!(
+            "[DEBUG] [PlyFreeplayScene::update] === MOUSE INPUT DUMP ==="
+        );
+        log::debug!(
+            "[DEBUG] [PlyFreeplayScene::update] Screen size: {:.0}x{:.0}", screen_w, screen_h
+        );
+        log::debug!(
+            "[DEBUG] [PlyFreeplayScene::update] Mouse position: ({:.1}, {:.1})", mouse_pos.0, mouse_pos.1
+        );
+        log::debug!(
+            "[DEBUG] [PlyFreeplayScene::update] Mouse buttons - Left: pressed={} down={} released={}, Right: pressed={}, Middle: pressed={}",
+            left_pressed, mouse_is_down, mouse_is_released, right_pressed, middle_pressed
+        );
+        log::debug!(
+            "[DEBUG] [PlyFreeplayScene::update] Previous state: mouse_was_pressed={}", self.mouse_was_pressed
+        );
+        
+        // Check if mouse is over the piano keyboard area
+        // Piano keyboard is typically at the bottom of the screen
+        let keyboard_y_start = screen_h - 150.0; // Approximate keyboard area
+        let is_over_keyboard = mouse_pos.1 >= keyboard_y_start;
+        log::debug!(
+            "[DEBUG] [PlyFreeplayScene::update] Mouse over keyboard area (y>={:.1}): {}", keyboard_y_start, is_over_keyboard
+        );
+        
+        log::debug!("[DEBUG] [PlyFreeplayScene::update] Entry - dt={:.4}", dt);
         self.piano_keyboard.update(dt);
 
         if is_key_pressed(KeyCode::Escape) {
             return Some(NeothesiaEvent::MainMenu(None));
         }
 
-        let mouse_is_pressed = is_mouse_button_pressed(MouseButton::Left);
-        let mouse_pos = mouse_position();
-
         // Only act on state CHANGES
-        if mouse_is_pressed && !self.mouse_was_pressed {
+        if mouse_is_down && !self.mouse_was_pressed {
+            log::debug!("[DEBUG] [PlyFreeplayScene::update] Mouse just pressed - calling handle_mouse_input()");
             if let Some(notes) = self.piano_keyboard.handle_mouse_input(
                 Vec2::new(mouse_pos.0, mouse_pos.1),
                 MouseButton::Left,
@@ -914,7 +990,8 @@ impl PlyScene for PlyFreeplayScene {
                         .midi_event(0u8.into(), message);
                 }
             }
-        } else if !mouse_is_pressed && self.mouse_was_pressed {
+        } else if !mouse_is_down && self.mouse_was_pressed {
+            log::debug!("[DEBUG] [PlyFreeplayScene::update] Mouse just released - calling handle_mouse_input()");
             if let Some(notes) = self.piano_keyboard.handle_mouse_input(
                 Vec2::new(mouse_pos.0, mouse_pos.1),
                 MouseButton::Left,
@@ -930,7 +1007,8 @@ impl PlyScene for PlyFreeplayScene {
                         .midi_event(0u8.into(), message);
                 }
             }
-        } else if mouse_is_pressed && self.mouse_was_pressed {
+        } else if mouse_is_down && self.mouse_was_pressed {
+            log::debug!("[DEBUG] [PlyFreeplayScene::update] Mouse dragging - calling handle_mouse_drag()");
             if let Some(notes) = self
                 .piano_keyboard
                 .handle_mouse_drag(Vec2::new(mouse_pos.0, mouse_pos.1))
@@ -947,8 +1025,9 @@ impl PlyScene for PlyFreeplayScene {
             }
         }
 
-        self.mouse_was_pressed = mouse_is_pressed;
+        self.mouse_was_pressed = mouse_is_down;
 
+        log::debug!("[DEBUG] [PlyFreeplayScene::update] Exit - update complete");
         None
     }
 
