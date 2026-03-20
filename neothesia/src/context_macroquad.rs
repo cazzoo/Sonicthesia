@@ -7,7 +7,7 @@ use std::time::Duration;
 
 use crate::{
     output_manager::OutputManager,
-    song_library::{SongRepository, SongLibraryDatabase, default_db_path},
+    song_library::{default_db_path, SongLibraryDatabase, SongRepository},
     NeothesiaEvent,
 };
 
@@ -66,22 +66,38 @@ impl MacroquadContext {
     pub fn new() -> Self {
         let config = Config::new();
 
-        let song_library_db = SongLibraryDatabase::with_default_path()
-            .unwrap_or_else(|e| {
-                log::error!("Failed to initialize song library: {}. Song library features will be disabled.", e);
-                SongLibraryDatabase::new(std::path::PathBuf::from("/tmp/neothesia_song_library_disabled.db"))
-                    .unwrap_or_else(|_| {
-                        log::error!("Completely unable to initialize any song library database");
-                        std::process::exit(1);
-                    })
-            });
+        let song_library_db = SongLibraryDatabase::with_default_path().unwrap_or_else(|e| {
+            log::error!(
+                "Failed to initialize song library: {}. Song library features will be disabled.",
+                e
+            );
+            SongLibraryDatabase::new(std::path::PathBuf::from(
+                "/tmp/neothesia_song_library_disabled.db",
+            ))
+            .unwrap_or_else(|_| {
+                log::error!("Completely unable to initialize any song library database");
+                std::process::exit(1);
+            })
+        });
 
         let window_state = MacroquadWindowState::new();
         let ply_input_handler = MacroquadPlyInputHandler::new();
 
+        let mut output_manager: OutputManager = Default::default();
+
+        #[cfg(feature = "synth")]
+        {
+            use crate::output_manager::OutputDescriptor;
+            let soundfont_path = config.soundfont_path().cloned();
+            let descriptor = OutputDescriptor::Synth(soundfont_path);
+            output_manager.connect(descriptor);
+            output_manager.connection().set_gain(config.audio_gain());
+            log::info!("Connected to synth output");
+        }
+
         Self {
             window_state,
-            output_manager: Default::default(),
+            output_manager,
             ply_input_handler,
             config,
             song_library_db,

@@ -9,10 +9,10 @@ use crate::{
 };
 use std::time::Duration;
 
-use crate::render::ply::{PianoKeyboardRenderer, PianoTheme};
 use crate::ply_integration::input::{
-    UnifiedInputManager, InputAction, FocusManager, FocusableElement, ElementType
+    ElementType, FocusManager, FocusableElement, InputAction, UnifiedInputManager,
 };
+use crate::render::ply::PianoKeyboardRenderer;
 use macroquad::prelude::*;
 use neothesia_core::config::Config;
 use piano_layout::KeyboardLayout;
@@ -41,16 +41,19 @@ pub struct PlyMenuScene {
 impl PlyMenuScene {
     pub fn new(song: Option<Song>) -> Self {
         let mut input_manager = UnifiedInputManager::new();
-        
+
         // Initialize cursor visibility callback
-        input_manager.focus().priority().set_cursor_visibility_callback(Box::new(|visible| {
-            if visible {
-                macroquad::input::show_mouse(true);
-            } else {
-                macroquad::input::show_mouse(false);
-            }
-        }));
-        
+        input_manager
+            .focus()
+            .priority()
+            .set_cursor_visibility_callback(Box::new(|visible| {
+                if visible {
+                    macroquad::input::show_mouse(true);
+                } else {
+                    macroquad::input::show_mouse(false);
+                }
+            }));
+
         // Register menu options as focusable elements
         // Options: Play Song (only if song), Free Play, Song Library, Settings, Exit
         let menu_options = if song.is_some() {
@@ -69,7 +72,7 @@ impl PlyMenuScene {
                 ("menu_exit".to_string(), "Exit".to_string()),
             ]
         };
-        
+
         for (i, (id, label)) in menu_options.into_iter().enumerate() {
             input_manager.focus().register_element(FocusableElement {
                 id,
@@ -80,13 +83,17 @@ impl PlyMenuScene {
                 focusable: true,
             });
         }
-        
+
         // Focus first element initially
-        let first_id = input_manager.focus().elements().first().map(|e| e.id.clone());
+        let first_id = input_manager
+            .focus()
+            .elements()
+            .first()
+            .map(|e| e.id.clone());
         if let Some(id) = first_id {
             input_manager.focus().set_focus(&id);
         }
-        
+
         Self {
             song,
             input_manager,
@@ -107,7 +114,7 @@ impl PlyMenuScene {
             // Adjust option based on whether song is loaded
             // Options: Play Song (only if song), Free Play, Song Library, Settings, Exit
             let has_song = self.song.is_some();
-            
+
             match focused.id.as_str() {
                 "menu_play" => {
                     if has_song {
@@ -141,7 +148,7 @@ impl PlyScene for PlyMenuScene {
 
         // Update unified input manager
         self.input_manager.update(delta.as_secs_f64());
-        
+
         // Handle keyboard input - set keyboard priority when navigating
         if is_key_pressed(KeyCode::Escape) {
             return Some(NeothesiaEvent::Exit);
@@ -149,19 +156,28 @@ impl PlyScene for PlyMenuScene {
 
         if is_key_pressed(KeyCode::Up) {
             // Set keyboard priority when using arrow keys
-            self.input_manager.focus().priority().set_keyboard_priority();
+            self.input_manager
+                .focus()
+                .priority()
+                .set_keyboard_priority();
             self.input_manager.focus().focus_previous();
         }
 
         if is_key_pressed(KeyCode::Down) {
             // Set keyboard priority when using arrow keys
-            self.input_manager.focus().priority().set_keyboard_priority();
+            self.input_manager
+                .focus()
+                .priority()
+                .set_keyboard_priority();
             self.input_manager.focus().focus_next();
         }
 
         if is_key_pressed(KeyCode::Enter) {
             // Set keyboard priority when activating
-            self.input_manager.focus().priority().set_keyboard_priority();
+            self.input_manager
+                .focus()
+                .priority()
+                .set_keyboard_priority();
             return self.activate_focused();
         }
 
@@ -171,10 +187,13 @@ impl PlyScene for PlyMenuScene {
 
         // Handle mouse hover with unified input system
         let (mouse_x, mouse_y) = mouse_position();
-        
+
         // Update mouse position in unified input manager
-        self.input_manager.focus().priority().update_mouse_position(mouse_x, mouse_y);
-        
+        self.input_manager
+            .focus()
+            .priority()
+            .update_mouse_position(mouse_x, mouse_y);
+
         let screen_w = screen_width();
         let screen_h = screen_height();
         let center_x = screen_w / 2.0;
@@ -184,7 +203,7 @@ impl PlyScene for PlyMenuScene {
         let start_y = center_y;
         let option_height = 40.0;
         let menu_start_x = center_x - 80.0;
-        
+
         // Check if a song is loaded
         let has_song = self.song.is_some();
 
@@ -193,11 +212,22 @@ impl PlyScene for PlyMenuScene {
             if mouse_x >= menu_start_x && mouse_x <= menu_start_x + 200.0 {
                 // Get menu option IDs based on whether song is loaded
                 let option_ids: Vec<&str> = if has_song {
-                    vec!["menu_play", "menu_freeplay", "menu_library", "menu_settings", "menu_exit"]
+                    vec![
+                        "menu_play",
+                        "menu_freeplay",
+                        "menu_library",
+                        "menu_settings",
+                        "menu_exit",
+                    ]
                 } else {
-                    vec!["menu_freeplay", "menu_library", "menu_settings", "menu_exit"]
+                    vec![
+                        "menu_freeplay",
+                        "menu_library",
+                        "menu_settings",
+                        "menu_exit",
+                    ]
                 };
-                
+
                 for (i, option_id) in option_ids.iter().enumerate() {
                     let option_y = start_y + (i as f32 * option_height);
                     if mouse_y >= option_y && mouse_y <= option_y + option_height {
@@ -288,12 +318,16 @@ impl PlyScene for PlyMenuScene {
         };
 
         // Get input priority for focus indicator color
-        let has_keyboard_priority = self.input_manager.focus().priority().has_keyboard_priority();
-        
+        let has_keyboard_priority = self
+            .input_manager
+            .focus()
+            .priority()
+            .has_keyboard_priority();
+
         let start_y = center_y;
         for (i, option) in options.iter().enumerate() {
             let is_focused = Some(i) == self.focused_index();
-            
+
             // Use unified focus indicator - single color based on input priority
             let color = if is_focused {
                 if has_keyboard_priority {
@@ -305,11 +339,7 @@ impl PlyScene for PlyMenuScene {
                 Color::from_rgba(150, 150, 150, 255) // Gray for normal
             };
 
-            let prefix = if is_focused {
-                "> "
-            } else {
-                "  "
-            };
+            let prefix = if is_focused { "> " } else { "  " };
 
             draw_text(
                 &format!("{}{}", prefix, option),
@@ -715,36 +745,41 @@ impl PlyScene for PlyPlayingScene {
         let mouse_is_down = is_mouse_button_down(MouseButton::Left);
         let mouse_is_pressed = is_mouse_button_pressed(MouseButton::Left);
         let mouse_is_released = is_mouse_button_released(MouseButton::Left);
-        
+
         // Log all mouse buttons
         let left_pressed = is_mouse_button_pressed(MouseButton::Left);
         let right_pressed = is_mouse_button_pressed(MouseButton::Right);
         let middle_pressed = is_mouse_button_pressed(MouseButton::Middle);
-        
+
+        log::debug!("[DEBUG] [PlyPlayingScene::update] === MOUSE INPUT DUMP ===");
         log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] === MOUSE INPUT DUMP ==="
+            "[DEBUG] [PlyPlayingScene::update] Screen size: {:.0}x{:.0}",
+            screen_w,
+            screen_h
         );
         log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Screen size: {:.0}x{:.0}", screen_w, screen_h
-        );
-        log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Mouse position: ({:.1}, {:.1})", mouse_pos.0, mouse_pos.1
+            "[DEBUG] [PlyPlayingScene::update] Mouse position: ({:.1}, {:.1})",
+            mouse_pos.0,
+            mouse_pos.1
         );
         log::debug!(
             "[DEBUG] [PlyPlayingScene::update] Mouse buttons - Left: pressed={} down={} released={}, Right: pressed={}, Middle: pressed={}",
             left_pressed, mouse_is_down, mouse_is_released, right_pressed, middle_pressed
         );
         log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Previous state: mouse_was_pressed={}", self.mouse_was_pressed
+            "[DEBUG] [PlyPlayingScene::update] Previous state: mouse_was_pressed={}",
+            self.mouse_was_pressed
         );
-        
+
         // Check if mouse is over the piano keyboard area
         let keyboard_y_start = screen_h - 150.0; // Approximate keyboard area
         let is_over_keyboard = mouse_pos.1 >= keyboard_y_start;
         log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Mouse over keyboard area (y>={:.1}): {}", keyboard_y_start, is_over_keyboard
+            "[DEBUG] [PlyPlayingScene::update] Mouse over keyboard area (y>={:.1}): {}",
+            keyboard_y_start,
+            is_over_keyboard
         );
-        
+
         log::debug!("[DEBUG] [PlyPlayingScene::update] Entry - dt={:.4}", dt);
         self.piano_keyboard.update(dt);
 
@@ -791,7 +826,9 @@ impl PlyScene for PlyPlayingScene {
                 }
             }
         } else if mouse_is_down && self.mouse_was_pressed {
-            log::debug!("[DEBUG] [PlyPlayingScene::update] Mouse dragging - calling handle_mouse_drag()");
+            log::debug!(
+                "[DEBUG] [PlyPlayingScene::update] Mouse dragging - calling handle_mouse_drag()"
+            );
             if let Some(notes) = self
                 .piano_keyboard
                 .handle_mouse_drag(Vec2::new(mouse_pos.0, mouse_pos.1))
@@ -901,10 +938,13 @@ pub struct PlyFreeplayScene {
     song: Option<Song>,
     piano_keyboard: PianoKeyboardRenderer,
     mouse_was_pressed: bool,
+    soundfonts: Vec<crate::output_manager::SoundFontEntry>,
+    current_soundfont_index: usize,
+    audio_gain: f32,
 }
 
 impl PlyFreeplayScene {
-    pub fn new(song: Option<Song>) -> Self {
+    pub fn new(song: Option<Song>, ctx: &mut MacroquadContext) -> Self {
         let config = Config::new();
         let range = config.piano_range();
         let keyboard_range = piano_layout::KeyboardRange::new(range.clone());
@@ -913,11 +953,98 @@ impl PlyFreeplayScene {
 
         let piano_keyboard = PianoKeyboardRenderer::new(layout, &config);
 
+        let soundfont_folders = ctx.config.synth_config.soundfont_folders().clone();
+        let soundfonts = crate::output_manager::discover_soundfonts(&soundfont_folders);
+        let current_soundfont_index = ctx.config.synth_config.soundfont_index().unwrap_or(0);
+        let audio_gain = ctx.config.synth_config.audio_gain();
+
         Self {
             song,
             piano_keyboard,
             mouse_was_pressed: false,
+            soundfonts,
+            current_soundfont_index,
+            audio_gain,
         }
+    }
+
+    fn current_soundfont_name(&self) -> String {
+        if let Some(entry) = self.soundfonts.get(self.current_soundfont_index) {
+            let file_name = entry
+                .path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .unwrap_or("Unknown");
+            let count = self.soundfonts.len();
+            if count > 0 {
+                format!(
+                    "{} ({} of {})",
+                    file_name,
+                    self.current_soundfont_index + 1,
+                    count
+                )
+            } else {
+                file_name.to_string()
+            }
+        } else {
+            "No SoundFont".to_string()
+        }
+    }
+
+    fn previous_soundfont(&mut self, ctx: &mut MacroquadContext) {
+        if self.soundfonts.is_empty() {
+            return;
+        }
+        let count = self.soundfonts.len();
+        let new_index = if self.current_soundfont_index == 0 {
+            count - 1
+        } else {
+            self.current_soundfont_index - 1
+        };
+        self.switch_to_soundfont_index(new_index, ctx);
+    }
+
+    fn next_soundfont(&mut self, ctx: &mut MacroquadContext) {
+        if self.soundfonts.is_empty() {
+            return;
+        }
+        let count = self.soundfonts.len();
+        let new_index = (self.current_soundfont_index + 1) % count;
+        self.switch_to_soundfont_index(new_index, ctx);
+    }
+
+    fn switch_to_soundfont_index(&mut self, index: usize, ctx: &mut MacroquadContext) {
+        if let Some(entry) = self.soundfonts.get(index) {
+            self.current_soundfont_index = index;
+
+            if !ctx.output_manager.is_synth_output() {
+                log::warn!("SoundFont switching only available with synth output");
+                return;
+            }
+
+            if let Err(e) = ctx.output_manager.switch_soundfont(&entry.path) {
+                log::error!("Failed to switch SoundFont: {}", e);
+            }
+            ctx.config
+                .synth_config
+                .set_soundfont_path(Some(entry.path.clone()));
+            ctx.config.synth_config.set_soundfont_index(Some(index));
+            let _ = ctx.config.save();
+        }
+    }
+
+    fn decrease_audio_gain(&mut self, ctx: &mut MacroquadContext) {
+        self.audio_gain = (self.audio_gain - 0.1).max(0.0);
+        ctx.config.synth_config.set_audio_gain(self.audio_gain);
+        ctx.output_manager.connection().set_gain(self.audio_gain);
+        let _ = ctx.config.save();
+    }
+
+    fn increase_audio_gain(&mut self, ctx: &mut MacroquadContext) {
+        self.audio_gain = self.audio_gain + 0.1;
+        ctx.config.synth_config.set_audio_gain(self.audio_gain);
+        ctx.output_manager.connection().set_gain(self.audio_gain);
+        let _ = ctx.config.save();
     }
 }
 
@@ -934,42 +1061,84 @@ impl PlyScene for PlyFreeplayScene {
         let mouse_is_down = is_mouse_button_down(MouseButton::Left);
         let mouse_is_pressed = is_mouse_button_pressed(MouseButton::Left);
         let mouse_is_released = is_mouse_button_released(MouseButton::Left);
-        
+
         // Log all mouse buttons
         let left_pressed = is_mouse_button_pressed(MouseButton::Left);
         let right_pressed = is_mouse_button_pressed(MouseButton::Right);
         let middle_pressed = is_mouse_button_pressed(MouseButton::Middle);
-        
+
+        log::debug!("[DEBUG] [PlyFreeplayScene::update] === MOUSE INPUT DUMP ===");
         log::debug!(
-            "[DEBUG] [PlyFreeplayScene::update] === MOUSE INPUT DUMP ==="
+            "[DEBUG] [PlyFreeplayScene::update] Screen size: {:.0}x{:.0}",
+            screen_w,
+            screen_h
         );
         log::debug!(
-            "[DEBUG] [PlyFreeplayScene::update] Screen size: {:.0}x{:.0}", screen_w, screen_h
-        );
-        log::debug!(
-            "[DEBUG] [PlyFreeplayScene::update] Mouse position: ({:.1}, {:.1})", mouse_pos.0, mouse_pos.1
+            "[DEBUG] [PlyFreeplayScene::update] Mouse position: ({:.1}, {:.1})",
+            mouse_pos.0,
+            mouse_pos.1
         );
         log::debug!(
             "[DEBUG] [PlyFreeplayScene::update] Mouse buttons - Left: pressed={} down={} released={}, Right: pressed={}, Middle: pressed={}",
             left_pressed, mouse_is_down, mouse_is_released, right_pressed, middle_pressed
         );
         log::debug!(
-            "[DEBUG] [PlyFreeplayScene::update] Previous state: mouse_was_pressed={}", self.mouse_was_pressed
+            "[DEBUG] [PlyFreeplayScene::update] Previous state: mouse_was_pressed={}",
+            self.mouse_was_pressed
         );
-        
+
         // Check if mouse is over the piano keyboard area
         // Piano keyboard is typically at the bottom of the screen
         let keyboard_y_start = screen_h - 150.0; // Approximate keyboard area
         let is_over_keyboard = mouse_pos.1 >= keyboard_y_start;
         log::debug!(
-            "[DEBUG] [PlyFreeplayScene::update] Mouse over keyboard area (y>={:.1}): {}", keyboard_y_start, is_over_keyboard
+            "[DEBUG] [PlyFreeplayScene::update] Mouse over keyboard area (y>={:.1}): {}",
+            keyboard_y_start,
+            is_over_keyboard
         );
-        
+
         log::debug!("[DEBUG] [PlyFreeplayScene::update] Entry - dt={:.4}", dt);
         self.piano_keyboard.update(dt);
 
         if is_key_pressed(KeyCode::Escape) {
             return Some(NeothesiaEvent::MainMenu(None));
+        }
+
+        let top_bar_h = 30.0;
+        let mouse_x = mouse_pos.0;
+        let mouse_y = mouse_pos.1;
+
+        if is_mouse_button_pressed(MouseButton::Left) && mouse_y <= top_bar_h {
+            let btn_size = 30.0;
+            let center_x = screen_w / 2.0;
+
+            if mouse_x >= 0.0 && mouse_x <= btn_size {
+                return Some(NeothesiaEvent::MainMenu(None));
+            }
+
+            let soundfont_name = self.current_soundfont_name();
+            let text_w = measure_text(&soundfont_name, None, 14, 1.0).width;
+            let prev_x = center_x - text_w / 2.0 - 40.0;
+            if mouse_x >= prev_x && mouse_x <= prev_x + btn_size {
+                self.previous_soundfont(ctx);
+            }
+
+            let next_x = center_x + text_w / 2.0 + 10.0;
+            if mouse_x >= next_x && mouse_x <= next_x + btn_size {
+                self.next_soundfont(ctx);
+            }
+
+            let dec_x = screen_w - 100.0;
+            if mouse_x >= dec_x && mouse_x <= dec_x + btn_size {
+                self.decrease_audio_gain(ctx);
+            }
+
+            let inc_x = screen_w - 65.0;
+            if mouse_x >= inc_x && mouse_x <= inc_x + btn_size {
+                self.increase_audio_gain(ctx);
+            }
+
+            return None;
         }
 
         // Only act on state CHANGES
@@ -1008,7 +1177,9 @@ impl PlyScene for PlyFreeplayScene {
                 }
             }
         } else if mouse_is_down && self.mouse_was_pressed {
-            log::debug!("[DEBUG] [PlyFreeplayScene::update] Mouse dragging - calling handle_mouse_drag()");
+            log::debug!(
+                "[DEBUG] [PlyFreeplayScene::update] Mouse dragging - calling handle_mouse_drag()"
+            );
             if let Some(notes) = self
                 .piano_keyboard
                 .handle_mouse_drag(Vec2::new(mouse_pos.0, mouse_pos.1))
@@ -1051,64 +1222,106 @@ impl PlyScene for PlyFreeplayScene {
 
         let screen_w = screen_width();
         let screen_h = screen_height();
+        let top_bar_h = 30.0;
+
+        let dark_gray = Color::from_rgba(37, 35, 42, 255);
+        let btn_color = Color::from_rgba(67, 67, 67, 255);
+        let btn_hover = Color::from_rgba(87, 87, 87, 255);
+        let btn_pressed = Color::from_rgba(97, 97, 97, 255);
+
+        let (mouse_x, mouse_y) = mouse_position();
+        let mouse_down = is_mouse_button_down(MouseButton::Left);
+
+        draw_rectangle(0.0, 0.0, screen_w, top_bar_h, dark_gray);
+
+        let btn_size = 30.0;
+        let btn_y = 0.0;
+
+        let back_x = 0.0;
+        let back_hover = mouse_x >= back_x
+            && mouse_x <= back_x + btn_size
+            && mouse_y >= btn_y
+            && mouse_y <= btn_y + btn_size;
+        let back_color = if back_hover && mouse_down {
+            btn_pressed
+        } else if back_hover {
+            btn_hover
+        } else {
+            btn_color
+        };
+        draw_rectangle(back_x, btn_y, btn_size, btn_size, back_color);
+        draw_text("<-", back_x + 8.0, btn_y + 20.0, 16.0, WHITE);
+
+        let soundfont_name = self.current_soundfont_name();
+        let text_w = measure_text(&soundfont_name, None, 14, 1.0).width;
         let center_x = screen_w / 2.0;
-        let center_y = screen_h / 2.0;
+        draw_text(&soundfont_name, center_x - text_w / 2.0, 20.0, 14.0, WHITE);
 
-        // Draw PLY rendering indicator
-        draw_text(
-            "🎨 PLY RENDERING ACTIVE - FREEPLAY",
-            10.0,
-            10.0,
-            18.0,
-            Color::from_rgba(0, 255, 0, 255),
-        );
+        let prev_x = center_x - text_w / 2.0 - 40.0;
+        let prev_hover = mouse_x >= prev_x
+            && mouse_x <= prev_x + btn_size
+            && mouse_y >= btn_y
+            && mouse_y <= btn_y + btn_size;
+        let prev_color = if prev_hover && mouse_down {
+            btn_pressed
+        } else if prev_hover {
+            btn_hover
+        } else {
+            btn_color
+        };
+        draw_rectangle(prev_x, btn_y, btn_size, btn_size, prev_color);
+        draw_text("<", prev_x + 10.0, btn_y + 20.0, 16.0, WHITE);
 
-        draw_text(
-            &format!("FPS: {}", get_fps()),
-            10.0,
-            35.0,
-            14.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
+        let next_x = center_x + text_w / 2.0 + 10.0;
+        let next_hover = mouse_x >= next_x
+            && mouse_x <= next_x + btn_size
+            && mouse_y >= btn_y
+            && mouse_y <= btn_y + btn_size;
+        let next_color = if next_hover && mouse_down {
+            btn_pressed
+        } else if next_hover {
+            btn_hover
+        } else {
+            btn_color
+        };
+        draw_rectangle(next_x, btn_y, btn_size, btn_size, next_color);
+        draw_text(">", next_x + 10.0, btn_y + 20.0, 16.0, WHITE);
 
-        // Draw title
-        draw_text(
-            "FREE PLAY MODE",
-            center_x - 120.0,
-            center_y - 50.0,
-            30.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
+        let gain_text = format!("Gain: {:.1}", self.audio_gain);
+        let gain_text_w = measure_text(&gain_text, None, 14, 1.0).width;
+        let gain_text_x = screen_w - 180.0;
+        draw_text(&gain_text, gain_text_x, 20.0, 14.0, WHITE);
 
-        // Draw song info if available
-        if let Some(song) = &self.song {
-            draw_text(
-                &format!("Song: {}", song.file.name),
-                center_x - 150.0,
-                center_y + 20.0,
-                20.0,
-                Color::from_rgba(200, 200, 255, 255),
-            );
-        }
+        let dec_x = screen_w - 100.0;
+        let dec_hover = mouse_x >= dec_x
+            && mouse_x <= dec_x + btn_size
+            && mouse_y >= btn_y
+            && mouse_y <= btn_y + btn_size;
+        let dec_color = if dec_hover && mouse_down {
+            btn_pressed
+        } else if dec_hover {
+            btn_hover
+        } else {
+            btn_color
+        };
+        draw_rectangle(dec_x, btn_y, btn_size, btn_size, dec_color);
+        draw_text("-", dec_x + 12.0, btn_y + 20.0, 16.0, WHITE);
 
-        // Draw instructions
-        draw_text(
-            "Use mouse click/drag or MIDI/keyboard to play piano",
-            center_x - 250.0,
-            center_y + 80.0,
-            16.0,
-            Color::from_rgba(150, 150, 150, 255),
-        );
+        let inc_x = screen_w - 65.0;
+        let inc_hover = mouse_x >= inc_x
+            && mouse_x <= inc_x + btn_size
+            && mouse_y >= btn_y
+            && mouse_y <= btn_y + btn_size;
+        let inc_color = if inc_hover && mouse_down {
+            btn_pressed
+        } else if inc_hover {
+            btn_hover
+        } else {
+            btn_color
+        };
+        draw_rectangle(inc_x, btn_y, btn_size, btn_size, inc_color);
+        draw_text("+", inc_x + 10.0, btn_y + 20.0, 16.0, WHITE);
 
-        draw_text(
-            "ESC: Return to menu",
-            center_x - 100.0,
-            screen_h - 50.0,
-            14.0,
-            Color::from_rgba(100, 100, 100, 255),
-        );
-
-        // Render piano keyboard at bottom
         self.piano_keyboard.render();
     }
 }
@@ -1374,16 +1587,19 @@ enum SettingsPopup {
 impl PlySettingsScene {
     pub fn new() -> Self {
         let mut input_manager = UnifiedInputManager::new();
-        
+
         // Initialize cursor visibility callback
-        input_manager.focus().priority().set_cursor_visibility_callback(Box::new(|visible| {
-            if visible {
-                macroquad::input::show_mouse(true);
-            } else {
-                macroquad::input::show_mouse(false);
-            }
-        }));
-        
+        input_manager
+            .focus()
+            .priority()
+            .set_cursor_visibility_callback(Box::new(|visible| {
+                if visible {
+                    macroquad::input::show_mouse(true);
+                } else {
+                    macroquad::input::show_mouse(false);
+                }
+            }));
+
         Self {
             scroll_offset: 0.0,
             hovered_section: None,
@@ -1441,9 +1657,11 @@ impl PlySettingsScene {
             // Update existing setting's y_position to reflect current rendered position
             // This is critical for mouse hover detection to work correctly when scrolling
             setting.y_position = y_position;
-            
+
             // Also update the element position in the unified input manager
-            self.input_manager.focus().update_element_position(&id, (0.0, y_position));
+            self.input_manager
+                .focus()
+                .update_element_position(&id, (0.0, y_position));
         } else {
             // Add new setting
             let is_folder_picker = id == "add_soundfont_folder" || id == "add_song_directory";
@@ -1468,7 +1686,7 @@ impl PlySettingsScene {
             if self.interactive_settings.len() == 1 {
                 self.focused_setting_index = Some(0);
             }
-            
+
             // Register the focusable element with the unified input manager
             // Convert SettingType to ElementType
             let element_type = match setting_type {
@@ -1478,19 +1696,21 @@ impl PlySettingsScene {
                 SettingType::Slider => ElementType::Slider,
                 SettingType::Picker => ElementType::Picker,
             };
-            
+
             // Calculate screen position (centered horizontally)
             let screen_w = unsafe { macroquad::prelude::screen_width() };
             let margin_x = (screen_w - 650.0).max(0.0) / 2.0;
-            
-            self.input_manager.focus().register_element(FocusableElement {
-                id: id.clone(),
-                label: label.clone(),
-                element_type,
-                position: (margin_x, y_position),
-                size: (650.0, 55.0),
-                focusable: true,
-            });
+
+            self.input_manager
+                .focus()
+                .register_element(FocusableElement {
+                    id: id.clone(),
+                    label: label.clone(),
+                    element_type,
+                    position: (margin_x, y_position),
+                    size: (650.0, 55.0),
+                    focusable: true,
+                });
         }
     }
 
@@ -2483,14 +2703,20 @@ impl PlySettingsScene {
                 // Handle arrow key navigation
                 if self.is_key_just_pressed("Up") {
                     // Set keyboard priority when navigation keys are pressed
-                    self.input_manager.focus().priority().set_keyboard_priority();
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .set_keyboard_priority();
                     if self.popup_selected_index > 0 {
                         self.popup_selected_index -= 1;
                     }
                 }
                 if self.is_key_just_pressed("Down") {
                     // Set keyboard priority when navigation keys are pressed
-                    self.input_manager.focus().priority().set_keyboard_priority();
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .set_keyboard_priority();
                     if self.popup_selected_index < outputs.len().saturating_sub(1) {
                         self.popup_selected_index += 1;
                     }
@@ -2531,14 +2757,20 @@ impl PlySettingsScene {
                 // Handle arrow key navigation
                 if self.is_key_just_pressed("Up") {
                     // Set keyboard priority when navigation keys are pressed
-                    self.input_manager.focus().priority().set_keyboard_priority();
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .set_keyboard_priority();
                     if self.popup_selected_index > 0 {
                         self.popup_selected_index -= 1;
                     }
                 }
                 if self.is_key_just_pressed("Down") {
                     // Set keyboard priority when navigation keys are pressed
-                    self.input_manager.focus().priority().set_keyboard_priority();
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .set_keyboard_priority();
                     if self.popup_selected_index < inputs.len().saturating_sub(1) {
                         self.popup_selected_index += 1;
                     }
@@ -2681,9 +2913,14 @@ impl PlySettingsScene {
                 // Update selected index on hover ONLY if mouse has priority or no priority is set
                 // This prevents hover from overriding keyboard navigation
                 if self.input_manager.focus().priority().has_mouse_priority()
-                    || self.input_manager.get_priority() == crate::ply_integration::input::InputPriority::None {
+                    || self.input_manager.get_priority()
+                        == crate::ply_integration::input::InputPriority::None
+                {
                     // Set mouse priority when hovering
-                    self.input_manager.focus().priority().update_mouse_position(mouse_x, mouse_y);
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .update_mouse_position(mouse_x, mouse_y);
                     if self.popup_selected_index != idx {
                         self.popup_selected_index = idx;
                     }
@@ -2856,9 +3093,14 @@ impl PlySettingsScene {
                 // Update selected index on hover ONLY if mouse has priority or no priority is set
                 // This prevents hover from overriding keyboard navigation
                 if self.input_manager.focus().priority().has_mouse_priority()
-                    || self.input_manager.get_priority() == crate::ply_integration::input::InputPriority::None {
+                    || self.input_manager.get_priority()
+                        == crate::ply_integration::input::InputPriority::None
+                {
                     // Set mouse priority when hovering
-                    self.input_manager.focus().priority().update_mouse_position(mouse_x, mouse_y);
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .update_mouse_position(mouse_x, mouse_y);
                     if self.popup_selected_index != idx {
                         self.popup_selected_index = idx;
                     }
@@ -3005,7 +3247,10 @@ impl PlyScene for PlySettingsScene {
 
         // Update mouse position in the unified input manager
         let (mouse_x, mouse_y) = mouse_position();
-        self.input_manager.focus().priority().update_mouse_position(mouse_x, mouse_y);
+        self.input_manager
+            .focus()
+            .priority()
+            .update_mouse_position(mouse_x, mouse_y);
 
         // Handle mouse clicks
         if is_mouse_button_pressed(MouseButton::Left) {

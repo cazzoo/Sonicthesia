@@ -67,7 +67,7 @@ impl MacroquadNeothesia {
             }
             NeothesiaEvent::FreePlay(song) => {
                 log::info!("🎯 EVENT: FreePlay with song: {:?}", song.as_ref().map(|s| &s.file.name));
-                self.current_scene = Box::new(PlyFreeplayScene::new(song)) as Box<dyn PlyScene>;
+                self.current_scene = Box::new(PlyFreeplayScene::new(song, &mut self.context)) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::MainMenu(song) => {
                 log::info!("🎯 EVENT: MainMenu with song: {:?}", song.as_ref().map(|s| &s.file.name));

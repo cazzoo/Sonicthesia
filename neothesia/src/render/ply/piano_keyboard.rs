@@ -10,6 +10,7 @@
 use macroquad::prelude::*;
 use neothesia_core::config::Config;
 use piano_layout::KeyboardLayout;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 /// Input source for key press events
@@ -21,7 +22,535 @@ pub enum InputSource {
     Gamepad,
 }
 
-/// Visual theme for the piano keyboard
+/// Color configuration for a single note
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub struct NoteColor {
+    /// Normal state color (RGB)
+    pub normal: (u8, u8, u8),
+    /// Pressed state color (RGB)
+    pub pressed: (u8, u8, u8),
+    /// Glow color (RGB) - optional, defaults to pressed color
+    #[serde(default)]
+    pub glow: Option<(u8, u8, u8)>,
+    /// Glow intensity multiplier (0.0 - 2.0)
+    #[serde(default = "default_glow_intensity")]
+    pub glow_intensity: f32,
+}
+
+fn default_glow_intensity() -> f32 {
+    1.0
+}
+
+impl Default for NoteColor {
+    fn default() -> Self {
+        Self {
+            normal: (255, 255, 255),
+            pressed: (100, 200, 255),
+            glow: None,
+            glow_intensity: 1.0,
+        }
+    }
+}
+
+impl NoteColor {
+    /// Get the effective glow color (pressed color or custom)
+    pub fn glow_color(&self) -> (u8, u8, u8) {
+        self.glow.unwrap_or(self.pressed)
+    }
+}
+
+/// Global theme settings that apply to all keys
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct ThemeSettings {
+    /// Border color for all keys
+    #[serde(default)]
+    pub border_color: (u8, u8, u8),
+
+    /// Rounded corner radius
+    #[serde(default = "default_corner_radius")]
+    pub corner_radius: f32,
+
+    /// 2.5D effect depth (0.0 = flat, higher = more depth)
+    #[serde(default = "default_depth_2d5")]
+    pub depth_2d5: f32,
+
+    /// Whether to use per-note colors or fall back to simple white/black
+    #[serde(default = "default_use_per_note_colors")]
+    pub use_per_note_colors: bool,
+}
+
+impl Default for ThemeSettings {
+    fn default() -> Self {
+        Self {
+            border_color: (0, 0, 0),
+            corner_radius: 4.0,
+            depth_2d5: 3.0,
+            use_per_note_colors: true,
+        }
+    }
+}
+
+fn default_corner_radius() -> f32 {
+    4.0
+}
+fn default_depth_2d5() -> f32 {
+    3.0
+}
+fn default_use_per_note_colors() -> bool {
+    true
+}
+
+/// Theme colors for all 12 notes in an octave
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct OctaveTheme {
+    /// Colors for each note in the octave (0=C, 1=C#, ..., 11=B)
+    #[serde(default)]
+    pub notes: [NoteColor; 12],
+
+    /// Global theme settings
+    #[serde(default)]
+    pub settings: ThemeSettings,
+}
+
+impl Default for OctaveTheme {
+    fn default() -> Self {
+        Self {
+            notes: Self::default_notes(),
+            settings: ThemeSettings::default(),
+        }
+    }
+}
+
+impl OctaveTheme {
+    /// Create default note colors (white/black key pattern)
+    fn default_notes() -> [NoteColor; 12] {
+        // White keys: C, D, E, F, G, A, B (indices 0, 2, 4, 5, 7, 9, 11)
+        // Black keys: C#, D#, F#, G#, A# (indices 1, 3, 6, 8, 10)
+        let white = NoteColor {
+            normal: (255, 255, 255),
+            pressed: (76, 175, 80),
+            glow: None,
+            glow_intensity: 1.0,
+        };
+        let black = NoteColor {
+            normal: (26, 26, 26),
+            pressed: (46, 125, 50),
+            glow: None,
+            glow_intensity: 1.0,
+        };
+
+        let is_sharp = [
+            false, true, false, true, false, false, true, false, true, false, true, false,
+        ];
+        is_sharp.map(|sharp| if sharp { black.clone() } else { white.clone() })
+    }
+
+    /// Get color for a specific note (0-11)
+    pub fn note_color(&self, note_index: usize) -> &NoteColor {
+        &self.notes[note_index % 12]
+    }
+}
+
+/// Theme style variants
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ThemeVariant {
+    /// Classic piano appearance
+    Classic,
+    /// Modern with vibrant colors
+    Modern,
+    /// Flat design without 3D effects
+    Flat,
+    /// Enhanced 2.5D depth effect
+    Depth2D5,
+}
+
+impl Default for ThemeVariant {
+    fn default() -> Self {
+        Self::Modern
+    }
+}
+
+/// A complete keyboard theme
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct KeyboardTheme {
+    /// Theme name
+    pub name: String,
+
+    /// Per-octave color scheme
+    pub octave_theme: OctaveTheme,
+
+    /// Theme variant for different styles
+    #[serde(default)]
+    pub variant: ThemeVariant,
+}
+
+/// Theme name enum for predefined themes
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum ThemeName {
+    Classic,
+    Modern,
+    Rainbow,
+    Neon,
+    Pastel,
+}
+
+impl ThemeName {
+    /// Get the theme name as a string
+    pub fn as_str(&self) -> &str {
+        match self {
+            ThemeName::Classic => "Classic",
+            ThemeName::Modern => "Modern",
+            ThemeName::Rainbow => "Rainbow",
+            ThemeName::Neon => "Neon",
+            ThemeName::Pastel => "Pastel",
+        }
+    }
+
+    /// Parse from string
+    pub fn from_str(s: &str) -> Option<Self> {
+        match s {
+            "Classic" => Some(ThemeName::Classic),
+            "Modern" => Some(ThemeName::Modern),
+            "Rainbow" => Some(ThemeName::Rainbow),
+            "Neon" => Some(ThemeName::Neon),
+            "Pastel" => Some(ThemeName::Pastel),
+            _ => None,
+        }
+    }
+}
+
+impl KeyboardTheme {
+    /// Classic piano theme (black and white)
+    pub fn classic() -> Self {
+        Self {
+            name: "Classic".to_string(),
+            octave_theme: OctaveTheme::default(),
+            variant: ThemeVariant::Classic,
+        }
+    }
+
+    /// Modern theme with green highlights
+    pub fn modern() -> Self {
+        Self {
+            name: "Modern".to_string(),
+            octave_theme: OctaveTheme::default(),
+            variant: ThemeVariant::Modern,
+        }
+    }
+
+    /// Rainbow theme - each note has a unique color
+    pub fn rainbow() -> Self {
+        let notes = [
+            // C - Red
+            NoteColor {
+                normal: (255, 200, 200),
+                pressed: (255, 50, 50),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // C# - Red-Orange
+            NoteColor {
+                normal: (200, 150, 150),
+                pressed: (255, 100, 0),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // D - Orange
+            NoteColor {
+                normal: (255, 220, 180),
+                pressed: (255, 140, 0),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // D# - Yellow-Orange
+            NoteColor {
+                normal: (200, 160, 130),
+                pressed: (255, 180, 0),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // E - Yellow
+            NoteColor {
+                normal: (255, 255, 200),
+                pressed: (255, 220, 0),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // F - Yellow-Green
+            NoteColor {
+                normal: (220, 255, 200),
+                pressed: (180, 255, 0),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // F# - Green
+            NoteColor {
+                normal: (160, 200, 150),
+                pressed: (0, 200, 0),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // G - Cyan-Green
+            NoteColor {
+                normal: (180, 255, 220),
+                pressed: (0, 255, 128),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // G# - Cyan
+            NoteColor {
+                normal: (150, 200, 200),
+                pressed: (0, 200, 200),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // A - Blue
+            NoteColor {
+                normal: (200, 220, 255),
+                pressed: (50, 100, 255),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // A# - Blue-Purple
+            NoteColor {
+                normal: (180, 160, 200),
+                pressed: (100, 0, 200),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+            // B - Purple
+            NoteColor {
+                normal: (230, 200, 255),
+                pressed: (180, 0, 255),
+                glow: None,
+                glow_intensity: 1.2,
+            },
+        ];
+
+        Self {
+            name: "Rainbow".to_string(),
+            octave_theme: OctaveTheme {
+                notes,
+                settings: ThemeSettings {
+                    border_color: (50, 50, 50),
+                    corner_radius: 6.0,
+                    depth_2d5: 4.0,
+                    use_per_note_colors: true,
+                },
+            },
+            variant: ThemeVariant::Modern,
+        }
+    }
+
+    /// Neon theme with bright glowing colors
+    pub fn neon() -> Self {
+        let notes = [
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (255, 0, 85),
+                glow: Some((255, 0, 85)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (0, 255, 255),
+                glow: Some((0, 255, 255)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (255, 255, 0),
+                glow: Some((255, 255, 0)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (0, 255, 0),
+                glow: Some((0, 255, 0)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (255, 0, 255),
+                glow: Some((255, 0, 255)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (0, 128, 255),
+                glow: Some((0, 128, 255)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (255, 128, 0),
+                glow: Some((255, 128, 0)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (128, 0, 255),
+                glow: Some((128, 0, 255)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (0, 255, 128),
+                glow: Some((0, 255, 128)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (255, 0, 128),
+                glow: Some((255, 0, 128)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (128, 255, 0),
+                glow: Some((128, 255, 0)),
+                glow_intensity: 1.5,
+            },
+            NoteColor {
+                normal: (30, 30, 30),
+                pressed: (255, 85, 0),
+                glow: Some((255, 85, 0)),
+                glow_intensity: 1.5,
+            },
+        ];
+
+        Self {
+            name: "Neon".to_string(),
+            octave_theme: OctaveTheme {
+                notes,
+                settings: ThemeSettings {
+                    border_color: (20, 20, 20),
+                    corner_radius: 8.0,
+                    depth_2d5: 2.0,
+                    use_per_note_colors: true,
+                },
+            },
+            variant: ThemeVariant::Modern,
+        }
+    }
+
+    /// Pastel theme with soft colors
+    pub fn pastel() -> Self {
+        let notes = [
+            NoteColor {
+                normal: (255, 240, 245),
+                pressed: (255, 182, 193),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (240, 248, 255),
+                pressed: (173, 216, 230),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (255, 250, 240),
+                pressed: (255, 228, 181),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (245, 255, 250),
+                pressed: (152, 251, 152),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (255, 240, 245),
+                pressed: (255, 192, 203),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (240, 255, 240),
+                pressed: (144, 238, 144),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (230, 230, 250),
+                pressed: (147, 112, 219),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (255, 245, 238),
+                pressed: (255, 218, 185),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (240, 255, 255),
+                pressed: (175, 238, 238),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (255, 250, 250),
+                pressed: (255, 160, 122),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (245, 255, 245),
+                pressed: (154, 205, 154),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+            NoteColor {
+                normal: (250, 240, 230),
+                pressed: (255, 200, 150),
+                glow: None,
+                glow_intensity: 0.8,
+            },
+        ];
+
+        Self {
+            name: "Pastel".to_string(),
+            octave_theme: OctaveTheme {
+                notes,
+                settings: ThemeSettings {
+                    border_color: (200, 200, 200),
+                    corner_radius: 5.0,
+                    depth_2d5: 2.0,
+                    use_per_note_colors: true,
+                },
+            },
+            variant: ThemeVariant::Flat,
+        }
+    }
+
+    /// Get all available predefined themes
+    pub fn predefined_themes() -> Vec<Self> {
+        vec![
+            Self::classic(),
+            Self::modern(),
+            Self::rainbow(),
+            Self::neon(),
+            Self::pastel(),
+        ]
+    }
+
+    /// Get theme by name
+    pub fn get_theme(name: &str) -> Option<Self> {
+        match name {
+            "Classic" => Some(Self::classic()),
+            "Modern" => Some(Self::modern()),
+            "Rainbow" => Some(Self::rainbow()),
+            "Neon" => Some(Self::neon()),
+            "Pastel" => Some(Self::pastel()),
+            _ => None,
+        }
+    }
+}
+
+/// Visual theme for the piano keyboard (legacy, kept for compatibility)
 #[derive(Clone, Debug)]
 pub struct PianoTheme {
     /// White key color (normal)
@@ -157,7 +686,7 @@ impl KeyAnimation {
         }
 
         self.value = self.value.clamp(0.0, 1.0);
-        
+
         // DEBUG: Log animation state changes
         if self.value < 0.99 && is_actually_pressed {
             log::warn!(
@@ -168,7 +697,8 @@ impl KeyAnimation {
 
         log::debug!(
             "[DEBUG] [KeyAnimation::update] Exit\n  - Final state: value={:.3}, target={:.3}",
-            self.value, self.target
+            self.value,
+            self.target
         );
     }
 
@@ -205,7 +735,7 @@ struct VisualKey {
 pub struct PianoKeyboardRenderer {
     layout: KeyboardLayout,
     keys: Vec<VisualKey>,
-    theme: PianoTheme,
+    theme: KeyboardTheme,
     position: (f32, f32),
     size: (f32, f32),
     window_width: f32,
@@ -234,10 +764,20 @@ impl PianoKeyboardRenderer {
 
         let keys = Self::build_visual_keys(&layout, x, y, width, height);
 
+        // Load theme from config
+        let theme_name = config.piano_theme_name();
+        let theme = KeyboardTheme::get_theme(theme_name).unwrap_or_else(|| {
+            log::warn!(
+                "Unknown theme name '{}', falling back to Modern",
+                theme_name
+            );
+            KeyboardTheme::modern()
+        });
+
         Self {
             layout,
             keys,
-            theme: PianoTheme::default(),
+            theme,
             position: (x, y),
             size: (width, height),
             window_width,
@@ -250,8 +790,14 @@ impl PianoKeyboardRenderer {
     }
 
     /// Set the visual theme
-    pub fn set_theme(&mut self, theme: PianoTheme) {
+    pub fn set_theme(&mut self, theme: KeyboardTheme) {
         self.theme = theme;
+    }
+
+    /// Get note color for a specific MIDI note
+    fn get_note_color(&self, note: u8) -> &NoteColor {
+        let note_index = (note % 12) as usize;
+        self.theme.octave_theme.note_color(note_index)
     }
 
     /// Update keyboard layout and recalculate key positions
@@ -388,7 +934,8 @@ impl PianoKeyboardRenderer {
             let released_notes: Vec<u8> = self.mouse_pressed_keys.keys().copied().collect();
             log::debug!(
                 "[DEBUG] [handle_mouse_input] Action: Releasing {} notes: {:?}",
-                released_notes.len(), released_notes
+                released_notes.len(),
+                released_notes
             );
             for note in &released_notes {
                 // Remove from unified pressed state
@@ -447,7 +994,8 @@ impl PianoKeyboardRenderer {
         if !keys_to_release.is_empty() {
             log::debug!(
                 "[DEBUG] [handle_mouse_drag] Action: Releasing {} keys during drag: {:?}",
-                keys_to_release.len(), keys_to_release
+                keys_to_release.len(),
+                keys_to_release
             );
         }
 
@@ -463,7 +1011,8 @@ impl PianoKeyboardRenderer {
         } else {
             log::debug!(
                 "[DEBUG] [handle_mouse_drag] Exit: Returning {} new pressed notes: {:?}",
-                new_pressed_notes.len(), new_pressed_notes
+                new_pressed_notes.len(),
+                new_pressed_notes
             );
             Some(new_pressed_notes)
         }
@@ -513,14 +1062,25 @@ impl PianoKeyboardRenderer {
     fn set_key_pressed(&mut self, note: u8, pressed: bool) {
         // DEBUG: Log when set_key_pressed is called
         let is_actually_pressed = self.is_key_pressed(note);
-        log::debug!("🎹 set_key_pressed(note={}, pressed={}, is_actually_pressed={})", note, pressed, is_actually_pressed);
-        
+        log::debug!(
+            "🎹 set_key_pressed(note={}, pressed={}, is_actually_pressed={})",
+            note,
+            pressed,
+            is_actually_pressed
+        );
+
         if let Some(key) = self.get_render_key_mut(note) {
             if pressed {
-                log::debug!("🎹   → Calling animation.press(), current value={:.3}", key.animation.value);
+                log::debug!(
+                    "🎹   → Calling animation.press(), current value={:.3}",
+                    key.animation.value
+                );
                 key.animation.press();
             } else {
-                log::debug!("🎹   → Calling animation.release(), current value={:.3}", key.animation.value);
+                log::debug!(
+                    "🎹   → Calling animation.release(), current value={:.3}",
+                    key.animation.value
+                );
                 key.animation.release();
             }
         }
@@ -532,7 +1092,9 @@ impl PianoKeyboardRenderer {
 
         log::debug!(
             "[DEBUG] [handle_note_event] Entry\n  - Context: note={}, velocity={}, pressed={}",
-            note, velocity, pressed
+            note,
+            velocity,
+            pressed
         );
 
         // Update keyboard state tracking
@@ -564,7 +1126,8 @@ impl PianoKeyboardRenderer {
     fn add_input_source(&mut self, note: u8, source: InputSource) {
         log::debug!(
             "[DEBUG] [add_input_source] Entry\n  - Context: note={}, source={:?}",
-            note, source
+            note,
+            source
         );
 
         self.pressed_keys_sources
@@ -585,7 +1148,8 @@ impl PianoKeyboardRenderer {
     fn remove_input_source(&mut self, note: u8, source: InputSource) {
         log::debug!(
             "[DEBUG] [remove_input_source] Entry\n  - Context: note={}, source={:?}",
-            note, source
+            note,
+            source
         );
 
         if let Some(sources) = self.pressed_keys_sources.get_mut(&note) {
@@ -638,13 +1202,15 @@ impl PianoKeyboardRenderer {
     pub fn update(&mut self, dt: f32) {
         log::debug!(
             "[DEBUG] [PianoKeyboardRenderer::update] Entry\n  - Context: dt={:.4}, total_keys={}",
-            dt, self.keys.len()
+            dt,
+            self.keys.len()
         );
 
         self.update_window_size();
 
         // Collect pressed states first to avoid borrow checker issues
-        let pressed_notes: std::collections::HashSet<u8> = self.pressed_keys_sources.keys().copied().collect();
+        let pressed_notes: std::collections::HashSet<u8> =
+            self.pressed_keys_sources.keys().copied().collect();
 
         // DEBUG: Log pressed state
         if !pressed_notes.is_empty() {
@@ -686,11 +1252,23 @@ impl PianoKeyboardRenderer {
 
     /// Render a single key
     fn render_key(&self, key: &VisualKey) {
-        let (base_color, pressed_color) = if key.is_sharp {
-            (self.theme.black_key_normal, self.theme.black_key_pressed)
+        let note_color = self.get_note_color(key.note);
+        let settings = &self.theme.octave_theme.settings;
+
+        // Use per-note colors if enabled, otherwise fall back to simple white/black
+        let (base_rgb, pressed_rgb) = if settings.use_per_note_colors {
+            (note_color.normal, note_color.pressed)
         } else {
-            (self.theme.white_key_normal, self.theme.white_key_pressed)
+            // Fallback to simple white/black based on key type
+            if key.is_sharp {
+                ((26, 26, 26), (46, 125, 50))
+            } else {
+                ((255, 255, 255), (76, 175, 80))
+            }
         };
+
+        let base_color = Color::from_rgba(base_rgb.0, base_rgb.1, base_rgb.2, 255);
+        let pressed_color = Color::from_rgba(pressed_rgb.0, pressed_rgb.1, pressed_rgb.2, 255);
 
         let anim = key.animation.value;
 
@@ -710,11 +1288,11 @@ impl PianoKeyboardRenderer {
         let color = Color { r, g, b, a: 1.0 };
 
         // 2.5D depth effect - enhanced for pressed keys
-        if self.theme.depth_2d5 > 0.0 {
-            let depth = self.theme.depth_2d5;
+        if settings.depth_2d5 > 0.0 {
+            let depth = settings.depth_2d5;
             // For pressed keys, reduce the depth effect to simulate being pressed down
             let effective_depth = if anim > 0.5 { depth * 0.3 } else { depth };
-            
+
             let shadow_color = Color {
                 r: base_color.r * 0.5,
                 g: base_color.g * 0.5,
@@ -733,27 +1311,13 @@ impl PianoKeyboardRenderer {
         }
 
         // Draw main key
-        if self.theme.corner_radius > 0.0 {
-            // Rounded rectangle (simulated with regular rect for now)
-            draw_rectangle(key.x, key.y, key.width, key.height, color);
-        } else {
-            draw_rectangle(key.x, key.y, key.width, key.height, color);
-        }
+        draw_rectangle(key.x, key.y, key.width, key.height, color);
 
         // Draw border - enhanced for pressed keys
+        let border_rgb = settings.border_color;
+        let border_color = Color::from_rgba(border_rgb.0, border_rgb.1, border_rgb.2, 255);
         let border_width = if anim > 0.5 { 2.0 } else { 1.0 };
-        let border_color = if anim > 0.5 {
-            // Use a brighter border for pressed keys
-            Color {
-                r: pressed_color.r * 1.2,
-                g: pressed_color.g * 1.2,
-                b: pressed_color.b * 1.2,
-                a: 1.0,
-            }
-        } else {
-            self.theme.border_color
-        };
-        
+
         draw_rectangle_lines(
             key.x,
             key.y,
@@ -763,34 +1327,40 @@ impl PianoKeyboardRenderer {
             border_color,
         );
 
-        // Enhanced glow effect for pressed keys
-        if anim > 0.1 && self.theme.glow_intensity > 0.0 {
-            // Multi-layer glow for more prominent effect
+        // Glow effect
+        if anim > 0.1 {
+            let glow_rgb = note_color.glow_color();
+            let glow_intensity = note_color.glow_intensity * anim;
+
+            let glow_color = Color {
+                r: glow_rgb.0 as f32 / 255.0,
+                g: glow_rgb.1 as f32 / 255.0,
+                b: glow_rgb.2 as f32 / 255.0,
+                a: glow_intensity * 0.5,
+            };
+
+            // Draw glow layers
             let glow_layers = if anim > 0.5 { 3 } else { 1 };
-            
             for layer in 0..glow_layers {
                 let offset = (layer + 1) as f32 * 1.5;
-                let alpha = anim * self.theme.glow_intensity * (1.0 - layer as f32 * 0.2);
-                
-                let glow_color = Color {
-                    r: pressed_color.r,
-                    g: pressed_color.g,
-                    b: pressed_color.b,
-                    a: alpha,
-                };
+                let alpha = glow_intensity * (1.0 - layer as f32 * 0.2);
 
-                // Draw glow (larger semi-transparent rectangle)
                 draw_rectangle(
                     key.x - offset,
                     key.y - offset,
                     key.width + offset * 2.0,
                     key.height + offset * 2.0,
-                    glow_color,
+                    Color {
+                        r: glow_color.r,
+                        g: glow_color.g,
+                        b: glow_color.b,
+                        a: alpha,
+                    },
                 );
             }
         }
 
-        // Inner highlight for pressed keys (simulates light reflection)
+        // Inner highlight for pressed keys
         if anim > 0.5 {
             let highlight_color = Color {
                 r: 1.0,
@@ -798,8 +1368,7 @@ impl PianoKeyboardRenderer {
                 b: 1.0,
                 a: 0.15 * anim,
             };
-            
-            // Draw a small highlight rectangle at the top of the key
+
             let highlight_height = key.height * 0.1;
             draw_rectangle(
                 key.x + 2.0,

@@ -8,7 +8,7 @@ pub mod synth_backend;
 pub use synth_backend::SynthBackend;
 
 pub mod ply_bridge;
-pub use ply_bridge::{PlyAudioBridge, PlyOutputWrapper, PlyAudioIntegration};
+pub use ply_bridge::{PlyAudioBridge, PlyAudioIntegration, PlyOutputWrapper};
 
 use std::{
     fmt::{self, Display, Formatter},
@@ -168,6 +168,10 @@ impl OutputManager {
         outs.push(OutputDescriptor::DummyOutput);
 
         outs
+    }
+
+    pub fn is_synth_output(&self) -> bool {
+        self.output_connection.0.is_synth()
     }
 
     pub fn connect(&mut self, desc: OutputDescriptor) {
