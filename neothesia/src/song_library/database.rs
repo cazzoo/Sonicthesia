@@ -4,7 +4,9 @@ use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
-use crate::song_library::models::{SongEntry, SongMetadata, FilterState, SortPreference, calculate_difficulty};
+use crate::song_library::models::{
+    calculate_difficulty, FilterState, SongEntry, SongMetadata, SortPreference,
+};
 use crate::song_library::scanner::SongScanner;
 
 #[derive(Debug, Error)]
@@ -27,13 +29,16 @@ pub trait SongRepository: Send + Sync {
     fn get_song(&self, song_id: i64) -> Result<Option<SongEntry>>;
     fn list_songs(&self, sort: &SortPreference, filter: &FilterState) -> Result<Vec<SongEntry>>;
     fn update_stats(&self, song_id: i64, score: Option<f32>) -> Result<()>;
+    fn update_genre(&self, song_id: i64, genre: Option<String>) -> Result<()>;
+    fn update_labels(&self, song_id: i64, labels: Vec<String>) -> Result<()>;
+    fn reset_score(&self, song_id: i64) -> Result<()>;
     fn song_count(&self) -> Result<usize>;
     fn scan_directories(&self, _directories: &[PathBuf]) -> Result<usize> {
         Ok(0)
     }
 }
 
-const CURRENT_SCHEMA_VERSION: i32 = 1;
+const CURRENT_SCHEMA_VERSION: i32 = 2;
 
 struct DatabaseConnection {
     conn: Connection,
@@ -41,24 +46,38 @@ struct DatabaseConnection {
 
 impl DatabaseConnection {
     fn new(db_path: &Path) -> Result<Self> {
-        let db_path_str = db_path
-            .parent()
-            .ok_or_else(|| DatabaseError::InitializationFailed("Invalid database path".to_string()))?;
+        let db_path_str = db_path.parent().ok_or_else(|| {
+            DatabaseError::InitializationFailed("Invalid database path".to_string())
+        })?;
 
-        std::fs::create_dir_all(db_path_str)
-            .map_err(|e| DatabaseError::InitializationFailed(format!("Failed to create database directory: {}", e)))?;
+        std::fs::create_dir_all(db_path_str).map_err(|e| {
+            DatabaseError::InitializationFailed(format!(
+                "Failed to create database directory: {}",
+                e
+            ))
+        })?;
 
-        let conn = Connection::open(db_path)
-            .map_err(|e| DatabaseError::InitializationFailed(format!("Failed to open database: {}", e)))?;
+        let conn = Connection::open(db_path).map_err(|e| {
+            DatabaseError::InitializationFailed(format!("Failed to open database: {}", e))
+        })?;
 
         conn.pragma_update(None, "journal_mode", "WAL")
-            .map_err(|e| DatabaseError::InitializationFailed(format!("Failed to enable WAL mode: {}", e)))?;
+            .map_err(|e| {
+                DatabaseError::InitializationFailed(format!("Failed to enable WAL mode: {}", e))
+            })?;
 
         conn.pragma_update(None, "synchronous", "NORMAL")
-            .map_err(|e| DatabaseError::InitializationFailed(format!("Failed to set synchronous mode: {}", e)))?;
+            .map_err(|e| {
+                DatabaseError::InitializationFailed(format!(
+                    "Failed to set synchronous mode: {}",
+                    e
+                ))
+            })?;
 
         conn.pragma_update(None, "foreign_keys", "ON")
-            .map_err(|e| DatabaseError::InitializationFailed(format!("Failed to enable foreign keys: {}", e)))?;
+            .map_err(|e| {
+                DatabaseError::InitializationFailed(format!("Failed to enable foreign keys: {}", e))
+            })?;
 
         Ok(Self { conn })
     }
@@ -71,11 +90,10 @@ impl DatabaseConnection {
             [],
         )?;
 
-        let current_version: Option<i32> = self.conn.query_row(
-            "SELECT version FROM schema_version",
-            [],
-            |row| row.get(0),
-        ).ok();
+        let current_version: Option<i32> = self
+            .conn
+            .query_row("SELECT version FROM schema_version", [], |row| row.get(0))
+            .ok();
 
         if current_version.is_none() {
             self.create_schema()?;
@@ -83,7 +101,33 @@ impl DatabaseConnection {
                 "INSERT INTO schema_version (version) VALUES (?1)",
                 params![CURRENT_SCHEMA_VERSION],
             )?;
+        } else {
+            let version = current_version.unwrap();
+            if version < CURRENT_SCHEMA_VERSION {
+                self.run_migrations(version)?;
+            }
         }
+
+        Ok(())
+    }
+
+    fn run_migrations(&mut self, from_version: i32) -> Result<()> {
+        if from_version < 2 {
+            self.migrate_to_v2()?;
+        }
+
+        Ok(())
+    }
+
+    fn migrate_to_v2(&mut self) -> Result<()> {
+        self.conn
+            .execute("ALTER TABLE songs ADD COLUMN genre TEXT", [])?;
+
+        self.conn
+            .execute("ALTER TABLE songs ADD COLUMN labels TEXT", [])?;
+
+        self.conn
+            .execute("UPDATE schema_version SET version = 2", [])?;
 
         Ok(())
     }
@@ -102,7 +146,9 @@ impl DatabaseConnection {
                 file_size INTEGER NOT NULL,
                 file_modified INTEGER NOT NULL,
                 created_at INTEGER NOT NULL,
-                indexed_at INTEGER NOT NULL
+                indexed_at INTEGER NOT NULL,
+                genre TEXT,
+                labels TEXT
             )",
             [],
         )?;
@@ -212,6 +258,23 @@ impl SqliteSongRepository {
             }
         }
 
+        if let Some(genre) = &filter.genre {
+            if !genre.trim().is_empty() {
+                conditions.push("s.genre LIKE ?".to_string());
+                params.push(Box::new(format!("%{}%", genre)));
+            }
+        }
+
+        if let Some(min_score) = filter.score_min {
+            conditions.push("stats.best_score >= ?".to_string());
+            params.push(Box::new(min_score));
+        }
+
+        if let Some(max_score) = filter.score_max {
+            conditions.push("stats.best_score <= ?".to_string());
+            params.push(Box::new(max_score));
+        }
+
         let where_clause = if conditions.is_empty() {
             String::new()
         } else {
@@ -233,6 +296,8 @@ impl SqliteSongRepository {
             SortPreference::LastPlayedAsc => "ORDER BY stats.last_played_at ASC",
             SortPreference::LastScoreDesc => "ORDER BY stats.last_score DESC",
             SortPreference::LastScoreAsc => "ORDER BY stats.last_score ASC",
+            SortPreference::GenreAsc => "ORDER BY s.genre ASC",
+            SortPreference::GenreDesc => "ORDER BY s.genre DESC",
         }
     }
 }
@@ -245,26 +310,36 @@ impl SongRepository for SqliteSongRepository {
             Ok(file_metadata) => {
                 let modified = file_metadata
                     .modified()
-                    .map_err(|e| DatabaseError::InitializationFailed(format!("Failed to get file modified time: {}", e)))?
+                    .map_err(|e| {
+                        DatabaseError::InitializationFailed(format!(
+                            "Failed to get file modified time: {}",
+                            e
+                        ))
+                    })?
                     .duration_since(std::time::UNIX_EPOCH)
-                    .map_err(|e| DatabaseError::InitializationFailed(format!("Failed to convert file time: {}", e)))?
+                    .map_err(|e| {
+                        DatabaseError::InitializationFailed(format!(
+                            "Failed to convert file time: {}",
+                            e
+                        ))
+                    })?
                     .as_secs() as i64;
                 (file_metadata.len(), modified)
             }
-            Err(_) => {
-                (0, Utc::now().timestamp())
-            }
+            Err(_) => (0, Utc::now().timestamp()),
         };
 
         let now = Utc::now().timestamp();
 
         let difficulty = calculate_difficulty(metadata);
+        let labels_json =
+            serde_json::to_string(&metadata.labels).unwrap_or_else(|_| "[]".to_string());
 
         conn.execute(
             "INSERT INTO songs (
                 file_path, name, difficulty, duration, track_count, note_count, tempo_changes,
-                file_size, file_modified, created_at, indexed_at
-            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                file_size, file_modified, created_at, indexed_at, genre, labels
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
             ON CONFLICT(file_path) DO UPDATE SET
                 name = excluded.name,
                 difficulty = excluded.difficulty,
@@ -274,7 +349,9 @@ impl SongRepository for SqliteSongRepository {
                 tempo_changes = excluded.tempo_changes,
                 file_size = excluded.file_size,
                 file_modified = excluded.file_modified,
-                indexed_at = excluded.indexed_at
+                indexed_at = excluded.indexed_at,
+                genre = excluded.genre,
+                labels = excluded.labels
             ",
             params![
                 file_path.to_string_lossy(),
@@ -288,6 +365,8 @@ impl SongRepository for SqliteSongRepository {
                 file_modified,
                 now,
                 now,
+                metadata.genre,
+                labels_json,
             ],
         )?;
 
@@ -308,10 +387,7 @@ impl SongRepository for SqliteSongRepository {
     fn remove_song(&self, song_id: i64) -> Result<()> {
         let conn = self.get_connection()?;
 
-        let changes = conn.execute(
-            "DELETE FROM songs WHERE id = ?1",
-            params![song_id],
-        )?;
+        let changes = conn.execute("DELETE FROM songs WHERE id = ?1", params![song_id])?;
 
         if changes == 0 {
             return Err(DatabaseError::SongNotFound(song_id));
@@ -335,13 +411,20 @@ impl SongRepository for SqliteSongRepository {
                 stats.last_score,
                 stats.best_score,
                 stats.last_played_at,
-                s.created_at
+                s.created_at,
+                s.genre,
+                s.labels
             FROM songs s
             LEFT JOIN song_stats stats ON s.id = stats.song_id
-            WHERE s.id = ?1"
+            WHERE s.id = ?1",
         )?;
 
         let result = stmt.query_row(params![song_id], |row| {
+            let labels_json: Option<String> = row.get(12)?;
+            let labels = labels_json
+                .and_then(|s| serde_json::from_str(&s).ok())
+                .unwrap_or_default();
+
             Ok(SongEntry {
                 id: row.get(0)?,
                 file_path: PathBuf::from(row.get::<_, String>(1)?),
@@ -356,6 +439,8 @@ impl SongRepository for SqliteSongRepository {
                     .get::<_, Option<i64>>(9)?
                     .map(|ts| DateTime::from_timestamp(ts, 0).unwrap()),
                 created_at: DateTime::from_timestamp(row.get(10)?, 0).unwrap(),
+                genre: row.get(11)?,
+                labels,
             })
         });
 
@@ -384,7 +469,9 @@ impl SongRepository for SqliteSongRepository {
                 stats.last_score,
                 stats.best_score,
                 stats.last_played_at,
-                s.created_at
+                s.created_at,
+                s.genre,
+                s.labels
             FROM songs s
             LEFT JOIN song_stats stats ON s.id = stats.song_id
             {}
@@ -396,24 +483,32 @@ impl SongRepository for SqliteSongRepository {
 
         let param_refs: Vec<&dyn rusqlite::ToSql> = params.iter().map(|p| p.as_ref()).collect();
 
-        let entries = stmt.query_map(param_refs.as_slice(), |row| {
-            Ok(SongEntry {
-                id: row.get(0)?,
-                file_path: PathBuf::from(row.get::<_, String>(1)?),
-                name: row.get(2)?,
-                difficulty: row.get(3)?,
-                duration_secs: row.get(4)?,
-                track_count: row.get(5)?,
-                play_count: row.get(6)?,
-                last_score: row.get(7)?,
-                best_score: row.get(8)?,
-                last_played_at: row
-                    .get::<_, Option<i64>>(9)?
-                    .map(|ts| DateTime::from_timestamp(ts, 0).unwrap()),
-                created_at: DateTime::from_timestamp(row.get(10)?, 0).unwrap(),
-            })
-        })?
-        .collect::<std::result::Result<Vec<_>, _>>()?;
+        let entries = stmt
+            .query_map(param_refs.as_slice(), |row| {
+                let labels_json: Option<String> = row.get(12)?;
+                let labels = labels_json
+                    .and_then(|s| serde_json::from_str(&s).ok())
+                    .unwrap_or_default();
+
+                Ok(SongEntry {
+                    id: row.get(0)?,
+                    file_path: PathBuf::from(row.get::<_, String>(1)?),
+                    name: row.get(2)?,
+                    difficulty: row.get(3)?,
+                    duration_secs: row.get(4)?,
+                    track_count: row.get(5)?,
+                    play_count: row.get(6)?,
+                    last_score: row.get(7)?,
+                    best_score: row.get(8)?,
+                    last_played_at: row
+                        .get::<_, Option<i64>>(9)?
+                        .map(|ts| DateTime::from_timestamp(ts, 0).unwrap()),
+                    created_at: DateTime::from_timestamp(row.get(10)?, 0).unwrap(),
+                    genre: row.get(11)?,
+                    labels,
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
 
         Ok(entries)
     }
@@ -460,11 +555,7 @@ impl SongRepository for SqliteSongRepository {
     fn song_count(&self) -> Result<usize> {
         let conn = self.get_connection()?;
 
-        let count: i64 = conn.query_row(
-            "SELECT COUNT(*) FROM songs",
-            [],
-            |row| row.get(0),
-        )?;
+        let count: i64 = conn.query_row("SELECT COUNT(*) FROM songs", [], |row| row.get(0))?;
 
         Ok(count as usize)
     }
@@ -472,9 +563,12 @@ impl SongRepository for SqliteSongRepository {
     fn scan_directories(&self, directories: &[PathBuf]) -> Result<usize> {
         let scanner = SongScanner::new();
         let summary = scanner.index_directories(directories, self, None);
-        
+
         if !summary.errors.is_empty() {
-            log::warn!("Song library scan completed with {} errors:", summary.errors.len());
+            log::warn!(
+                "Song library scan completed with {} errors:",
+                summary.errors.len()
+            );
             for error in summary.errors.iter().take(10) {
                 log::warn!("  {}", error);
             }
@@ -482,8 +576,43 @@ impl SongRepository for SqliteSongRepository {
                 log::warn!("  ... and {} more", summary.errors.len() - 10);
             }
         }
-        
+
         Ok(summary.songs_added)
+    }
+
+    fn update_genre(&self, song_id: i64, genre: Option<String>) -> Result<()> {
+        let conn = self.get_connection()?;
+
+        conn.execute(
+            "UPDATE songs SET genre = ?1 WHERE id = ?2",
+            params![genre, song_id],
+        )?;
+
+        Ok(())
+    }
+
+    fn update_labels(&self, song_id: i64, labels: Vec<String>) -> Result<()> {
+        let conn = self.get_connection()?;
+
+        let labels_json = serde_json::to_string(&labels).unwrap_or_else(|_| "[]".to_string());
+
+        conn.execute(
+            "UPDATE songs SET labels = ?1 WHERE id = ?2",
+            params![labels_json, song_id],
+        )?;
+
+        Ok(())
+    }
+
+    fn reset_score(&self, song_id: i64) -> Result<()> {
+        let conn = self.get_connection()?;
+
+        conn.execute(
+            "UPDATE song_stats SET play_count = 0, last_score = NULL, best_score = NULL WHERE song_id = ?1",
+            params![song_id],
+        )?;
+
+        Ok(())
     }
 }
 
@@ -507,6 +636,8 @@ mod tests {
             track_count: 3,
             note_count: 1000,
             tempo_changes: 5,
+            genre: None,
+            labels: Vec::new(),
         };
 
         let file_path = Path::new("/test/path.mid");
@@ -529,6 +660,8 @@ mod tests {
             track_count: 3,
             note_count: 1000,
             tempo_changes: 5,
+            genre: None,
+            labels: Vec::new(),
         };
 
         let file_path = Path::new("/test/path.mid");
@@ -550,6 +683,8 @@ mod tests {
             track_count: 3,
             note_count: 1000,
             tempo_changes: 5,
+            genre: None,
+            labels: Vec::new(),
         };
 
         let file_path = Path::new("/test/path.mid");
@@ -575,6 +710,8 @@ mod tests {
             track_count: 3,
             note_count: 500,
             tempo_changes: 5,
+            genre: None,
+            labels: Vec::new(),
         };
 
         let metadata2 = SongMetadata {
@@ -583,16 +720,24 @@ mod tests {
             track_count: 3,
             note_count: 2000,
             tempo_changes: 5,
+            genre: None,
+            labels: Vec::new(),
         };
 
-        repo.upsert_song(&metadata1, Path::new("/test/alpha.mid")).unwrap();
-        repo.upsert_song(&metadata2, Path::new("/test/zeta.mid")).unwrap();
+        repo.upsert_song(&metadata1, Path::new("/test/alpha.mid"))
+            .unwrap();
+        repo.upsert_song(&metadata2, Path::new("/test/zeta.mid"))
+            .unwrap();
 
-        let songs = repo.list_songs(&SortPreference::NameAsc, &FilterState::default()).unwrap();
+        let songs = repo
+            .list_songs(&SortPreference::NameAsc, &FilterState::default())
+            .unwrap();
         assert_eq!(songs[0].name, "Alpha Song");
         assert_eq!(songs[1].name, "Zeta Song");
 
-        let songs = repo.list_songs(&SortPreference::NameDesc, &FilterState::default()).unwrap();
+        let songs = repo
+            .list_songs(&SortPreference::NameDesc, &FilterState::default())
+            .unwrap();
         assert_eq!(songs[0].name, "Zeta Song");
         assert_eq!(songs[1].name, "Alpha Song");
     }
@@ -609,9 +754,12 @@ mod tests {
             track_count: 3,
             note_count: 1000,
             tempo_changes: 5,
+            genre: None,
+            labels: Vec::new(),
         };
 
-        repo.upsert_song(&metadata, Path::new("/test/path.mid")).unwrap();
+        repo.upsert_song(&metadata, Path::new("/test/path.mid"))
+            .unwrap();
         assert_eq!(repo.song_count().unwrap(), 1);
     }
 }

@@ -20,10 +20,32 @@ fn button() -> nuon::Button {
 
 impl super::MenuScene {
     pub fn settings_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
+        // Log PLY settings activity
+        log::info!("🎯 PLY SETTINGS: Rendering settings page with PLY integration");
+        
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
 
         let bottom_bar_h = 60.0;
+
+        // Add PLY active indicator at top of settings page
+        nuon::label()
+            .text("🎯 PLY ENGINE ACTIVE")
+            .x(10.0)
+            .y(10.0)
+            .size(250.0, 25.0)
+            .font_size(16.0)
+            .color([0x00, 0xFF, 0x00, 0xFF])
+            .build(ui);
+        
+        nuon::label()
+            .text("🎨 Settings: PLY Integration")
+            .x(10.0)
+            .y(40.0)
+            .size(250.0, 20.0)
+            .font_size(12.0)
+            .color([0x00, 0xFF, 0x00, 0xFF])
+            .build(ui);
 
         nuon::translate().x(0.0).y(win_h).build(ui, |ui| {
             let padding = 10.0;

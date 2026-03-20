@@ -1,12 +1,15 @@
 use std::sync::Arc;
 
 use crate::{
-    NeothesiaEvent, TransformUniform, config::Config, input_manager::InputManager,
+    NeothesiaEvent, input_manager::InputManager,
     output_manager::OutputManager, utils::window::WindowState,
     song_library::{SongRepository, SongLibraryDatabase, default_db_path, Error as SongLibraryError},
+    ply_integration::PlyInputHandler,
 };
+
 use neothesia_core::render::{QuadRendererFactory, TextRendererFactory};
-use wgpu_jumpstart::{Gpu, Uniform};
+use neothesia_core::config::Config;
+use wgpu_jumpstart::{Gpu, TransformUniform, Uniform};
 use winit::event_loop::EventLoopProxy;
 
 use winit::window::Window;
@@ -23,6 +26,9 @@ pub struct Context {
 
     pub output_manager: OutputManager,
     pub input_manager: InputManager,
+
+    pub ply_input_handler: PlyInputHandler,
+
     pub config: Config,
     pub song_library_db: SongLibraryDatabase,
 
@@ -80,6 +86,9 @@ impl Context {
 
             output_manager: Default::default(),
             input_manager: InputManager::new(proxy.clone()),
+
+            ply_input_handler: PlyInputHandler::new(proxy.clone()),
+
             config,
             song_library_db,
             proxy,

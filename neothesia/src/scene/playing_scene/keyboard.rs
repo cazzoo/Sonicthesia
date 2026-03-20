@@ -1,6 +1,6 @@
 use midi_file::midly::MidiMessage;
 use neothesia_core::{
-    config::ColorSchemaV1,
+    config::{ColorSchemaV1, Config},
     piano_layout,
     render::{KeyboardKeyState, QuadRenderer, TextRenderer},
     utils::Point,
@@ -8,11 +8,10 @@ use neothesia_core::{
 use piano_layout::KeyboardRange;
 
 use crate::{
-    config::Config,
     context::Context,
-    render::KeyboardRenderer,
     song::{ChannelConfig, SongConfig},
 };
+use neothesia_core::render::KeyboardRenderer;
 
 pub struct Keyboard {
     renderer: KeyboardRenderer,

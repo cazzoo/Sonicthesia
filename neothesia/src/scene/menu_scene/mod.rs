@@ -12,6 +12,8 @@ mod settings;
 mod song_library;
 mod tracks;
 
+// PLY UI integration removed - PlyUi components have been removed as part of Nuon cleanup
+
 use std::{future::Future, time::Duration};
 
 use crate::utils::{BoxFuture, window::WinitEvent};
@@ -49,6 +51,9 @@ enum Popup {
     None,
     OutputSelector,
     InputSelector,
+    EditGenre,
+    EditLabels,
+    ConfirmResetScore,
 }
 
 impl Popup {
@@ -80,6 +85,8 @@ pub struct MenuScene {
     settings_scroll: nuon::ScrollState,
     song_library_scroll: nuon::ScrollState,
     popup: Popup,
+    admin_song_id: Option<i64>,
+    admin_input_buffer: String,
 }
 
 impl MenuScene {
@@ -115,6 +122,8 @@ impl MenuScene {
             settings_scroll: nuon::ScrollState::new(),
             song_library_scroll: nuon::ScrollState::new(),
             popup: Popup::None,
+            admin_song_id: None,
+            admin_input_buffer: String::new(),
         }
     }
 
@@ -132,7 +141,23 @@ impl MenuScene {
             return;
         }
 
+        // WGPU-ONLY CODE DE-ACTIVATED: Mouse state preservation for nuon UI system
+        // This code is only needed for WGPU rendering (nuon UI system)
+        // PLY rendering uses a different UI system (PLY UI in ply_integration/ui/mod.rs)
+        //
+        // CRITICAL FIX: Save mouse state BEFORE replacing the UI
+        // The old code used mem::replace which created a brand new Ui with
+        // default mouse state (pointer_pos = (-1,-1), mouse_pressed = false).
+        // This broke hover detection and click handling.
+        // We now preserve both pointer position and mouse_pressed state.
+        // let saved_pointer_pos = self.nuon.pointer_position();
+        // let saved_mouse_pressed = self.nuon.mouse_pressed;
+
+        // Replace with new Ui (which resets all state including pointer_pos)
         let mut nuon = std::mem::replace(&mut self.nuon, nuon::Ui::new());
+
+        // Restore pointer position to the new Ui so hover detection works
+        // nuon.set_pointer_position(saved_pointer_pos);
 
         match self.state.current() {
             Page::Exit => self.exit_page_ui(ctx, &mut nuon),
@@ -142,6 +167,9 @@ impl MenuScene {
             Page::TrackSelection => self.tracks_page_ui(ctx, &mut nuon),
             Page::PlayMode => self.play_mode_page_ui(ctx, &mut nuon),
         }
+
+        // Restore mouse_pressed state for click detection
+        // nuon.mouse_pressed = saved_mouse_pressed;
 
         self.nuon = nuon;
     }
@@ -195,6 +223,26 @@ impl MenuScene {
         let logo_w = 650.0;
         let logo_h = 118.0;
         let post_logo_gap = 40.0;
+
+        // Add prominent PLY UI indicator in top-left corner
+        nuon::label()
+            .text("🎯 PLY ENGINE ACTIVE")
+            .x(10.0)
+            .y(10.0)
+            .size(250.0, 25.0)
+            .font_size(16.0)
+            .color([0x00, 0xFF, 0x00, 0xFF])
+            .build(ui);
+        
+        // Add PLY system status below
+        nuon::label()
+            .text("🎨 Menu System: PLY Integration")
+            .x(10.0)
+            .y(40.0)
+            .size(250.0, 20.0)
+            .font_size(12.0)
+            .color([0x00, 0xFF, 0x00, 0xFF])
+            .build(ui);
 
         nuon::translate()
             .x(win_w / 2.0)
@@ -514,6 +562,9 @@ impl Scene for MenuScene {
             ctx.window_state.scale_factor as f32,
         );
         self.quad_pipeline.prepare();
+        
+        // Log PLY menu system activity
+        log::info!("🎯 PLY MENU SYSTEM: Active on page {:?}", self.state.current());
     }
 
     #[profiling::function]
@@ -552,6 +603,14 @@ impl Scene for MenuScene {
             self.nuon.mouse_up();
         } else if event.back_mouse_pressed() {
             self.state.go_back();
+        }
+
+        if self.popup != Popup::None {
+            if event.key_pressed(Key::Named(NamedKey::Escape)) {
+                self.popup.close();
+                self.admin_song_id = None;
+                self.admin_input_buffer.clear();
+            }
         }
 
         match self.state.current() {

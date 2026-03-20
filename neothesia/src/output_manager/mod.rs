@@ -1,11 +1,14 @@
-mod midi_backend;
-use midi_backend::{MidiBackend, MidiPortInfo};
+pub mod midi_backend;
+pub use midi_backend::{MidiBackend, MidiPortInfo};
 
 #[cfg(feature = "synth")]
-mod synth_backend;
+pub mod synth_backend;
 
 #[cfg(feature = "synth")]
-use synth_backend::SynthBackend;
+pub use synth_backend::SynthBackend;
+
+pub mod ply_bridge;
+pub use ply_bridge::{PlyAudioBridge, PlyOutputWrapper, PlyAudioIntegration};
 
 use std::{
     fmt::{self, Display, Formatter},

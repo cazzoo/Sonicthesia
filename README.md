@@ -39,6 +39,24 @@ All binary releases:
 - [FAQ](https://polymeilex.github.io/Neothesia/pages/installation.html)
 - [Video encoding](https://polymeilex.github.io/Neothesia/pages/video-encoding.html)
 
+## Rendering Engine Options
+
+Neothesia supports two rendering engines that can be selected via Cargo feature flags:
+
+### PLY Rendering (Default)
+- **Engine**: Macroquad-based rendering
+- **Status**: Active development
+- **Feature**: `ply-rendering` (enabled by default)
+- **Build**: `cargo build` or `cargo build --features ply-rendering`
+
+### WGPU Rendering (Legacy)
+- **Engine**: WGPU-based rendering
+- **Status**: Stable, fully functional
+- **Feature**: `wgpu-rendering`
+- **Build**: `cargo build --features wgpu-rendering,oxi-synth --no-default-features`
+
+**Note**: PLY rendering is the default and will be the primary rendering engine going forward. WGPU rendering remains available as a fallback option.
+
 ## Thanks to
 
 - [WGPU](https://wgpu.rs/)

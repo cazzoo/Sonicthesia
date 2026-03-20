@@ -11,13 +11,19 @@ pub enum ParseError {
 }
 
 pub trait MidiParser: Send + Sync {
-    fn parse_metadata(&self, path: &Path) -> Result<crate::song_library::models::SongMetadata, ParseError>;
+    fn parse_metadata(
+        &self,
+        path: &Path,
+    ) -> Result<crate::song_library::models::SongMetadata, ParseError>;
 }
 
 pub struct MidiFileParser;
 
 impl MidiParser for MidiFileParser {
-    fn parse_metadata(&self, path: &Path) -> Result<crate::song_library::models::SongMetadata, ParseError> {
+    fn parse_metadata(
+        &self,
+        path: &Path,
+    ) -> Result<crate::song_library::models::SongMetadata, ParseError> {
         let midi = midi_file::MidiFile::new(path).map_err(ParseError::MidiError)?;
 
         let name = path
@@ -26,11 +32,7 @@ impl MidiParser for MidiFileParser {
             .unwrap_or("Unknown")
             .to_string();
 
-        let duration_secs = midi
-            .measures
-            .last()
-            .map(|d| d.as_secs())
-            .unwrap_or(0) as u32;
+        let duration_secs = midi.measures.last().map(|d| d.as_secs()).unwrap_or(0) as u32;
 
         let track_count = midi.tracks.len();
         let note_count = midi.tracks.iter().map(|t| t.notes.len()).sum();
@@ -42,6 +44,8 @@ impl MidiParser for MidiFileParser {
             track_count,
             note_count,
             tempo_changes,
+            genre: None,
+            labels: Vec::new(),
         })
     }
 }

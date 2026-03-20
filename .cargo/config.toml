@@ -1,0 +1,55 @@
+# Cargo build configuration for Neothesia
+# This file optimizes build times and binary size for the PLY integration
+
+[build]
+# Use parallel jobs for faster compilation
+jobs = 8
+
+# Target-specific optimizations
+[target.x86_64-unknown-linux-gnu]
+rustflags = [
+    "-C", "link-arg=-fuse-ld=lld",  # Use lld linker for faster linking
+]
+
+[target.x86_64-apple-darwin]
+rustflags = [
+    "-C", "link-arg=-ld64",  # Use Apple's linker
+]
+
+[target.x86_64-pc-windows-msvc]
+rustflags = [
+    "-C", "link-arg=/SUBSYSTEM:WINDOWS",
+]
+
+# Release profile optimizations
+[profile.release]
+# Optimize for performance
+opt-level = 3
+# Enable link-time optimization
+lto = "thin"
+# Enable all optimizations
+codegen-units = 1
+# Strip debug symbols for smaller binary
+strip = "debuginfo"
+# Panic behavior - abort in release for smaller binary
+panic = "abort"
+
+# Development profile
+[profile.dev]
+# Optimize dependencies even in dev mode for better performance
+opt-level = 0
+
+# Profile for running tests with optimizations
+[profile.test]
+opt-level = 2
+
+# Profile for benchmarking
+[profile.bench]
+inherits = "release"
+strip = false
+debug = true
+
+# Profile for development with some optimizations
+[profile.dev-opt]
+inherits = "dev"
+opt-level = 2
