@@ -858,11 +858,8 @@ impl PianoKeyboardRenderer {
         total_width: f32,
         total_height: f32,
     ) -> Vec<VisualKey> {
-        let total_keys = layout.keys.len() as f32;
-        let avg_key_width = total_width / total_keys;
-        let scale_x = total_width / (total_keys * avg_key_width);
+        let scale_x = total_width / layout.width;
 
-        // Get the MIDI note range from the layout
         let range_start = layout.range.start();
 
         layout
@@ -1336,28 +1333,10 @@ impl PianoKeyboardRenderer {
                 r: glow_rgb.0 as f32 / 255.0,
                 g: glow_rgb.1 as f32 / 255.0,
                 b: glow_rgb.2 as f32 / 255.0,
-                a: glow_intensity * 0.5,
+                a: glow_intensity * 0.3,
             };
 
-            // Draw glow layers
-            let glow_layers = if anim > 0.5 { 3 } else { 1 };
-            for layer in 0..glow_layers {
-                let offset = (layer + 1) as f32 * 1.5;
-                let alpha = glow_intensity * (1.0 - layer as f32 * 0.2);
-
-                draw_rectangle(
-                    key.x - offset,
-                    key.y - offset,
-                    key.width + offset * 2.0,
-                    key.height + offset * 2.0,
-                    Color {
-                        r: glow_color.r,
-                        g: glow_color.g,
-                        b: glow_color.b,
-                        a: alpha,
-                    },
-                );
-            }
+            draw_rectangle(key.x, key.y, key.width, key.height, glow_color);
         }
 
         // Inner highlight for pressed keys
