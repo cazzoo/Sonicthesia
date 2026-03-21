@@ -5,7 +5,7 @@ mod model;
 pub use model::ColorSchemaV1;
 use model::{
     AppearanceConfig, AppearanceConfigV1, DevicesConfig, DevicesConfigV1, FilterState, History,
-    HistoryV1, LayoutConfig, LayoutConfigV1, Model, PlaybackConfig, PlaybackConfigV1,
+    HistoryV1, LayoutConfig, LayoutConfigV1, Model, PianoThemeConfig, PlaybackConfig, PlaybackConfigV1,
     SortPreference, SongLibraryConfig, SynthConfig, SynthConfigV2, WaterfallConfig,
     WaterfallConfigV1,
 };
@@ -48,6 +48,7 @@ impl Model {
             keyboard_layout,
             appearance,
             song_library,
+            piano_theme,
         } = config;
 
         Self {
@@ -59,6 +60,7 @@ impl Model {
             devices: DevicesConfig::V1(devices),
             appearance: AppearanceConfig::V1(appearance),
             song_library,
+            piano_theme,
         }
     }
 
@@ -84,6 +86,7 @@ impl Model {
                 LayoutConfig::V1(v) => v,
             },
             song_library: self.song_library,
+            piano_theme: self.piano_theme,
         }
     }
 }
@@ -98,6 +101,7 @@ pub struct Config {
     history: HistoryV1,
     keyboard_layout: LayoutConfigV1,
     song_library: SongLibraryConfig,
+    piano_theme: PianoThemeConfig,
 }
 
 impl Default for Config {
@@ -346,6 +350,15 @@ impl Config {
 
     pub fn set_song_library_filter(&mut self, filter: FilterState) {
         self.song_library.set_filter_state(filter);
+        self.save();
+    }
+
+    pub fn piano_theme_name(&self) -> &str {
+        self.piano_theme.theme_name()
+    }
+
+    pub fn set_piano_theme_name(&mut self, name: String) {
+        self.piano_theme.set_theme_name(name);
         self.save();
     }
 

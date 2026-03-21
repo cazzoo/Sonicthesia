@@ -51,6 +51,7 @@ enum Popup {
     None,
     OutputSelector,
     InputSelector,
+    ThemeSelector,
     EditGenre,
     EditLabels,
     ConfirmResetScore,

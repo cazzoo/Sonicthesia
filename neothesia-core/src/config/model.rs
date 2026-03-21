@@ -21,6 +21,8 @@ pub struct Model {
     pub appearance: AppearanceConfig,
     #[serde(default)]
     pub song_library: SongLibraryConfig,
+    #[serde(default)]
+    pub piano_theme: PianoThemeConfig,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -579,6 +581,50 @@ impl SongLibraryConfig {
     pub fn set_filter_state(&mut self, filter: FilterState) {
         match self {
             SongLibraryConfig::V1(v1) => v1.filter_state = filter,
+        }
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub struct PianoThemeConfigV1 {
+    /// Name of the selected theme
+    #[serde(default = "default_piano_theme_name")]
+    pub theme_name: String,
+}
+
+#[derive(Serialize, Deserialize, Clone)]
+pub enum PianoThemeConfig {
+    V1(PianoThemeConfigV1),
+}
+
+impl Default for PianoThemeConfig {
+    fn default() -> Self {
+        Self::V1(PianoThemeConfigV1::default())
+    }
+}
+
+impl Default for PianoThemeConfigV1 {
+    fn default() -> Self {
+        Self {
+            theme_name: default_piano_theme_name(),
+        }
+    }
+}
+
+fn default_piano_theme_name() -> String {
+    "Modern".to_string()
+}
+
+impl PianoThemeConfig {
+    pub fn theme_name(&self) -> &str {
+        match self {
+            PianoThemeConfig::V1(v1) => &v1.theme_name,
+        }
+    }
+
+    pub fn set_theme_name(&mut self, name: String) {
+        match self {
+            PianoThemeConfig::V1(v1) => v1.theme_name = name,
         }
     }
 }

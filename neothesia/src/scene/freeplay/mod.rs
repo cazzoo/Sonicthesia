@@ -8,11 +8,11 @@ use winit::{
 };
 
 use crate::{
-    NeothesiaEvent,
     context::Context,
-    scene::{MouseToMidiEventState, NuonRenderer, Scene, playing_scene::Keyboard},
+    scene::{playing_scene::Keyboard, MouseToMidiEventState, NuonRenderer, Scene},
     song::Song,
     utils::window::WinitEvent,
+    NeothesiaEvent,
 };
 
 pub struct FreeplayScene {
@@ -129,51 +129,29 @@ impl FreeplayScene {
         let mut ui = std::mem::replace(&mut self.nuon, nuon::Ui::new());
         let window_size = ctx.window_state.logical_size;
 
-        // Add PLY active indicator at top-left
-        nuon::label()
-            .text("🎯 PLY ENGINE ACTIVE")
-            .x(10.0)
-            .y(55.0)
-            .size(250.0, 25.0)
-            .font_size(16.0)
-            .color([0x00, 0xFF, 0x00, 0xFF])
-            .build(&mut ui);
-        
-        nuon::label()
-            .text("🎨 Freeplay: PLY Integration")
-            .x(10.0)
-            .y(85.0)
-            .size(250.0, 20.0)
-            .font_size(12.0)
-            .color([0x00, 0xFF, 0x00, 0xFF])
-            .build(&mut ui);
-
         // Render ribbon background (always visible)
         nuon::quad()
-            .size(window_size.width, 40.0)
+            .size(window_size.width, 30.0)
             .color([37, 35, 42])
             .build(&mut ui);
-        
+
         // Left panel: Back button
-        nuon::translate()
-            .x(10.0)
-            .y(5.0)
-            .build(&mut ui, |ui| {
-                if nuon::button()
-                    .size(30.0, 30.0)
-                    .border_radius([5.0; 4])
-                    .color([67, 67, 67])
-                    .hover_color([87, 87, 87])
-                    .preseed_color([97, 97, 97])
-                    .icon(crate::icons::left_arrow_icon())
-                    .build(ui)
-                {
-                    ctx.proxy
-                        .send_event(NeothesiaEvent::MainMenu(self.song.clone()))
-                        .ok();
-                }
-            });
-        
+        nuon::translate().x(10.0).y(5.0).build(&mut ui, |ui| {
+            if nuon::button()
+                .size(30.0, 30.0)
+                .border_radius([5.0; 4])
+                .color([67, 67, 67])
+                .hover_color([87, 87, 87])
+                .preseed_color([97, 97, 97])
+                .icon(crate::icons::left_arrow_icon())
+                .build(ui)
+            {
+                ctx.proxy
+                    .send_event(NeothesiaEvent::MainMenu(self.song.clone()))
+                    .ok();
+            }
+        });
+
         // Center panel: SoundFont controls
         let soundfont_name = self.current_soundfont_name();
         nuon::translate()
@@ -185,7 +163,7 @@ impl FreeplayScene {
                     .size(400.0, 20.0)
                     .build(ui);
             });
-        
+
         nuon::translate()
             .x(window_size.width / 2.0 - 250.0)
             .y(5.0)
@@ -202,7 +180,7 @@ impl FreeplayScene {
                     self.previous_soundfont(ctx);
                 }
             });
-        
+
         nuon::translate()
             .x(window_size.width / 2.0 + 220.0)
             .y(5.0)
@@ -219,7 +197,7 @@ impl FreeplayScene {
                     self.next_soundfont(ctx);
                 }
             });
-        
+
         // Right panel: Audio Gain controls
         let gain = ctx.config.synth_config.audio_gain();
         nuon::translate()
@@ -231,14 +209,12 @@ impl FreeplayScene {
                     .size(80.0, 20.0)
                     .build(ui);
             });
-        
+
         nuon::translate()
             .x(window_size.width - 100.0)
             .y(5.0)
             .build(&mut ui, |ui| {
-                let res = nuon::click_area("gain_decrease")
-                    .size(30.0, 30.0)
-                    .build(ui);
+                let res = nuon::click_area("gain_decrease").size(30.0, 30.0).build(ui);
 
                 let color = if res.is_pressed() {
                     [97, 97, 97]
@@ -272,14 +248,12 @@ impl FreeplayScene {
                     self.gain_hold_timer = 0.0;
                 }
             });
-        
+
         nuon::translate()
             .x(window_size.width - 65.0)
             .y(5.0)
             .build(&mut ui, |ui| {
-                let res = nuon::click_area("gain_increase")
-                    .size(30.0, 30.0)
-                    .build(ui);
+                let res = nuon::click_area("gain_increase").size(30.0, 30.0).build(ui);
 
                 let color = if res.is_pressed() {
                     [97, 97, 97]
@@ -320,17 +294,22 @@ impl FreeplayScene {
     /// Get the current SoundFont name for display
     fn current_soundfont_name(&self) -> String {
         if let Some(entry) = self.soundfonts.get(self.current_soundfont_index) {
-            let file_name = entry.path.file_name()
+            let file_name = entry
+                .path
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("Unknown");
-            
-            let folder_name = entry.folder.file_name()
+
+            let folder_name = entry
+                .folder
+                .file_name()
                 .and_then(|n| n.to_str())
                 .unwrap_or("Unknown");
-            
+
             let count = self.soundfonts.len();
             if count > 0 {
-                format!("{} ({} of {}) from [{}]",
+                format!(
+                    "{} ({} of {}) from [{}]",
                     file_name,
                     self.current_soundfont_index + 1,
                     count,
@@ -349,14 +328,14 @@ impl FreeplayScene {
         if self.soundfonts.is_empty() {
             return;
         }
-        
+
         let count = self.soundfonts.len();
         let new_index = if self.current_soundfont_index == 0 {
             count - 1
         } else {
             self.current_soundfont_index - 1
         };
-        
+
         self.switch_to_soundfont_index(new_index, ctx);
     }
 
@@ -365,7 +344,7 @@ impl FreeplayScene {
         if self.soundfonts.is_empty() {
             return;
         }
-        
+
         let count = self.soundfonts.len();
         let new_index = (self.current_soundfont_index + 1) % count;
         self.switch_to_soundfont_index(new_index, ctx);
@@ -375,16 +354,18 @@ impl FreeplayScene {
     fn switch_to_soundfont_index(&mut self, index: usize, ctx: &mut Context) {
         if let Some(entry) = self.soundfonts.get(index) {
             self.current_soundfont_index = index;
-            
+
             // Use the existing switch_soundfont method for hot-swapping
             if let Err(e) = ctx.output_manager.switch_soundfont(&entry.path) {
                 eprintln!("Failed to switch SoundFont: {}", e);
             }
-            
+
             // Update config to persist the selection
-            ctx.config.synth_config.set_soundfont_path(Some(entry.path.clone()));
+            ctx.config
+                .synth_config
+                .set_soundfont_path(Some(entry.path.clone()));
             ctx.config.synth_config.set_soundfont_index(Some(index));
-            
+
             // Save config
             ctx.config.save();
         }
@@ -408,6 +389,10 @@ impl FreeplayScene {
         let _ = ctx.config.save();
     }
 
+    fn button() -> nuon::Button {
+        nuon::button().size(30.0, 30.0).border_radius([5.0; 4])
+    }
+
     fn resize(&mut self, ctx: &mut Context) {
         self.keyboard.resize(ctx);
         self.guidelines.set_layout(self.keyboard.layout().clone());
@@ -423,7 +408,10 @@ impl Scene for FreeplayScene {
         let time = 0.0;
 
         // Log PLY freeplay activity
-        log::info!("🎯 PLY FREEPLAY: Active with {} keys", self.keyboard.layout().keys.len());
+        log::info!(
+            "🎯 PLY FREEPLAY: Active with {} keys",
+            self.keyboard.layout().keys.len()
+        );
 
         self.guidelines.update(
             &mut self.quad_renderer_bg,

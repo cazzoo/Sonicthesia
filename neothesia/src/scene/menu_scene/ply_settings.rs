@@ -8,6 +8,7 @@ use crate::ply_integration::ui::{PlyUi, center_x, center_y, TextAlignment, Keybo
 use crate::ply_integration::ui::widgets::{Button, Label, Quad, Scroll};
 use crate::ply_integration::ui::layout::{SettingsSection, SettingsRow};
 use crate::ply_integration::input::UnifiedInputManager;
+use crate::render::ply::piano_keyboard::KeyboardTheme;
 use std::path::PathBuf;
 use winit::keyboard::Key;
 
@@ -48,6 +49,7 @@ enum PopupState {
     None,
     OutputSelector,
     InputSelector,
+    ThemeSelector,
 }
 
 impl Default for PopupState {
@@ -147,6 +149,9 @@ impl PlySettingsMenu {
             SettingsAction::ShowInputPicker => {
                 self.popup = PopupState::InputSelector;
             }
+            SettingsAction::ShowThemePicker => {
+                self.popup = PopupState::ThemeSelector;
+            }
             SettingsAction::Increment(id) => {
                 self.handle_increment(ctx, &id);
                 ctx.config.save();
@@ -170,6 +175,11 @@ impl PlySettingsMenu {
                 self.popup = PopupState::None;
                 ctx.config.save();
                 log::info!("Input changed to: {}", input);
+            }
+            SettingsAction::SelectTheme(theme) => {
+                ctx.config.set_piano_theme_name(theme);
+                self.popup = PopupState::None;
+                log::info!("Theme changed to: {}", theme);
             }
             SettingsAction::ClosePopup => {
                 self.popup = PopupState::None;
@@ -225,6 +235,11 @@ impl PlySettingsMenu {
                 ctx.config.set_playback_gain(new_gain);
                 log::info!("Playback gain incremented to {}", new_gain);
             }
+            "keyboard_gain" => {
+                let new_gain = ctx.config.keyboard_gain() + 0.1;
+                ctx.config.set_keyboard_gain(new_gain);
+                log::info!("Keyboard gain incremented to {}", new_gain);
+            }
             _ => {}
         }
     }
@@ -252,6 +267,11 @@ impl PlySettingsMenu {
                 let new_gain = ctx.config.playback_gain() - 0.1;
                 ctx.config.set_playback_gain(new_gain);
                 log::info!("Playback gain decremented to {}", new_gain);
+            }
+            "keyboard_gain" => {
+                let new_gain = ctx.config.keyboard_gain() - 0.1;
+                ctx.config.set_keyboard_gain(new_gain);
+                log::info!("Keyboard gain decremented to {}", new_gain);
             }
             _ => {}
         }
@@ -336,17 +356,24 @@ impl PlySettingsMenu {
                         self.note_range_section(ctx, ui, rows, spacer, action);
                     });
                 
-                // Keyboard preview
-                ui.translate(0.0, 10.0);
-                self.keyboard_layout_preview(ctx, body_w, 100.0, ui);
-                ui.translate(0.0, 110.0);
-                
                 // Render Section
                 SettingsSection::new("Render")
                     .width(body_w)
                     .build(ui, |ui, rows, _spacer| {
                         self.render_section(ctx, ui, rows, action);
                     });
+                
+                // Piano Theme Section
+                SettingsSection::new("Piano Theme")
+                    .width(body_w)
+                    .build(ui, |ui, rows, _spacer| {
+                        self.piano_theme_section(ctx, ui, rows, action);
+                    });
+                
+                // Keyboard preview (shows current theme)
+                ui.translate(0.0, 10.0);
+                self.keyboard_layout_preview(ctx, body_w, 100.0, ui);
+                ui.translate(0.0, 110.0);
                 
                 // Song Library Section
                 SettingsSection::new("Song Library")
@@ -536,6 +563,17 @@ impl PlySettingsMenu {
                     Self::draw_spin_buttons(ui, row_w, row_h, "playback_gain", action);
                 })
                 .build(ui, rows);
+            
+            spacer(ui);
+            
+            // Keyboard Gain
+            SettingsRow::new()
+                .title("Keyboard Gain")
+                .subtitle(format!("{:.1}", ctx.config.keyboard_gain()))
+                .build(ui, |ui, row_w, row_h| {
+                    Self::draw_spin_buttons(ui, row_w, row_h, "keyboard_gain", action);
+                })
+                .build(ui, rows);
         }
     }
     
@@ -694,6 +732,80 @@ impl PlySettingsMenu {
             .build(ui, rows);
     }
     
+    /// Piano theme settings section
+    fn piano_theme_section(
+        &mut self,
+        ctx: &mut Context,
+        ui: &mut PlyUi,
+        rows: &dyn Fn(&mut PlyUi, SettingsRow),
+        _spacer: &dyn Fn(&mut PlyUi),
+        action: &mut SettingsAction,
+    ) {
+        let current_theme = ctx.config.piano_theme_name();
+        
+        let theme_descriptions = [
+            ("Classic", "Traditional black and white piano"),
+            ("Modern", "Clean design with green highlights"),
+            ("Rainbow", "Each note has a unique spectral color"),
+            ("Neon", "Dark background with bright glowing colors"),
+            ("Pastel", "Soft, muted colors"),
+        ];
+        
+        let description = theme_descriptions
+            .iter()
+            .find(|(name, _)| name == &current_theme)
+            .map(|(_, desc)| *desc)
+            .unwrap_or("Unknown theme");
+        
+        SettingsRow::new()
+            .title("Theme")
+            .subtitle(current_theme.to_string())
+            .build(ui, |ui, row_w, row_h| {
+                let btn_w = 320.0;
+                let btn_h = 31.0;
+                
+                if Button::new()
+                    .pos(row_w - btn_w, center_y(row_h, btn_h))
+                    .size(btn_w, btn_h)
+                    .label(current_theme)
+                    .text_alignment(TextAlignment::Left)
+                    .build(ui)
+                {
+                    *action = SettingsAction::ShowThemePicker;
+                }
+                
+                Label::new()
+                    .icon("▼".to_string())
+                    .pos(row_w - 20.0, center_y(row_h, btn_h))
+                    .size(20.0, btn_h)
+                    .alignment(TextAlignment::Center)
+                    .build(ui);
+            })
+            .build(ui, rows);
+        
+        SettingsRow::new()
+            .title("")
+            .subtitle(description.to_string())
+            .build(ui, rows);
+        
+        let range = ctx.config.piano_range();
+        let range_start = *range.start();
+        let range_end = *range.end();
+        let start_note = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][(range_start % 12) as usize];
+        let start_octave = range_start / 12;
+        let end_note = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"][(range_end % 12) as usize];
+        let end_octave = range_end / 12;
+        
+        SettingsRow::new()
+            .title("Range")
+            .subtitle(format!("{}{} - {}{}", start_note, start_octave, end_note, end_octave))
+            .build(ui, |ui, row_w, row_h| {
+                let theme = KeyboardTheme::get_theme(current_theme).unwrap_or_else(|| KeyboardTheme::modern());
+                Self::draw_mini_keyboard(ui, 10.0, 0.0, row_w - 20.0, row_h - 4.0, &theme);
+            })
+            .build(ui, rows);
+    }
+    
     /// Song library section
     fn song_library_section(
         &mut self,
@@ -762,12 +874,19 @@ impl PlySettingsMenu {
         }
     }
     
-    /// Draw keyboard layout preview
+    /// Draw keyboard layout preview with theme colors
     fn keyboard_layout_preview(&self, ctx: &Context, keyboard_w: f32, keyboard_h: f32, ui: &mut PlyUi) {
+        // Get current theme
+        let theme_name = ctx.config.piano_theme_name();
+        let theme = KeyboardTheme::get_theme(theme_name).unwrap_or_else(|| {
+            log::warn!("Unknown theme name '{}', falling back to Modern", theme_name);
+            KeyboardTheme::modern()
+        });
+        
         // Draw keyboard background
         Quad::new()
             .size(keyboard_w, keyboard_h)
-            .color([255, 255, 255])
+            .color([30, 30, 35])
             .border_radius([7.0; 4])
             .build(ui);
         
@@ -782,27 +901,67 @@ impl PlySettingsMenu {
             range,
         );
         
-        // Draw key separators
-        let mut neutral = layout.keys.iter()
-            .filter(|key| key.kind().is_neutral())
-            .peekable();
+        // Get theme settings
+        let settings = &theme.octave_theme.settings;
+        let border_rgb = settings.border_color;
         
-        while let Some(key) = neutral.next() {
-            if neutral.peek().is_some() {
-                Quad::new()
-                    .pos(key.x() + key.width(), 0.0)
-                    .size(1.0, key.height())
-                    .color([150, 150, 150])
-                    .build(ui);
-            }
+        // Draw white keys with theme colors
+        for key in layout.keys.iter().filter(|key| key.kind().is_neutral()) {
+            let note_index = (key.note_id() % 12) as usize;
+            let note_color = theme.octave_theme.note_color(note_index);
+            
+            // Use per-note colors if enabled, otherwise fall back to simple white
+            let base_rgb = if settings.use_per_note_colors {
+                note_color.normal
+            } else {
+                (255, 255, 255)
+            };
+            
+            // Draw key
+            Quad::new()
+                .pos(key.x(), key.y())
+                .size(key.width() - 1.0, key.height())
+                .color(base_rgb)
+                .border_radius([3.0; 4])
+                .build(ui);
+            
+            // Draw border
+            Quad::new()
+                .pos(key.x(), key.y())
+                .size(key.width() - 1.0, key.height())
+                .color([border_rgb.0, border_rgb.1, border_rgb.2, 100])
+                .border_radius([3.0; 4])
+                .border_width(1.0)
+                .build(ui);
         }
         
-        // Draw black keys
+        // Draw black keys with theme colors
         for key in layout.keys.iter().filter(|key| key.kind().is_sharp()) {
+            let note_index = (key.note_id() % 12) as usize;
+            let note_color = theme.octave_theme.note_color(note_index);
+            
+            // Use per-note colors if enabled, otherwise fall back to simple black
+            let base_rgb = if settings.use_per_note_colors {
+                note_color.normal
+            } else {
+                (26, 26, 26)
+            };
+            
+            // Draw key
             Quad::new()
-                .pos(key.x(), 0.0)
+                .pos(key.x(), key.y())
                 .size(key.width(), key.height())
-                .color([0, 0, 0])
+                .color(base_rgb)
+                .border_radius([3.0; 4])
+                .build(ui);
+            
+            // Draw border
+            Quad::new()
+                .pos(key.x(), key.y())
+                .size(key.width(), key.height())
+                .color([border_rgb.0, border_rgb.1, border_rgb.2, 150])
+                .border_radius([3.0; 4])
+                .border_width(1.0)
                 .build(ui);
         }
     }
@@ -816,6 +975,9 @@ impl PlySettingsMenu {
             }
             PopupState::InputSelector => {
                 self.draw_input_selector(ctx, action);
+            }
+            PopupState::ThemeSelector => {
+                self.draw_theme_selector(ctx, action);
             }
         }
     }
@@ -976,6 +1138,109 @@ impl PlySettingsMenu {
         }
         
         // Close button
+        if Button::new()
+            .pos(popup_x + popup_w - 40.0, popup_y + 10.0)
+            .size(30.0, 30.0)
+            .label("✕")
+            .build(&mut self.ui)
+        {
+            *action = SettingsAction::ClosePopup;
+        }
+    }
+    
+    /// Draw theme selector popup
+    fn draw_theme_selector(&mut self, ctx: &mut Context, action: &mut SettingsAction) {
+        let win_w = ctx.window_state.logical_size.width;
+        let win_h = ctx.window_state.logical_size.height;
+        
+        let popup_w = 400.0;
+        let popup_h = 420.0;
+        let popup_x = center_x(win_w, popup_w);
+        let popup_y = center_y(win_h, popup_h);
+        
+        let themes = [
+            ("Classic", "Traditional black and white piano"),
+            ("Modern", "Clean design with green highlights"),
+            ("Rainbow", "Each note has a unique spectral color"),
+            ("Neon", "Dark background with bright glowing colors"),
+            ("Pastel", "Soft, muted colors"),
+        ];
+        
+        Quad::new()
+            .pos(0.0, 0.0)
+            .size(win_w, win_h)
+            .color([0, 0, 0])
+            .build(&mut self.ui);
+        
+        Quad::new()
+            .pos(popup_x, popup_y)
+            .size(popup_w, popup_h)
+            .color([45, 43, 50])
+            .border_radius([10.0; 4])
+            .build(&mut self.ui);
+        
+        Label::new()
+            .text("Select Piano Theme")
+            .pos(popup_x + 10.0, popup_y + 10.0)
+            .size(popup_w - 20.0, 30.0)
+            .font_size(18.0)
+            .bold(true)
+            .build(&mut self.ui);
+        
+        let mut y = popup_y + 50.0;
+        let current_theme = ctx.config.piano_theme_name();
+        
+        for (theme_name, description) in &themes {
+            let is_selected = current_theme == *theme_name;
+            let theme = KeyboardTheme::get_theme(theme_name).unwrap_or_else(|| KeyboardTheme::modern());
+            
+            if is_selected {
+                Quad::new()
+                    .pos(popup_x + 10.0, y)
+                    .size(popup_w - 20.0, 65.0)
+                    .color([160, 81, 255])
+                    .border_radius([5.0; 4])
+                    .build(&mut self.ui);
+            }
+            
+            Label::new()
+                .text(theme_name)
+                .pos(popup_x + 20.0, y)
+                .size(popup_w - 40.0, 20.0)
+                .font_size(14.0)
+                .color(if is_selected { [255, 255, 255] } else { [200, 200, 200] })
+                .build(&mut self.ui);
+            
+            Self::draw_mini_keyboard(
+                &mut self.ui,
+                popup_x + 20.0,
+                y + 22.0,
+                popup_w - 40.0,
+                28.0,
+                &theme,
+            );
+            
+            Label::new()
+                .text(description)
+                .pos(popup_x + 20.0, y + 52.0)
+                .size(popup_w - 40.0, 14.0)
+                .font_size(10.0)
+                .color(if is_selected { [230, 230, 230] } else { [150, 150, 150] })
+                .build(&mut self.ui);
+            
+            if Button::new()
+                .id(&format!("theme_{}", theme_name))
+                .pos(popup_x + 10.0, y)
+                .size(popup_w - 20.0, 65.0)
+                .color([0, 0, 0, 0])
+                .build(&mut self.ui)
+            {
+                *action = SettingsAction::SelectTheme(theme_name.to_string());
+            }
+            
+            y += 70.0;
+        }
+        
         if Button::new()
             .pos(popup_x + popup_w - 40.0, popup_y + 10.0)
             .size(30.0, 30.0)
@@ -1260,6 +1525,66 @@ pub enum SettingsAction {
     RemoveSongDirectory(usize),
     PreviousSoundFont,
     NextSoundFont,
+    ShowThemePicker,
+    SelectTheme(String),
+    fn draw_mini_keyboard(
+        ui: &mut PlyUi,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        theme: &KeyboardTheme,
+    ) {
+        let note_names = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+        let is_sharp = [false, true, false, true, false, false, true, false, true, false, true, false];
+        
+        let num_white_keys = 7;
+        let white_key_width = width / num_white_keys as f32;
+        let black_key_width = white_key_width * 0.6;
+        let black_key_height = height * 0.65;
+        
+        let white_key_positions: Vec<f32> = (0..7).map(|i| x + i as f32 * white_key_width).collect();
+        
+        let black_key_offsets = [0.7, 1.7, 3.7, 4.7, 5.7];
+        let black_key_indices = [1, 3, 6, 8, 10];
+        
+        for (i, &sharp) in is_sharp.iter().enumerate() {
+            if !sharp {
+                let white_idx = [0, 0, 1, 1, 2, 3, 3, 4, 4, 5, 5, 6][i];
+                let kx = white_key_positions[white_idx];
+                let note_color = theme.octave_theme.note_color(i);
+                let (r, g, b) = note_color.normal;
+                
+                Quad::new()
+                    .pos(kx, y)
+                    .size(white_key_width - 1.0, height)
+                    .color([r, g, b])
+                    .border_radius([3.0, 3.0, 0.0, 0.0])
+                    .build(ui);
+                
+                Label::new()
+                    .text(note_names[i])
+                    .pos(kx, y + height - 18.0)
+                    .size(white_key_width, 16.0)
+                    .font_size(10.0)
+                    .color([100, 100, 100])
+                    .build(ui);
+            }
+        }
+        
+        for (idx, &black_idx) in black_key_indices.iter().enumerate() {
+            let kx = x + black_key_offsets[idx] * white_key_width - black_key_width / 2.0;
+            let note_color = theme.octave_theme.note_color(black_idx);
+            let (r, g, b) = note_color.normal;
+            
+            Quad::new()
+                .pos(kx, y)
+                .size(black_key_width, black_key_height)
+                .color([r, g, b])
+                .border_radius([3.0, 3.0, 0.0, 0.0])
+                .build(ui);
+        }
+    }
 }
 
 #[cfg(test)]

@@ -1,5 +1,5 @@
 //! PLY Audio Bridge for OutputManager
-//! 
+//!
 //! This module provides a bridge between the existing OutputManager and the PLY audio system.
 //! It allows the OutputManager to use PLY audio connections while maintaining backward compatibility.
 
@@ -7,14 +7,14 @@ use std::path::Path;
 
 use midi_file::midly::{num::u4, MidiMessage};
 
-use crate::ply_integration::audio::{PlyAudioConnection, PlyAudioManager, PlyAudioEvent};
 use crate::output_manager::{OutputConnection, OutputDescriptor};
+use crate::ply_integration::audio::{PlyAudioConnection, PlyAudioEvent, PlyAudioManager};
 
 /// Extension trait for OutputManager to integrate with PLY audio
 pub trait PlyAudioBridge {
     /// Create a PLY audio connection from an OutputConnection
     fn to_ply_connection(&self) -> Option<PlyAudioConnection>;
-    
+
     /// Create a PLY audio manager from the current output manager state
     fn to_ply_manager(&self) -> PlyAudioManager;
 }
@@ -27,7 +27,7 @@ impl PlyAudioBridge for OutputConnection {
                 // We need to access the inner connection through the public API
                 // Since MidiOutputConnection doesn't expose the inner connection directly,
                 // we'll need to work with what's available
-                
+
                 // For now, we'll return None and handle this differently
                 // The OutputManager will need to be updated to support PLY integration
                 log::warn!("Direct MIDI to PLY connection conversion not yet implemented");
@@ -40,15 +40,13 @@ impl PlyAudioBridge for OutputConnection {
                 log::warn!("Direct Synth to PLY connection conversion not yet implemented");
                 None
             }
-            OutputConnection::DummyOutput => {
-                Some(PlyAudioConnection::dummy())
-            }
+            OutputConnection::DummyOutput => Some(PlyAudioConnection::dummy()),
         }
     }
-    
+
     fn to_ply_manager(&self) -> PlyAudioManager {
         let manager = PlyAudioManager::new();
-        
+
         // Try to convert the connection to a PLY connection
         if let Some(ply_conn) = self.to_ply_connection() {
             let mut manager_with_conn = manager;
@@ -71,14 +69,14 @@ impl PlyOutputWrapper {
     pub fn new(connection: PlyAudioConnection) -> Self {
         Self { connection }
     }
-    
+
     /// Create a wrapper from a MIDI output connection
     pub fn from_midi_connection(conn: midi_io::MidiOutputConnection) -> Self {
         Self {
             connection: PlyAudioConnection::from_midi_connection(conn),
         }
     }
-    
+
     /// Create a wrapper from a synth event sender
     #[cfg(feature = "synth")]
     pub fn from_synth_sender(
@@ -88,34 +86,34 @@ impl PlyOutputWrapper {
             connection: PlyAudioConnection::from_synth_sender(sender),
         }
     }
-    
+
     /// Create a dummy wrapper
     pub fn dummy() -> Self {
         Self {
             connection: PlyAudioConnection::dummy(),
         }
     }
-    
+
     /// Send a MIDI event
     pub fn midi_event(&self, channel: u4, msg: MidiMessage) {
         self.connection.midi_event(channel, msg);
     }
-    
+
     /// Send a SysEx message
     pub fn send_sysex(&self, message: &[u8]) {
         self.connection.send_sysex(message);
     }
-    
+
     /// Set the audio gain
     pub fn set_gain(&self, gain: f32) {
         self.connection.set_gain(gain);
     }
-    
+
     /// Stop all notes
     pub fn stop_all(&self) {
         self.connection.stop_all();
     }
-    
+
     /// Get the underlying PLY audio connection
     pub fn into_inner(self) -> PlyAudioConnection {
         self.connection
@@ -130,14 +128,17 @@ impl PlyAudioIntegration {
     pub fn create_manager() -> PlyAudioManager {
         PlyAudioManager::new()
     }
-    
+
     /// Map a Neothesia OutputDescriptor to a PLY audio event
-    pub fn map_output_event(descriptor: &OutputDescriptor, event: PlyAudioEvent) -> Option<PlyAudioEvent> {
+    pub fn map_output_event(
+        descriptor: &OutputDescriptor,
+        event: PlyAudioEvent,
+    ) -> Option<PlyAudioEvent> {
         // For now, just pass through the event
         // In the future, this could handle output-specific transformations
         Some(event)
     }
-    
+
     /// Convert a Neothesia MIDI message to a PLY audio event
     pub fn midi_to_ply_event(channel: u4, msg: MidiMessage) -> PlyAudioEvent {
         match msg {
@@ -184,7 +185,7 @@ mod tests {
     #[test]
     fn test_dummy_wrapper() {
         let wrapper = PlyOutputWrapper::dummy();
-        
+
         // Should not panic on any operations
         wrapper.midi_event(
             u4::new(0),
@@ -207,9 +208,13 @@ mod tests {
                 vel: u7::new(100),
             },
         );
-        
+
         match event {
-            PlyAudioEvent::NoteOn { channel, key, velocity } => {
+            PlyAudioEvent::NoteOn {
+                channel,
+                key,
+                velocity,
+            } => {
                 assert_eq!(channel.as_int(), 0);
                 assert_eq!(key, 60);
                 assert_eq!(velocity, 100);

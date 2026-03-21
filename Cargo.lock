@@ -2184,6 +2184,7 @@ dependencies = [
  "puffin_http",
  "rfd",
  "rusqlite",
+ "serde",
  "serde_json",
  "thiserror 2.0.18",
  "wgpu",

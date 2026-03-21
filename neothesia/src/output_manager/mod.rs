@@ -8,7 +8,7 @@ pub mod synth_backend;
 pub use synth_backend::SynthBackend;
 
 pub mod ply_bridge;
-pub use ply_bridge::{PlyAudioBridge, PlyOutputWrapper, PlyAudioIntegration};
+pub use ply_bridge::{PlyAudioBridge, PlyAudioIntegration, PlyOutputWrapper};
 
 use std::{
     fmt::{self, Display, Formatter},
@@ -170,6 +170,10 @@ impl OutputManager {
         outs
     }
 
+    pub fn is_synth_output(&self) -> bool {
+        self.output_connection.0.is_synth()
+    }
+
     pub fn connect(&mut self, desc: OutputDescriptor) {
         if desc != self.output_connection.0 {
             match desc {
@@ -226,6 +230,13 @@ impl OutputManager {
             log::warn!("Keyboard connection not initialized, falling back to main connection");
             &self.output_connection.1
         })
+    }
+
+    /// Set the gain for the keyboard connection
+    pub fn set_keyboard_gain(&self, gain: f32) {
+        if let Some(conn) = &self.keyboard_connection {
+            conn.set_gain(gain);
+        }
     }
 
     /// Open a dedicated MIDI output connection to the LUMI device.
