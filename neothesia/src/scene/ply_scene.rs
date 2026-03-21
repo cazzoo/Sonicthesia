@@ -1115,6 +1115,23 @@ impl PlyPlayingScene {
         }
     }
 
+    fn create_score_data(&self) -> crate::scene::playing_scene::midi_player::ScoreData {
+        let result = self.live_score.to_score_data();
+        crate::scene::playing_scene::midi_player::ScoreData {
+            total_notes: result.total_notes as usize,
+            correct_notes: (result.total_notes - result.miss_count) as usize,
+            missed_notes: result.miss_count as usize,
+            too_early: 0,
+            too_late: 0,
+            on_time: (result.perfect_count + result.good_count + result.okay_count) as usize,
+            accuracy: result.accuracy,
+            grade: result.grade().to_string(),
+            stars: result.stars.count(),
+            max_streak: result.max_streak,
+            score: result.score,
+        }
+    }
+
     fn render_live_score(&self) {
         let score = self.live_score.score();
         let multiplier = self.live_score.multiplier();
@@ -1513,6 +1530,13 @@ impl PlyScene for PlyPlayingScene {
         self.mouse_was_pressed = mouse_down;
 
         self.effects.update(delta);
+
+        if !self.paused && !self.looper_active && self.playback_time >= self.song_length {
+            return Some(NeothesiaEvent::ShowScore {
+                song: self.song.clone(),
+                score_data: self.create_score_data(),
+            });
+        }
 
         None
     }
