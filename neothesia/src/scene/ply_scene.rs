@@ -1120,8 +1120,10 @@ impl PlyPlayingScene {
         let multiplier = self.live_score.multiplier();
         let streak = self.live_score.streak().current();
 
+        let y_start = Self::TOP_BAR_H + Self::PROGRESS_BAR_H + 15.0;
+
         let score_text = format!("{:}", score);
-        draw_text(&score_text, screen_width() - 200.0, 50.0, 32.0, WHITE);
+        draw_text(&score_text, screen_width() - 200.0, y_start, 32.0, WHITE);
 
         let mult_text = format!("x{}", multiplier);
         let mult_color = match multiplier {
@@ -1130,7 +1132,7 @@ impl PlyPlayingScene {
             2 => Color::from_rgba(0, 255, 0, 255),
             _ => Color::from_rgba(200, 200, 200, 255),
         };
-        draw_text(&mult_text, screen_width() - 80.0, 50.0, 24.0, mult_color);
+        draw_text(&mult_text, screen_width() - 80.0, y_start, 24.0, mult_color);
 
         if streak > 0 {
             let (streak_text, streak_color) = if streak >= 200 {
@@ -1168,9 +1170,20 @@ impl PlyPlayingScene {
             draw_text(
                 &streak_text,
                 screen_width() - 200.0,
-                80.0,
+                y_start + 30.0,
                 18.0,
                 streak_color,
+            );
+        }
+
+        let accuracy = self.live_score.accuracy();
+        if accuracy > 0.0 {
+            draw_text(
+                &format!("{:.0}%", accuracy),
+                screen_width() - 200.0,
+                y_start + 55.0,
+                16.0,
+                Color::from_rgba(150, 200, 255, 255),
             );
         }
 
@@ -1930,10 +1943,22 @@ impl PlyScene for PlyFreeplayScene {
     }
 }
 
+fn format_score_display(score: u64) -> String {
+    let s = score.to_string();
+    let mut result = String::with_capacity(s.len() + s.len() / 3);
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    format!("Score: {}", result.chars().rev().collect::<String>())
+}
+
 /// PLY Score Scene
 pub struct PlyScoreScene {
     song: Song,
-    score_data: crate::scene::playing_scene::midi_player::ScoreData,
+    score_result: crate::scoring::stars::ScoreResult,
 }
 
 impl PlyScoreScene {
@@ -1941,7 +1966,28 @@ impl PlyScoreScene {
         song: Song,
         score_data: crate::scene::playing_scene::midi_player::ScoreData,
     ) -> Self {
-        Self { song, score_data }
+        use crate::scoring::stars::{ScoreResult, StarRating};
+
+        let score_result = ScoreResult {
+            score: score_data.score,
+            accuracy: score_data.accuracy,
+            max_streak: score_data.max_streak,
+            stars: StarRating::calculate(score_data.accuracy, score_data.max_streak),
+            perfect_count: 0,
+            good_count: 0,
+            okay_count: 0,
+            miss_count: score_data.missed_notes as u32,
+            total_notes: score_data.total_notes as u32,
+        };
+
+        Self { song, score_result }
+    }
+
+    pub fn from_live_score(song: Song, live_score: &crate::scoring::LiveScoreTracker) -> Self {
+        Self {
+            song,
+            score_result: live_score.to_score_data(),
+        }
     }
 }
 
@@ -1949,9 +1995,47 @@ impl PlyScene for PlyScoreScene {
     fn update(&mut self, _ctx: &mut MacroquadContext, _delta: Duration) -> Option<NeothesiaEvent> {
         use macroquad::prelude::*;
 
-        // Handle keyboard input
         if is_key_pressed(KeyCode::Escape) || is_key_pressed(KeyCode::Enter) {
             return Some(NeothesiaEvent::MainMenu(None));
+        }
+
+        if is_key_pressed(KeyCode::R) {
+            return Some(NeothesiaEvent::Play(self.song.clone()));
+        }
+
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let (mouse_x, mouse_y) = mouse_position();
+            let screen_w = screen_width();
+            let screen_h = screen_height();
+            let center_x = screen_w / 2.0;
+
+            let panel_w = 500.0_f32.min(screen_w - 40.0);
+            let panel_h = 520.0_f32.min(screen_h - 40.0);
+            let panel_y = (screen_h - panel_h) / 2.0;
+
+            let btn_w = 160.0_f32.min((panel_w - 60.0) / 2.0);
+            let btn_h = 40.0;
+            let btn_y = panel_y + panel_h - 60.0;
+            let gap = 20.0;
+            let total_btn_w = btn_w * 2.0 + gap;
+            let btn_start_x = center_x - total_btn_w / 2.0;
+
+            if mouse_x >= btn_start_x
+                && mouse_x <= btn_start_x + btn_w
+                && mouse_y >= btn_y
+                && mouse_y <= btn_y + btn_h
+            {
+                return Some(NeothesiaEvent::Play(self.song.clone()));
+            }
+
+            let continue_x = btn_start_x + btn_w + gap;
+            if mouse_x >= continue_x
+                && mouse_x <= continue_x + btn_w
+                && mouse_y >= btn_y
+                && mouse_y <= btn_y + btn_h
+            {
+                return Some(NeothesiaEvent::MainMenu(None));
+            }
         }
 
         None
@@ -1960,99 +2044,296 @@ impl PlyScene for PlyScoreScene {
     fn render(&mut self, _ctx: &mut MacroquadContext) {
         use macroquad::prelude::*;
 
-        clear_background(BLACK);
+        clear_background(Color::from_rgba(20, 20, 25, 255));
 
         let screen_w = screen_width();
         let screen_h = screen_height();
         let center_x = screen_w / 2.0;
-        let center_y = screen_h / 2.0;
 
-        draw_text(
-            "🎨 PLY RENDERING ACTIVE - SCORE",
-            10.0,
-            10.0,
-            18.0,
-            Color::from_rgba(0, 255, 0, 255),
+        let panel_w = 500.0_f32.min(screen_w - 40.0);
+        let panel_h = 520.0_f32.min(screen_h - 40.0);
+        let panel_x = (screen_w - panel_w) / 2.0;
+        let panel_y = (screen_h - panel_h) / 2.0;
+
+        draw_rectangle(
+            panel_x,
+            panel_y,
+            panel_w,
+            panel_h,
+            Color::from_rgba(30, 28, 35, 255),
+        );
+        draw_rectangle_lines(
+            panel_x,
+            panel_y,
+            panel_w,
+            panel_h,
+            2.0,
+            Color::from_rgba(80, 70, 100, 255),
         );
 
-        draw_text(
-            &format!("FPS: {}", get_fps()),
-            10.0,
-            35.0,
-            14.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
+        let mut y = panel_y + 25.0;
 
         draw_text(
             "SONG COMPLETE!",
-            center_x - 100.0,
-            center_y - 180.0,
-            40.0,
+            center_x - 110.0,
+            y,
+            36.0,
             Color::from_rgba(100, 255, 100, 255),
         );
+        y += 35.0;
 
         draw_text(
-            &format!("Song: {}", self.song.file.name),
-            center_x - 150.0,
-            center_y - 120.0,
-            24.0,
-            Color::from_rgba(255, 255, 255, 255),
+            &self.song.file.name,
+            center_x - (self.song.file.name.len() as f32 * 5.0).min(panel_w / 2.0 - 20.0),
+            y,
+            18.0,
+            Color::from_rgba(180, 180, 200, 255),
         );
+        y += 40.0;
 
-        let stars_display = "★".repeat(self.score_data.stars as usize)
-            + &"☆".repeat(5 - self.score_data.stars as usize);
+        draw_rectangle(
+            panel_x + 20.0,
+            y,
+            panel_w - 40.0,
+            1.0,
+            Color::from_rgba(60, 55, 70, 255),
+        );
+        y += 20.0;
+
+        let stars_str = "★".repeat(self.score_result.stars.count() as usize)
+            + &"☆".repeat(5 - self.score_result.stars.count() as usize);
         draw_text(
-            &stars_display,
-            center_x - 60.0,
-            center_y - 70.0,
+            &stars_str,
+            center_x - 65.0,
+            y,
             48.0,
             Color::from_rgba(255, 215, 0, 255),
         );
+        y += 45.0;
 
-        if self.score_data.score > 0 {
+        let grade = self.score_result.grade();
+        let grade_color = match grade {
+            "S" => Color::from_rgba(255, 215, 0, 255),
+            "A" => Color::from_rgba(80, 200, 120, 255),
+            "B" => Color::from_rgba(80, 160, 240, 255),
+            "C" => Color::from_rgba(160, 120, 220, 255),
+            "D" => Color::from_rgba(220, 160, 80, 255),
+            _ => Color::from_rgba(200, 80, 80, 255),
+        };
+        draw_text(
+            &format!("Grade: {}", grade),
+            center_x - 50.0,
+            y,
+            28.0,
+            grade_color,
+        );
+        y += 40.0;
+
+        if self.score_result.score > 0 {
+            let score_str = format_score_display(self.score_result.score);
             draw_text(
-                &format!("Score: {}", self.score_data.score),
-                center_x - 80.0,
-                center_y - 20.0,
-                30.0,
-                Color::from_rgba(255, 255, 255, 255),
+                &score_str,
+                center_x - (score_str.len() as f32 * 8.0),
+                y,
+                32.0,
+                WHITE,
             );
+            y += 40.0;
         }
 
+        draw_rectangle(
+            panel_x + 20.0,
+            y,
+            panel_w - 40.0,
+            1.0,
+            Color::from_rgba(60, 55, 70, 255),
+        );
+        y += 20.0;
+
+        let left_x = panel_x + 40.0;
+        let right_x = panel_x + panel_w / 2.0 + 20.0;
+
         draw_text(
-            &format!("Accuracy: {:.0}%", self.score_data.accuracy),
-            center_x - 100.0,
-            center_y + 30.0,
-            24.0,
+            "PERFORMANCE",
+            left_x,
+            y,
+            14.0,
+            Color::from_rgba(120, 120, 140, 255),
+        );
+        draw_text(
+            "DETAILS",
+            right_x,
+            y,
+            14.0,
+            Color::from_rgba(120, 120, 140, 255),
+        );
+        y += 25.0;
+
+        draw_text(
+            &format!("Accuracy: {:.1}%", self.score_result.accuracy),
+            left_x,
+            y,
+            16.0,
             Color::from_rgba(100, 200, 255, 255),
         );
-
-        if self.score_data.max_streak > 0 {
-            draw_text(
-                &format!("Best Streak: {}", self.score_data.max_streak),
-                center_x - 100.0,
-                center_y + 70.0,
-                20.0,
-                Color::from_rgba(200, 200, 200, 255),
-            );
-        }
+        draw_text(
+            &format!("Perfect: {}", self.score_result.perfect_count),
+            right_x,
+            y,
+            16.0,
+            Color::from_rgba(255, 215, 0, 255),
+        );
+        y += 22.0;
 
         draw_text(
-            &format!(
-                "Correct: {} | Missed: {}",
-                self.score_data.correct_notes, self.score_data.missed_notes
-            ),
-            center_x - 150.0,
-            center_y + 110.0,
+            &format!("Best Streak: {}", self.score_result.max_streak),
+            left_x,
+            y,
+            16.0,
+            if self.score_result.max_streak >= 100 {
+                Color::from_rgba(255, 136, 0, 255)
+            } else if self.score_result.max_streak >= 50 {
+                Color::from_rgba(255, 215, 0, 255)
+            } else {
+                Color::from_rgba(200, 200, 200, 255)
+            },
+        );
+        draw_text(
+            &format!("Good: {}", self.score_result.good_count),
+            right_x,
+            y,
+            16.0,
+            Color::from_rgba(0, 255, 0, 255),
+        );
+        y += 22.0;
+
+        let correct = self.score_result.total_notes - self.score_result.miss_count;
+        draw_text(
+            &format!("Notes Hit: {}/{}", correct, self.score_result.total_notes),
+            left_x,
+            y,
             16.0,
             Color::from_rgba(200, 200, 200, 255),
         );
+        draw_text(
+            &format!("Okay: {}", self.score_result.okay_count),
+            right_x,
+            y,
+            16.0,
+            Color::from_rgba(0, 136, 255, 255),
+        );
+        y += 22.0;
 
         draw_text(
-            "SPACE: Pause/Resume | ESC: Return to menu",
-            center_x - 200.0,
-            screen_h - 50.0,
+            &format!("Misses: {}", self.score_result.miss_count),
+            right_x,
+            y,
+            16.0,
+            Color::from_rgba(255, 80, 80, 255),
+        );
+        y += 35.0;
+
+        draw_rectangle(
+            panel_x + 20.0,
+            y,
+            panel_w - 40.0,
+            1.0,
+            Color::from_rgba(60, 55, 70, 255),
+        );
+        y += 20.0;
+
+        let bar_w = panel_w - 80.0;
+        let bar_h = 20.0;
+        let bar_x = panel_x + 40.0;
+
+        draw_rectangle(bar_x, y, bar_w, bar_h, Color::from_rgba(40, 38, 45, 255));
+
+        let accuracy_pct = (self.score_result.accuracy / 100.0) as f32;
+        let fill_color = if accuracy_pct >= 0.9 {
+            Color::from_rgba(80, 200, 120, 255)
+        } else if accuracy_pct >= 0.7 {
+            Color::from_rgba(100, 180, 255, 255)
+        } else if accuracy_pct >= 0.5 {
+            Color::from_rgba(255, 200, 80, 255)
+        } else {
+            Color::from_rgba(255, 80, 80, 255)
+        };
+        draw_rectangle(bar_x, y, bar_w * accuracy_pct, bar_h, fill_color);
+
+        draw_text(
+            &format!("{:.0}%", self.score_result.accuracy),
+            bar_x + bar_w / 2.0 - 15.0,
+            y + 15.0,
             14.0,
+            WHITE,
+        );
+        y += 40.0;
+
+        let btn_w = 160.0_f32.min((panel_w - 60.0) / 2.0);
+        let btn_h = 40.0;
+        let btn_y = panel_y + panel_h - 60.0;
+        let gap = 20.0;
+        let total_btn_w = btn_w * 2.0 + gap;
+        let btn_start_x = center_x - total_btn_w / 2.0;
+
+        let (mouse_x, mouse_y) = mouse_position();
+
+        let replay_hover = mouse_x >= btn_start_x
+            && mouse_x <= btn_start_x + btn_w
+            && mouse_y >= btn_y
+            && mouse_y <= btn_y + btn_h;
+        draw_rectangle(
+            btn_start_x,
+            btn_y,
+            btn_w,
+            btn_h,
+            if replay_hover {
+                Color::from_rgba(80, 60, 140, 255)
+            } else {
+                Color::from_rgba(60, 50, 90, 255)
+            },
+        );
+        draw_rectangle_lines(
+            btn_start_x,
+            btn_y,
+            btn_w,
+            btn_h,
+            1.0,
+            Color::from_rgba(100, 80, 160, 255),
+        );
+        draw_text("Replay", btn_start_x + 50.0, btn_y + 25.0, 18.0, WHITE);
+
+        let continue_x = btn_start_x + btn_w + gap;
+        let continue_hover = mouse_x >= continue_x
+            && mouse_x <= continue_x + btn_w
+            && mouse_y >= btn_y
+            && mouse_y <= btn_y + btn_h;
+        draw_rectangle(
+            continue_x,
+            btn_y,
+            btn_w,
+            btn_h,
+            if continue_hover {
+                Color::from_rgba(80, 60, 140, 255)
+            } else {
+                Color::from_rgba(60, 50, 90, 255)
+            },
+        );
+        draw_rectangle_lines(
+            continue_x,
+            btn_y,
+            btn_w,
+            btn_h,
+            1.0,
+            Color::from_rgba(100, 80, 160, 255),
+        );
+        draw_text("Continue", continue_x + 40.0, btn_y + 25.0, 18.0, WHITE);
+
+        draw_text(
+            "ENTER: Continue | R: Replay",
+            center_x - 120.0,
+            panel_y + panel_h - 15.0,
+            12.0,
             Color::from_rgba(100, 100, 100, 255),
         );
     }
