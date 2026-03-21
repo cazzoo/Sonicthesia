@@ -22,6 +22,7 @@ impl super::MenuScene {
     pub fn settings_page_ui(&mut self, ctx: &mut Context, ui: &mut nuon::Ui) {
         // Log PLY settings activity
         log::info!("🎯 PLY SETTINGS: Rendering settings page with PLY integration");
+        log::info!("🎨 THEME DEBUG: Starting to render settings page UI");
         
         let win_w = ctx.window_state.logical_size.width;
         let win_h = ctx.window_state.logical_size.height;
@@ -159,7 +160,19 @@ impl super::MenuScene {
 
                 let keyboard_h = 100.0;
                 self::keyboard_layout_preview(ctx, body_w, keyboard_h, ui);
-                nuon::translate().y(keyboard_h).add_to_current(ui);
+                
+                // Add extra spacing after keyboard preview to ensure Piano Theme section is visible
+                // The keyboard preview uses direct drawing commands which can interfere with layout
+                nuon::translate().y(keyboard_h + 20.0).add_to_current(ui);
+
+                log::info!("🎨 THEME DEBUG: About to render Piano Theme section");
+                nuon::settings_section("Piano Theme")
+                    .width(body_w)
+                    .build(ui, |ui, rows, spacer| {
+                        log::info!("🎨 THEME DEBUG: Inside Piano Theme section builder");
+                        self.settings_piano_theme_section(ctx, ui, rows, spacer);
+                    });
+                log::info!("🎨 THEME DEBUG: Finished rendering Piano Theme section");
 
                 nuon::settings_section("Render")
                     .width(body_w)
@@ -501,6 +514,81 @@ impl super::MenuScene {
         }
     }
 
+    fn settings_theme_picker(
+        &mut self,
+        ui: &mut nuon::Ui,
+        ctx: &mut Context,
+        row_w: f32,
+        row_h: f32,
+    ) {
+        log::info!("🎨 THEME DEBUG: settings_theme_picker() called, row_w: {}, row_h: {}", row_w, row_h);
+        
+        let btn_w = 320.0;
+        let btn_h = 31.0;
+
+        let btn_x = row_w - btn_w;
+        let btn_y = nuon::center_y(row_h, btn_h);
+
+        let current_theme = ctx.config.piano_theme_name().to_string();
+        log::info!("🎨 THEME DEBUG: Creating theme button with label '{}', pos: ({}, {}), size: ({}, {})",
+                   current_theme, btn_x, btn_y, btn_w, btn_h);
+
+        let button_clicked = button()
+            .pos(btn_x, btn_y)
+            .size(btn_w, btn_h)
+            .id("select_theme")
+            .label(&current_theme)
+            .text_justify(TextJustify::Left)
+            .build(ui);
+        
+        log::info!("🎨 THEME DEBUG: Theme button built, clicked: {}", button_clicked);
+        
+        if button_clicked {
+            log::info!("🎨 THEME DEBUG: Theme button clicked, toggling ThemeSelector popup");
+            self.popup.toggle(Popup::ThemeSelector);
+        }
+
+        nuon::label()
+            .icon(icons::caret_down())
+            .pos(btn_x, btn_y)
+            .size(btn_w, btn_h)
+            .text_justify(TextJustify::Right)
+            .build(ui);
+
+        if self.popup == Popup::ThemeSelector {
+            log::info!("🎨 THEME DEBUG: ThemeSelector popup is active, rendering popup overlay");
+            nuon::layer().overlay(true).build(ui, |ui| {
+                nuon::translate()
+                    .x(btn_x)
+                    .y(btn_y + btn_h)
+                    .add_to_current(ui);
+
+                // Available themes
+                let themes = [
+                    "Classic",
+                    "Modern",
+                    "Rainbow",
+                    "Neon",
+                    "Pastel",
+                ];
+
+                log::info!("🎨 THEME DEBUG: Rendering theme combo list with {} themes", themes.len());
+                
+                if let Some(theme) =
+                    nuon::combo_list(ui, "select_theme_", (btn_w, btn_h), &themes)
+                {
+                    log::info!("🎨 THEME DEBUG: Theme selected: '{}'", theme);
+                    ctx.config.set_piano_theme_name(theme.to_string());
+                    self.popup.close();
+                }
+            });
+        } else {
+            log::info!("🎨 THEME DEBUG: ThemeSelector popup is NOT active, current popup: {:?}", self.popup);
+        }
+        
+        log::info!("🎨 THEME DEBUG: settings_theme_picker() completed");
+    }
+
     fn settings_input_section(
         &mut self,
         ctx: &mut Context,
@@ -512,6 +600,55 @@ impl super::MenuScene {
             .title("Input")
             .body(|ui, row_w, row_h| self.settings_input_picker(ui, ctx, row_w, row_h))
             .build(ui, rows);
+    }
+
+    fn settings_piano_theme_section(
+        &mut self,
+        ctx: &mut Context,
+        ui: &mut nuon::Ui,
+        rows: &dyn Fn(&mut nuon::Ui, nuon::SettingsRow<'_>),
+        spacer: &dyn Fn(&mut nuon::Ui),
+    ) {
+        log::info!("🎨 THEME DEBUG: settings_piano_theme_section() called");
+        log::info!("🎨 THEME DEBUG: Current theme from config: '{}'", ctx.config.piano_theme_name());
+        
+        // Theme descriptions
+        let theme_descriptions = [
+            ("Classic", "Traditional black and white piano"),
+            ("Modern", "Clean design with green highlights"),
+            ("Rainbow", "Each note has a unique spectral color"),
+            ("Neon", "Dark background with bright glowing colors"),
+            ("Pastel", "Soft, muted colors"),
+        ];
+
+        let current_theme = ctx.config.piano_theme_name();
+        let description = theme_descriptions
+            .iter()
+            .find(|(name, _)| name == &current_theme)
+            .map(|(_, desc)| *desc)
+            .unwrap_or("Unknown theme");
+
+        log::info!("🎨 THEME DEBUG: Building Theme row with current_theme: '{}', description: '{}'", current_theme, description);
+        
+        nuon::settings_row()
+            .title("Theme")
+            .subtitle(current_theme.to_string())
+            .body(|ui, row_w, row_h| {
+                log::info!("🎨 THEME DEBUG: Building theme picker button, row_w: {}, row_h: {}", row_w, row_h);
+                self.settings_theme_picker(ui, ctx, row_w, row_h)
+            })
+            .build(ui, rows);
+
+        log::info!("🎨 THEME DEBUG: Theme row built, adding spacer");
+        spacer(ui);
+
+        log::info!("🎨 THEME DEBUG: Building description row");
+        nuon::settings_row()
+            .title("")
+            .subtitle(description.to_string())
+            .build(ui, rows);
+        
+        log::info!("🎨 THEME DEBUG: settings_piano_theme_section() completed");
     }
 
     fn settings_song_library_section(
