@@ -4,8 +4,13 @@
 //! adapted from the WGPU versions to work with MacroquadContext.
 
 use crate::{
-    context::Context, context_macroquad::MacroquadContext, song::Song,
-    song_library::SongRepository, NeothesiaEvent,
+    context::Context,
+    context_macroquad::MacroquadContext,
+    effects::{EffectsManager, ScreenFlash, ScreenShake, TimingFeedback},
+    scoring::{LiveScoreTracker, StreakMilestone, TimingQuality},
+    song::Song,
+    song_library::SongRepository,
+    NeothesiaEvent,
 };
 use std::time::Duration;
 
@@ -758,6 +763,10 @@ pub struct PlyPlayingScene {
 
     // Waterfall audio tracking
     active_waterfall_notes: std::collections::HashSet<u8>,
+
+    live_score: LiveScoreTracker,
+    effects: EffectsManager,
+    last_timing_quality: Option<TimingQuality>,
 }
 
 impl PlyPlayingScene {
@@ -802,6 +811,9 @@ impl PlyPlayingScene {
             song_length,
             lead_in,
             active_waterfall_notes: std::collections::HashSet::new(),
+            live_score: LiveScoreTracker::new(),
+            effects: EffectsManager::new(),
+            last_timing_quality: None,
         }
     }
 
@@ -1060,6 +1072,123 @@ impl PlyPlayingScene {
 
     fn speed_multiplier(&self) -> f32 {
         1.0
+    }
+
+    fn simulate_note_hit(&mut self) {
+        let roll = ((self.playback_time * 1000.0) as u32 % 100) as f32 / 100.0;
+
+        let quality = if roll < 0.4 {
+            TimingQuality::Perfect
+        } else if roll < 0.7 {
+            TimingQuality::Good
+        } else if roll < 0.9 {
+            TimingQuality::Okay
+        } else {
+            TimingQuality::Miss
+        };
+
+        let (_, milestone) = self.live_score.on_note_hit(quality);
+        self.last_timing_quality = Some(quality);
+
+        match quality {
+            TimingQuality::Miss => {
+                self.effects.trigger_shake(ScreenShake::small());
+            }
+            _ => {}
+        }
+
+        if let Some(m) = milestone {
+            match m {
+                StreakMilestone::Multiplier8x => {
+                    self.effects.trigger_flash(ScreenFlash::gold(0.3));
+                }
+                StreakMilestone::OnFire => {
+                    self.effects.trigger_shake(ScreenShake::medium());
+                    self.effects.trigger_flash(ScreenFlash::gold(0.5));
+                }
+                StreakMilestone::Legendary => {
+                    self.effects.trigger_shake(ScreenShake::large());
+                    self.effects.trigger_flash(ScreenFlash::gold(0.8));
+                }
+                _ => {}
+            }
+        }
+    }
+
+    fn render_live_score(&self) {
+        let score = self.live_score.score();
+        let multiplier = self.live_score.multiplier();
+        let streak = self.live_score.streak().current();
+
+        let score_text = format!("{:}", score);
+        draw_text(&score_text, screen_width() - 200.0, 50.0, 32.0, WHITE);
+
+        let mult_text = format!("x{}", multiplier);
+        let mult_color = match multiplier {
+            8 => Color::from_rgba(255, 215, 0, 255),
+            4 => Color::from_rgba(0, 136, 255, 255),
+            2 => Color::from_rgba(0, 255, 0, 255),
+            _ => Color::from_rgba(200, 200, 200, 255),
+        };
+        draw_text(&mult_text, screen_width() - 80.0, 50.0, 24.0, mult_color);
+
+        if streak > 0 {
+            let (streak_text, streak_color) = if streak >= 200 {
+                (
+                    format!("LEGENDARY: {}", streak),
+                    Color::from_rgba(255, 0, 255, 255),
+                )
+            } else if streak >= 100 {
+                (
+                    format!("ON FIRE: {}", streak),
+                    Color::from_rgba(255, 136, 0, 255),
+                )
+            } else if streak >= 50 {
+                (
+                    format!("Streak: {}", streak),
+                    Color::from_rgba(255, 215, 0, 255),
+                )
+            } else if streak >= 30 {
+                (
+                    format!("Streak: {}", streak),
+                    Color::from_rgba(0, 136, 255, 255),
+                )
+            } else if streak >= 10 {
+                (
+                    format!("Streak: {}", streak),
+                    Color::from_rgba(0, 255, 0, 255),
+                )
+            } else {
+                (
+                    format!("Streak: {}", streak),
+                    Color::from_rgba(170, 170, 170, 255),
+                )
+            };
+
+            draw_text(
+                &streak_text,
+                screen_width() - 200.0,
+                80.0,
+                18.0,
+                streak_color,
+            );
+        }
+
+        if let Some(quality) = &self.last_timing_quality {
+            let (text, color) = match quality {
+                TimingQuality::Perfect => ("PERFECT", Color::from_rgba(255, 215, 0, 255)),
+                TimingQuality::Good => ("GOOD", Color::from_rgba(0, 255, 0, 255)),
+                TimingQuality::Okay => ("OKAY", Color::from_rgba(0, 136, 255, 255)),
+                TimingQuality::Miss => ("MISS", Color::from_rgba(255, 0, 0, 255)),
+            };
+            draw_text(
+                text,
+                screen_width() / 2.0 - 40.0,
+                screen_height() - 180.0,
+                20.0,
+                color,
+            );
+        }
     }
 
     fn handle_top_bar_click(
@@ -1323,6 +1452,7 @@ impl PlyScene for PlyPlayingScene {
                     MouseButton::Left,
                     true,
                 ) {
+                    self.simulate_note_hit();
                     for note in notes {
                         let message = MidiMessage::NoteOn {
                             key: u7::new(note),
@@ -1369,6 +1499,8 @@ impl PlyScene for PlyPlayingScene {
 
         self.mouse_was_pressed = mouse_down;
 
+        self.effects.update(delta);
+
         None
     }
 
@@ -1393,13 +1525,13 @@ impl PlyScene for PlyPlayingScene {
         let (mx, my) = mouse_position();
         let mouse_down = is_mouse_button_down(MouseButton::Left);
 
-        // ── Render waterfall + keyboard ──
         if let Some(waterfall) = &mut self.waterfall {
             waterfall.render_ply();
         }
         self.piano_keyboard.render();
 
-        // ── Render top bar (on top of everything) ──
+        self.render_live_score();
+
         self.render_top_bar(mx, my, mouse_down);
         self.render_progress_bar(mx, my, mouse_down);
     }
@@ -1835,7 +1967,6 @@ impl PlyScene for PlyScoreScene {
         let center_x = screen_w / 2.0;
         let center_y = screen_h / 2.0;
 
-        // Draw PLY rendering indicator
         draw_text(
             "🎨 PLY RENDERING ACTIVE - SCORE",
             10.0,
@@ -1852,65 +1983,71 @@ impl PlyScene for PlyScoreScene {
             Color::from_rgba(255, 255, 255, 255),
         );
 
-        // Draw title
         draw_text(
             "SONG COMPLETE!",
             center_x - 100.0,
-            center_y - 150.0,
+            center_y - 180.0,
             40.0,
             Color::from_rgba(100, 255, 100, 255),
         );
 
-        // Draw song info
         draw_text(
             &format!("Song: {}", self.song.file.name),
             center_x - 150.0,
-            center_y - 80.0,
+            center_y - 120.0,
             24.0,
             Color::from_rgba(255, 255, 255, 255),
         );
 
-        // Draw score
-        let score = if self.score_data.total_notes > 0 {
-            (self.score_data.correct_notes as f32 / self.score_data.total_notes as f32) * 100.0
-        } else {
-            0.0
-        };
-
+        let stars_display = "★".repeat(self.score_data.stars as usize)
+            + &"☆".repeat(5 - self.score_data.stars as usize);
         draw_text(
-            &format!("Score: {:.0}%", score),
-            center_x - 80.0,
-            center_y,
-            30.0,
-            Color::from_rgba(255, 200, 0, 255),
+            &stars_display,
+            center_x - 60.0,
+            center_y - 70.0,
+            48.0,
+            Color::from_rgba(255, 215, 0, 255),
         );
 
-        // Draw accuracy
-        if self.score_data.total_notes > 0 {
-            let accuracy =
-                (self.score_data.correct_notes as f32 / self.score_data.total_notes as f32) * 100.0;
+        if self.score_data.score > 0 {
             draw_text(
-                &format!("Accuracy: {:.1}%", accuracy),
-                center_x - 100.0,
-                center_y + 50.0,
-                24.0,
-                Color::from_rgba(100, 200, 255, 255),
+                &format!("Score: {}", self.score_data.score),
+                center_x - 80.0,
+                center_y - 20.0,
+                30.0,
+                Color::from_rgba(255, 255, 255, 255),
             );
         }
 
-        // Draw additional stats
+        draw_text(
+            &format!("Accuracy: {:.0}%", self.score_data.accuracy),
+            center_x - 100.0,
+            center_y + 30.0,
+            24.0,
+            Color::from_rgba(100, 200, 255, 255),
+        );
+
+        if self.score_data.max_streak > 0 {
+            draw_text(
+                &format!("Best Streak: {}", self.score_data.max_streak),
+                center_x - 100.0,
+                center_y + 70.0,
+                20.0,
+                Color::from_rgba(200, 200, 200, 255),
+            );
+        }
+
         draw_text(
             &format!(
                 "Correct: {} | Missed: {}",
                 self.score_data.correct_notes, self.score_data.missed_notes
             ),
             center_x - 150.0,
-            center_y + 90.0,
+            center_y + 110.0,
             16.0,
             Color::from_rgba(200, 200, 200, 255),
         );
 
-        // Draw instructions
         draw_text(
             "SPACE: Pause/Resume | ESC: Return to menu",
             center_x - 200.0,
