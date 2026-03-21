@@ -23,4 +23,4 @@ pub use macroquad_renderer::{
     PlyMacroquadRenderer,
 };
 
-pub use piano_keyboard::{PianoKeyboardRenderer, PianoTheme};
+pub use piano_keyboard::{PianoKeyboardRenderer, KeyboardTheme, NoteColor, OctaveTheme, ThemeSettings, ThemeVariant, ThemeName};
