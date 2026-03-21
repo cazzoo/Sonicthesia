@@ -2,6 +2,7 @@ use midi_file::midly::{num::u4, MidiMessage};
 
 use crate::{
     output_manager::OutputConnection,
+    scoring::TimingQuality,
     song::{ChannelConfig, ChannelMode, Song},
 };
 use neothesia_core::piano_layout;
@@ -298,22 +299,17 @@ pub struct PlayerStats {
 /// Score data extracted from PlayerStats for display on score screen
 #[derive(Debug, Clone)]
 pub struct ScoreData {
-    /// Total number of note events (correct + missed)
     pub total_notes: usize,
-    /// Number of correctly played notes
     pub correct_notes: usize,
-    /// Number of missed/incorrect notes
     pub missed_notes: usize,
-    /// Notes played too early (outside threshold)
     pub too_early: usize,
-    /// Notes played too late (outside threshold)
     pub too_late: usize,
-    /// Notes played within acceptable timing (perfect/good)
     pub on_time: usize,
-    /// Accuracy percentage (0.0 - 100.0)
     pub accuracy: f64,
-    /// Letter grade (S, A, B, C, D, F)
     pub grade: String,
+    pub stars: u32,
+    pub max_streak: u32,
+    pub score: u64,
 }
 
 impl PlayerStats {
@@ -371,6 +367,8 @@ pub struct PlayAlong {
     user_triggered_notes: HashMap<u8, HashSet<NoteId>>,
 
     stats: PlayerStats,
+
+    timing_events: Vec<TimingQuality>,
 }
 impl PlayAlong {
     fn new(user_keyboard_range: piano_layout::KeyboardRange) -> Self {
@@ -382,6 +380,7 @@ impl PlayAlong {
             in_proggres_file_notes: Default::default(),
             user_triggered_notes: Default::default(),
             stats: PlayerStats::default(),
+            timing_events: Vec::new(),
         }
     }
 
@@ -404,20 +403,19 @@ impl PlayAlong {
         let timestamp = Instant::now();
 
         if active {
-            // Check if note has already been played by a file
             if let Some(required_press) = self.required_notes.remove(&note_id) {
-                self.stats
-                    .played_late
-                    .push(timestamp.duration_since(required_press.timestamp));
+                let delta = timestamp.duration_since(required_press.timestamp);
+                self.stats.played_late.push(delta);
+                self.timing_events.push(TimingQuality::from_delta(delta));
             } else {
-                // This note was not played by file yet, place it in recents
                 let got_replaced = self
                     .user_pressed_recently
                     .insert(note_id, NotePress { timestamp })
                     .is_some();
 
                 if got_replaced {
-                    self.stats.wrong_notes += 1
+                    self.stats.wrong_notes += 1;
+                    self.timing_events.push(TimingQuality::Miss);
                 }
             }
         }
@@ -426,20 +424,15 @@ impl PlayAlong {
     fn file_press_key(&mut self, note_id: u8, active: bool) {
         let timestamp = Instant::now();
         if active {
-            // Check if note got pressed earlier 500ms (user_pressed_recently)
             if let Some(press) = self.user_pressed_recently.remove(&note_id) {
-                self.stats
-                    .played_early
-                    .push(timestamp.duration_since(press.timestamp));
+                let delta = timestamp.duration_since(press.timestamp);
+                self.stats.played_early.push(delta);
+                self.timing_events.push(TimingQuality::from_delta(delta));
             } else {
-                // Player never pressed that note, let it reach required_notes
-
-                // Ignore overlapping notes
                 if self.in_proggres_file_notes.contains(&note_id) {
                     return;
                 }
 
-                // Only count new required notes (not updates to existing notes)
                 if !self.required_notes.contains_key(&note_id) {
                     self.total_required_notes += 1;
                 }
@@ -472,11 +465,17 @@ impl PlayAlong {
         }
     }
 
+    /// Take and clear pending timing events for live scoring
+    pub fn take_timing_events(&mut self) -> Vec<TimingQuality> {
+        std::mem::take(&mut self.timing_events)
+    }
+
     pub fn clear(&mut self) {
         self.required_notes.clear();
         self.user_pressed_recently.clear();
         self.in_proggres_file_notes.clear();
         self.user_triggered_notes.clear();
+        self.timing_events.clear();
     }
 
     pub fn are_required_keys_pressed(&self) -> bool {
@@ -521,26 +520,19 @@ impl PlayAlong {
         let played_notes = played_early + played_late;
         let wrong_notes = self.stats.wrong_notes;
 
-        // Notes correctly played on first attempt (within timing threshold)
         let too_early = self.stats.count_too_early();
         let too_late = self.stats.count_too_late();
         let on_time = (played_early - too_early) + (played_late - too_late);
 
-        // Notes correctly played (including those outside threshold)
         let correct_notes = played_notes;
 
-        // Total required notes throughout the song (tracking cumulative count)
         let total_required_notes = self.total_required_notes;
 
-        // Missed notes = total required - played correctly
         let played_correctly = correct_notes.saturating_sub(wrong_notes);
         let missed_notes = total_required_notes.saturating_sub(played_correctly);
 
-        // For score display, we show total required notes
         let total_notes = total_required_notes;
 
-        // Accuracy based on notes actually played (correct / total played)
-        // If no notes were played, use 0% instead of dividing by zero
         let accuracy = if played_notes > 0 {
             let correct = (on_time + too_early + too_late) as f64;
             (correct / played_notes as f64) * 100.0
@@ -549,6 +541,15 @@ impl PlayAlong {
         };
 
         let grade = Self::calculate_grade(accuracy);
+
+        let base_stars = match accuracy {
+            95.0..=100.0 => 5,
+            85.0..95.0 => 4,
+            70.0..85.0 => 3,
+            50.0..70.0 => 2,
+            30.0..50.0 => 1,
+            _ => 0,
+        };
 
         ScoreData {
             total_notes,
@@ -559,6 +560,9 @@ impl PlayAlong {
             on_time,
             accuracy,
             grade,
+            stars: base_stars,
+            max_streak: 0,
+            score: 0,
         }
     }
 

@@ -1,11 +1,13 @@
+use crate::effects::{EffectsManager, ScreenFlash, ScreenShake, TimingFeedback};
 use crate::lumi_controller::LumiController;
+use crate::scoring::{LiveScoreTracker, StreakMilestone, TimingQuality};
 use midi_file::midly::{num::u4, MidiMessage};
 use neothesia_core::render::{
     waterfall::TrackChannelConfig, GlowRenderer, GuidelineRenderer, NoteLabels, QuadRenderer,
     TextRenderer,
 };
 
-use crate::render::ply::{PlyRendererCoordinator, waterfall::PlyWaterfallRenderer};
+use crate::render::ply::{waterfall::PlyWaterfallRenderer, PlyRendererCoordinator};
 
 use std::time::Duration;
 use winit::{
@@ -17,11 +19,10 @@ use self::top_bar::TopBar;
 
 use super::{NuonRenderer, Scene};
 use crate::{
-    song_library::SongRepository,
-    context::Context, scene::MouseToMidiEventState, song::Song,
+    context::Context, scene::MouseToMidiEventState, song::Song, song_library::SongRepository,
     utils::window::WinitEvent, NeothesiaEvent,
 };
-use neothesia_core::render::{WaterfallRenderer, KeyboardRenderer};
+use neothesia_core::render::{KeyboardRenderer, WaterfallRenderer};
 
 mod keyboard;
 pub use keyboard::Keyboard;
@@ -37,6 +38,18 @@ use toast_manager::ToastManager;
 
 mod animation;
 mod top_bar;
+
+fn format_score(score: u64) -> String {
+    let s = score.to_string();
+    let mut result = String::with_capacity(s.len() + s.len() / 3);
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result.chars().rev().collect()
+}
 
 pub struct RuntimeGain {
     value: f32,
@@ -111,14 +124,14 @@ pub struct PlayingScene {
 
     runtime_gain: RuntimeGain,
 
-    // Cache for keyboard gain to avoid redundant set_gain() calls
     cached_keyboard_gain: Option<f32>,
 
-    // Track song ID for library statistics updates
     current_song_id: Option<i64>,
 
-    // PLY renderer coordinator
     ply_renderer: PlyRendererCoordinator,
+
+    live_score: LiveScoreTracker,
+    effects: EffectsManager,
 }
 
 impl PlayingScene {
@@ -237,7 +250,7 @@ impl PlayingScene {
             waterfall,
             player,
             lumi,
-            saved_color_mode: ctx.config.lumi_color_mode(), // Save for later restoration
+            saved_color_mode: ctx.config.lumi_color_mode(),
             rewind_controller: RewindController::new(),
             quad_renderer_bg,
             quad_renderer_fg,
@@ -254,6 +267,9 @@ impl PlayingScene {
             current_song_id,
 
             ply_renderer,
+
+            live_score: LiveScoreTracker::new(),
+            effects: EffectsManager::new(),
         }
     }
 
@@ -280,6 +296,199 @@ impl PlayingScene {
                 key.width(),
                 delta,
             );
+        }
+    }
+
+    fn update_live_score(&mut self, delta: Duration) {
+        let timing_events = self.player.play_along_mut().take_timing_events();
+        let keyboard_y = self.keyboard.pos().y;
+
+        for quality in timing_events {
+            let (_, milestone) = self.live_score.on_note_hit(quality);
+
+            let feedback = match quality {
+                TimingQuality::Perfect => TimingFeedback::perfect(0.0, keyboard_y - 30.0),
+                TimingQuality::Good => TimingFeedback::good(0.0, keyboard_y - 30.0),
+                TimingQuality::Okay => TimingFeedback::okay(0.0, keyboard_y - 30.0),
+                TimingQuality::Miss => {
+                    self.effects.trigger_shake(ScreenShake::small());
+                    TimingFeedback::miss(0.0, keyboard_y - 30.0)
+                }
+            };
+            self.effects.add_timing_feedback(feedback);
+
+            if let Some(m) = milestone {
+                match m {
+                    StreakMilestone::Multiplier2x => {
+                        self.effects.add_timing_feedback(TimingFeedback::new(
+                            0.0,
+                            keyboard_y - 60.0,
+                            "2× MULTIPLIER!",
+                            0.0,
+                            1.0,
+                            0.0,
+                        ));
+                    }
+                    StreakMilestone::Multiplier4x => {
+                        self.effects.add_timing_feedback(TimingFeedback::new(
+                            0.0,
+                            keyboard_y - 60.0,
+                            "4× MULTIPLIER!",
+                            0.0,
+                            0.53,
+                            1.0,
+                        ));
+                    }
+                    StreakMilestone::Multiplier8x => {
+                        self.effects.add_timing_feedback(TimingFeedback::new(
+                            0.0,
+                            keyboard_y - 60.0,
+                            "8× MULTIPLIER!",
+                            1.0,
+                            0.84,
+                            0.0,
+                        ));
+                        self.effects.trigger_flash(ScreenFlash::gold(0.3));
+                    }
+                    StreakMilestone::OnFire => {
+                        self.effects.add_timing_feedback(TimingFeedback::new(
+                            0.0,
+                            keyboard_y - 60.0,
+                            "🔥 ON FIRE!",
+                            1.0,
+                            0.53,
+                            0.0,
+                        ));
+                        self.effects.trigger_shake(ScreenShake::medium());
+                        self.effects.trigger_flash(ScreenFlash::gold(0.5));
+                    }
+                    StreakMilestone::Legendary => {
+                        self.effects.add_timing_feedback(TimingFeedback::new(
+                            0.0,
+                            keyboard_y - 60.0,
+                            "★ LEGENDARY!",
+                            1.0,
+                            0.0,
+                            1.0,
+                        ));
+                        self.effects.trigger_shake(ScreenShake::large());
+                        self.effects.trigger_flash(ScreenFlash::gold(0.8));
+                    }
+                }
+            }
+        }
+
+        self.effects.update(delta);
+    }
+
+    fn render_live_score(&mut self) {
+        let score_text = format_score(self.live_score.score());
+        let multiplier = self.live_score.multiplier();
+        let streak = self.live_score.streak().current();
+
+        let x_offset = 10.0;
+
+        let score_buffer = TextRenderer::gen_buffer_with_attr(
+            24.0,
+            &score_text,
+            cosmic_text::Attrs::new()
+                .family(cosmic_text::Family::Name("Roboto"))
+                .weight(cosmic_text::Weight::BOLD)
+                .color(cosmic_text::Color::rgb(0xFF, 0xFF, 0xFF)),
+        );
+        self.text_renderer.queue_buffer_right(
+            nuon::Rect::new(
+                nuon::Point::new(x_offset, 10.0),
+                nuon::Size::new(300.0, 30.0),
+            ),
+            score_buffer,
+        );
+
+        let multiplier_color = match multiplier {
+            8 => cosmic_text::Color::rgb(0xFF, 0xD7, 0x00),
+            4 => cosmic_text::Color::rgb(0x00, 0x88, 0xFF),
+            2 => cosmic_text::Color::rgb(0x00, 0xFF, 0x00),
+            _ => cosmic_text::Color::rgb(0xCC, 0xCC, 0xCC),
+        };
+
+        let multiplier_buffer = TextRenderer::gen_buffer_with_attr(
+            18.0,
+            &format!("×{}", multiplier),
+            cosmic_text::Attrs::new()
+                .family(cosmic_text::Family::Name("Roboto"))
+                .weight(cosmic_text::Weight::BOLD)
+                .color(multiplier_color),
+        );
+        self.text_renderer.queue_buffer_right(
+            nuon::Rect::new(
+                nuon::Point::new(x_offset, 40.0),
+                nuon::Size::new(300.0, 25.0),
+            ),
+            multiplier_buffer,
+        );
+
+        if streak > 0 {
+            let streak_color = if streak >= 200 {
+                cosmic_text::Color::rgb(0xFF, 0x00, 0xFF)
+            } else if streak >= 100 {
+                cosmic_text::Color::rgb(0xFF, 0x88, 0x00)
+            } else if streak >= 50 {
+                cosmic_text::Color::rgb(0xFF, 0xD7, 0x00)
+            } else if streak >= 30 {
+                cosmic_text::Color::rgb(0x00, 0x88, 0xFF)
+            } else if streak >= 10 {
+                cosmic_text::Color::rgb(0x00, 0xFF, 0x00)
+            } else {
+                cosmic_text::Color::rgb(0xAA, 0xAA, 0xAA)
+            };
+
+            let streak_text = if streak >= 200 {
+                format!("★ LEGENDARY: {}", streak)
+            } else if streak >= 100 {
+                format!("🔥 ON FIRE: {}", streak)
+            } else {
+                format!("Streak: {}", streak)
+            };
+
+            let streak_buffer = TextRenderer::gen_buffer_with_attr(
+                16.0,
+                &streak_text,
+                cosmic_text::Attrs::new()
+                    .family(cosmic_text::Family::Name("Roboto"))
+                    .color(streak_color),
+            );
+            self.text_renderer.queue_buffer_right(
+                nuon::Rect::new(
+                    nuon::Point::new(x_offset, 65.0),
+                    nuon::Size::new(300.0, 20.0),
+                ),
+                streak_buffer,
+            );
+        }
+
+        for feedback in self.effects.timing_feedbacks() {
+            let alpha = feedback.alpha();
+            if alpha <= 0.0 {
+                continue;
+            }
+
+            let (r, g, b, _) = feedback.color();
+            let color =
+                cosmic_text::Color::rgb((r * 255.0) as u8, (g * 255.0) as u8, (b * 255.0) as u8);
+
+            let buffer = TextRenderer::gen_buffer_with_attr(
+                20.0,
+                &feedback.text,
+                cosmic_text::Attrs::new()
+                    .family(cosmic_text::Family::Name("Roboto"))
+                    .weight(cosmic_text::Weight::BOLD)
+                    .color(color),
+            );
+
+            let screen_width = 1920.0;
+            let x = screen_width / 2.0 - 50.0;
+
+            self.text_renderer.queue_buffer(x, feedback.y, buffer);
         }
     }
 
@@ -452,9 +661,24 @@ impl Scene for PlayingScene {
             ctx.window_state.scale_factor as f32,
             self.keyboard.pos().y,
         );
-        log::info!("🎯 PLY RENDERER ACTIVE: Updated playing scene at time={:.2}", time);
-        log::info!("🎯 PLY Waterfall: {} notes tracked", self.ply_renderer.waterfall_mut().map(|w| w.notes().inner().len()).unwrap_or(0));
-        log::info!("🎯 PLY Keyboard: {} keys managed", self.ply_renderer.keyboard_mut().map(|k| k.layout().keys.len()).unwrap_or(0));
+        log::info!(
+            "🎯 PLY RENDERER ACTIVE: Updated playing scene at time={:.2}",
+            time
+        );
+        log::info!(
+            "🎯 PLY Waterfall: {} notes tracked",
+            self.ply_renderer
+                .waterfall_mut()
+                .map(|w| w.notes().inner().len())
+                .unwrap_or(0)
+        );
+        log::info!(
+            "🎯 PLY Keyboard: {} keys managed",
+            self.ply_renderer
+                .keyboard_mut()
+                .map(|k| k.layout().keys.len())
+                .unwrap_or(0)
+        );
 
         self.guidelines.update(
             &mut self.quad_renderer_bg,
@@ -476,6 +700,8 @@ impl Scene for PlayingScene {
         }
 
         self.update_glow(delta);
+
+        self.update_live_score(delta);
 
         TopBar::update(self, ctx);
 
@@ -505,17 +731,25 @@ impl Scene for PlayingScene {
                 .color(cosmic_text::Color::rgb(0x00, 0xFF, 0x00)),
         );
         self.text_renderer.queue_buffer(10.0, 10.0, ply_buffer);
-        
+
         // Add PLY system status below the main indicator
         let ply_status = TextRenderer::gen_buffer_with_attr(
             14.0,
-            &format!("🎨 Waterfall: {} notes",
-                self.ply_renderer.waterfall_mut().map(|w| w.notes().inner().len()).unwrap_or(0)),
+            &format!(
+                "🎨 Waterfall: {} notes",
+                self.ply_renderer
+                    .waterfall_mut()
+                    .map(|w| w.notes().inner().len())
+                    .unwrap_or(0)
+            ),
             cosmic_text::Attrs::new()
                 .family(cosmic_text::Family::Name("Roboto"))
                 .color(cosmic_text::Color::rgb(0x00, 0xFF, 0x00)),
         );
         self.text_renderer.queue_buffer(10.0, 35.0, ply_status);
+
+        // Render live score display in top-right
+        self.render_live_score();
 
         self.text_renderer.update(
             ctx.window_state.physical_size,
@@ -535,13 +769,33 @@ impl Scene for PlayingScene {
                         .ok();
                 }
                 PlayMode::Learn | PlayMode::Play => {
-                    // Learn or Play mode - show score screen with performance stats
-                    let score_data = self.player.play_along().to_score_data();
+                    let score_result = self.live_score.to_score_data();
+                    let mut score_data = self.player.play_along().to_score_data();
 
-                    // Update library statistics if this song came from the library
+                    score_data.stars = score_result.stars.count();
+                    score_data.max_streak = score_result.max_streak;
+                    score_data.score = score_result.score;
+
                     if let Some(song_id) = self.current_song_id {
-                        if let Err(e) = ctx.song_library_db.update_stats(song_id, Some(score_data.accuracy as f32)) {
+                        if let Err(e) = ctx
+                            .song_library_db
+                            .update_stats(song_id, Some(score_result.accuracy as f32))
+                        {
                             log::error!("Failed to update song library stats: {}", e);
+                        }
+
+                        if let Err(e) = ctx.song_library_db.save_high_score(
+                            song_id,
+                            score_result.score,
+                            score_result.accuracy,
+                            score_result.max_streak,
+                            score_result.stars.count(),
+                            score_result.perfect_count,
+                            score_result.good_count,
+                            score_result.okay_count,
+                            score_result.miss_count,
+                        ) {
+                            log::error!("Failed to save high score: {}", e);
                         }
                     }
 

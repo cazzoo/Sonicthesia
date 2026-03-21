@@ -5,7 +5,7 @@ use std::sync::{Arc, Mutex};
 use thiserror::Error;
 
 use crate::song_library::models::{
-    calculate_difficulty, FilterState, SongEntry, SongMetadata, SortPreference,
+    calculate_difficulty, FilterState, HighScoreEntry, SongEntry, SongMetadata, SortPreference,
 };
 use crate::song_library::scanner::SongScanner;
 
@@ -33,12 +33,26 @@ pub trait SongRepository: Send + Sync {
     fn update_labels(&self, song_id: i64, labels: Vec<String>) -> Result<()>;
     fn reset_score(&self, song_id: i64) -> Result<()>;
     fn song_count(&self) -> Result<usize>;
+    fn save_high_score(
+        &self,
+        song_id: i64,
+        score: u64,
+        accuracy: f64,
+        streak: u32,
+        stars: u32,
+        perfect_count: u32,
+        good_count: u32,
+        okay_count: u32,
+        miss_count: u32,
+    ) -> Result<()>;
+    fn get_high_scores(&self, song_id: i64, limit: i64) -> Result<Vec<HighScoreEntry>>;
+    fn get_best_score(&self, song_id: i64) -> Result<Option<HighScoreEntry>>;
     fn scan_directories(&self, _directories: &[PathBuf]) -> Result<usize> {
         Ok(0)
     }
 }
 
-const CURRENT_SCHEMA_VERSION: i32 = 2;
+const CURRENT_SCHEMA_VERSION: i32 = 3;
 
 struct DatabaseConnection {
     conn: Connection,
@@ -115,6 +129,9 @@ impl DatabaseConnection {
         if from_version < 2 {
             self.migrate_to_v2()?;
         }
+        if from_version < 3 {
+            self.migrate_to_v3()?;
+        }
 
         Ok(())
     }
@@ -128,6 +145,97 @@ impl DatabaseConnection {
 
         self.conn
             .execute("UPDATE schema_version SET version = 2", [])?;
+
+        Ok(())
+    }
+
+    fn migrate_to_v3(&mut self) -> Result<()> {
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS achievements (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                unlocked_at INTEGER,
+                progress REAL DEFAULT 0.0
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS challenges (
+                id TEXT PRIMARY KEY,
+                challenge_type TEXT NOT NULL,
+                target REAL NOT NULL,
+                progress REAL DEFAULT 0.0,
+                completed INTEGER DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS high_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+                score INTEGER NOT NULL,
+                accuracy REAL NOT NULL,
+                streak INTEGER NOT NULL,
+                stars INTEGER NOT NULL,
+                perfect_count INTEGER NOT NULL DEFAULT 0,
+                good_count INTEGER NOT NULL DEFAULT 0,
+                okay_count INTEGER NOT NULL DEFAULT 0,
+                miss_count INTEGER NOT NULL DEFAULT 0,
+                played_at INTEGER NOT NULL
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_high_scores_song_id ON high_scores(song_id)",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_high_scores_score ON high_scores(score DESC)",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS learning_progress (
+                path_id TEXT NOT NULL,
+                stage_id TEXT NOT NULL,
+                completed INTEGER DEFAULT 0,
+                completed_at INTEGER,
+                PRIMARY KEY (path_id, stage_id)
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS skill_metrics (
+                date INTEGER PRIMARY KEY,
+                avg_accuracy REAL DEFAULT 0.0,
+                avg_streak INTEGER DEFAULT 0,
+                max_streak INTEGER DEFAULT 0,
+                songs_played INTEGER DEFAULT 0,
+                total_play_time INTEGER DEFAULT 0
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "ALTER TABLE songs ADD COLUMN best_stars INTEGER DEFAULT 0",
+            [],
+        )?;
+
+        self.conn.execute(
+            "ALTER TABLE songs ADD COLUMN best_streak INTEGER DEFAULT 0",
+            [],
+        )?;
+
+        self.conn
+            .execute("UPDATE schema_version SET version = 3", [])?;
 
         Ok(())
     }
@@ -148,7 +256,9 @@ impl DatabaseConnection {
                 created_at INTEGER NOT NULL,
                 indexed_at INTEGER NOT NULL,
                 genre TEXT,
-                labels TEXT
+                labels TEXT,
+                best_stars INTEGER DEFAULT 0,
+                best_streak INTEGER DEFAULT 0
             )",
             [],
         )?;
@@ -161,6 +271,70 @@ impl DatabaseConnection {
                 best_score REAL,
                 last_played_at INTEGER,
                 first_played_at INTEGER
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS achievements (
+                id TEXT PRIMARY KEY,
+                name TEXT NOT NULL,
+                description TEXT NOT NULL,
+                unlocked_at INTEGER,
+                progress REAL DEFAULT 0.0
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS challenges (
+                id TEXT PRIMARY KEY,
+                challenge_type TEXT NOT NULL,
+                target REAL NOT NULL,
+                progress REAL DEFAULT 0.0,
+                completed INTEGER DEFAULT 0,
+                created_at INTEGER NOT NULL,
+                expires_at INTEGER NOT NULL
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS high_scores (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                song_id INTEGER NOT NULL REFERENCES songs(id) ON DELETE CASCADE,
+                score INTEGER NOT NULL,
+                accuracy REAL NOT NULL,
+                streak INTEGER NOT NULL,
+                stars INTEGER NOT NULL,
+                perfect_count INTEGER NOT NULL DEFAULT 0,
+                good_count INTEGER NOT NULL DEFAULT 0,
+                okay_count INTEGER NOT NULL DEFAULT 0,
+                miss_count INTEGER NOT NULL DEFAULT 0,
+                played_at INTEGER NOT NULL
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS learning_progress (
+                path_id TEXT NOT NULL,
+                stage_id TEXT NOT NULL,
+                completed INTEGER DEFAULT 0,
+                completed_at INTEGER,
+                PRIMARY KEY (path_id, stage_id)
+            )",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE TABLE IF NOT EXISTS skill_metrics (
+                date INTEGER PRIMARY KEY,
+                avg_accuracy REAL DEFAULT 0.0,
+                avg_streak INTEGER DEFAULT 0,
+                max_streak INTEGER DEFAULT 0,
+                songs_played INTEGER DEFAULT 0,
+                total_play_time INTEGER DEFAULT 0
             )",
             [],
         )?;
@@ -187,6 +361,16 @@ impl DatabaseConnection {
 
         self.conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_songs_file_path ON songs(file_path)",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_high_scores_song_id ON high_scores(song_id)",
+            [],
+        )?;
+
+        self.conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_high_scores_score ON high_scores(score DESC)",
             [],
         )?;
 
@@ -613,6 +797,116 @@ impl SongRepository for SqliteSongRepository {
         )?;
 
         Ok(())
+    }
+
+    fn save_high_score(
+        &self,
+        song_id: i64,
+        score: u64,
+        accuracy: f64,
+        streak: u32,
+        stars: u32,
+        perfect_count: u32,
+        good_count: u32,
+        okay_count: u32,
+        miss_count: u32,
+    ) -> Result<()> {
+        let conn = self.get_connection()?;
+        let now = Utc::now().timestamp();
+
+        conn.execute(
+            "INSERT INTO high_scores (
+                song_id, score, accuracy, streak, stars,
+                perfect_count, good_count, okay_count, miss_count, played_at
+            ) VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)",
+            params![
+                song_id,
+                score as i64,
+                accuracy,
+                streak as i64,
+                stars as i64,
+                perfect_count as i64,
+                good_count as i64,
+                okay_count as i64,
+                miss_count as i64,
+                now,
+            ],
+        )?;
+
+        conn.execute(
+            "UPDATE songs SET best_stars = MAX(COALESCE(best_stars, 0), ?1), best_streak = MAX(COALESCE(best_streak, 0), ?2) WHERE id = ?3",
+            params![stars as i64, streak as i64, song_id],
+        )?;
+
+        Ok(())
+    }
+
+    fn get_high_scores(&self, song_id: i64, limit: i64) -> Result<Vec<HighScoreEntry>> {
+        let conn = self.get_connection()?;
+
+        let mut stmt = conn.prepare(
+            "SELECT id, song_id, score, accuracy, streak, stars,
+                    perfect_count, good_count, okay_count, miss_count, played_at
+             FROM high_scores
+             WHERE song_id = ?1
+             ORDER BY score DESC
+             LIMIT ?2",
+        )?;
+
+        let entries = stmt
+            .query_map(params![song_id, limit], |row| {
+                Ok(HighScoreEntry {
+                    id: row.get(0)?,
+                    song_id: row.get(1)?,
+                    score: row.get::<_, i64>(2)? as u64,
+                    accuracy: row.get(3)?,
+                    streak: row.get::<_, i64>(4)? as u32,
+                    stars: row.get::<_, i64>(5)? as u32,
+                    perfect_count: row.get::<_, i64>(6)? as u32,
+                    good_count: row.get::<_, i64>(7)? as u32,
+                    okay_count: row.get::<_, i64>(8)? as u32,
+                    miss_count: row.get::<_, i64>(9)? as u32,
+                    played_at: DateTime::from_timestamp(row.get(10)?, 0).unwrap(),
+                })
+            })?
+            .collect::<std::result::Result<Vec<_>, _>>()?;
+
+        Ok(entries)
+    }
+
+    fn get_best_score(&self, song_id: i64) -> Result<Option<HighScoreEntry>> {
+        let conn = self.get_connection()?;
+
+        let mut stmt = conn.prepare(
+            "SELECT id, song_id, score, accuracy, streak, stars,
+                    perfect_count, good_count, okay_count, miss_count, played_at
+             FROM high_scores
+             WHERE song_id = ?1
+             ORDER BY score DESC
+             LIMIT 1",
+        )?;
+
+        let result = stmt.query_row(params![song_id], |row| {
+            Ok(HighScoreEntry {
+                id: row.get(0)?,
+                song_id: row.get(1)?,
+                score: row.get::<_, i64>(2)? as u64,
+                accuracy: row.get(3)?,
+                streak: row.get::<_, i64>(4)? as u32,
+                stars: row.get::<_, i64>(5)? as u32,
+                perfect_count: row.get::<_, i64>(6)? as u32,
+                good_count: row.get::<_, i64>(7)? as u32,
+                okay_count: row.get::<_, i64>(8)? as u32,
+                miss_count: row.get::<_, i64>(9)? as u32,
+                played_at: DateTime::from_timestamp(row.get(10)?, 0).unwrap(),
+            })
+        });
+
+        match result {
+            Ok(entry) => Ok(Some(entry)),
+            Err(rusqlite::Error::QueryReturnedNoRows) => Ok(None),
+            Err(e) => Err(e.into()),
+        }
     }
 }
 

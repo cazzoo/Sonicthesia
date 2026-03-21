@@ -28,6 +28,21 @@ pub struct SongEntry {
     pub labels: Vec<String>,
 }
 
+#[derive(Debug, Clone)]
+pub struct HighScoreEntry {
+    pub id: i64,
+    pub song_id: i64,
+    pub score: u64,
+    pub accuracy: f64,
+    pub streak: u32,
+    pub stars: u32,
+    pub perfect_count: u32,
+    pub good_count: u32,
+    pub okay_count: u32,
+    pub miss_count: u32,
+    pub played_at: DateTime<Utc>,
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub enum SortPreference {
     #[default]

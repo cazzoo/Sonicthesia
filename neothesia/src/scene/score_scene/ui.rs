@@ -49,6 +49,35 @@ pub(crate) fn render_score_ui(scene: &mut ScoreScene, ctx: &mut Context) {
 
             current_y += 80.0;
 
+            let stars_display = stars_display(scene.score_data.stars);
+            nuon::translate().x(20.0).y(current_y).build(ui, |ui| {
+                nuon::label()
+                    .text(&stars_display)
+                    .font_size(48.0)
+                    .font_family("Arial")
+                    .color([1.0, 0.84, 0.0, 1.0])
+                    .size(panel_w - 40.0, 60.0)
+                    .text_justify(nuon::TextJustify::Center)
+                    .build(ui);
+            });
+
+            current_y += 60.0;
+
+            if scene.score_data.score > 0 {
+                nuon::translate().x(20.0).y(current_y).build(ui, |ui| {
+                    nuon::label()
+                        .text(&format_score(scene.score_data.score))
+                        .font_size(32.0)
+                        .font_family("Arial")
+                        .color([1.0, 1.0, 1.0, 1.0])
+                        .size(panel_w - 40.0, 40.0)
+                        .text_justify(nuon::TextJustify::Center)
+                        .build(ui);
+                });
+
+                current_y += 40.0;
+            }
+
             nuon::translate().x(20.0).y(current_y).build(ui, |ui| {
                 nuon::label()
                     .text(&format!(
@@ -66,6 +95,21 @@ pub(crate) fn render_score_ui(scene: &mut ScoreScene, ctx: &mut Context) {
             });
 
             current_y += 40.0;
+
+            if scene.score_data.max_streak > 0 {
+                nuon::translate().x(20.0).y(current_y).build(ui, |ui| {
+                    nuon::label()
+                        .text(&format!("Best Streak: {}", scene.score_data.max_streak))
+                        .font_size(20.0)
+                        .font_family("Arial")
+                        .color([0.8, 0.8, 0.8, 1.0])
+                        .size(panel_w - 40.0, 25.0)
+                        .text_justify(nuon::TextJustify::Center)
+                        .build(ui);
+                });
+
+                current_y += 30.0;
+            }
 
             nuon::translate().x(20.0).y(current_y).build(ui, |ui| {
                 nuon::quad()
@@ -279,4 +323,22 @@ fn grade_color(grade: &str) -> [f32; 4] {
         "F" => [0.8, 0.2, 0.2, 1.0],
         _ => [1.0, 1.0, 1.0, 1.0],
     }
+}
+
+fn stars_display(stars: u32) -> String {
+    let filled = "★".repeat(stars as usize);
+    let empty = "☆".repeat((5 - stars) as usize);
+    format!("{}{}", filled, empty)
+}
+
+fn format_score(score: u64) -> String {
+    let s = score.to_string();
+    let mut result = String::with_capacity(s.len() + s.len() / 3);
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    result.chars().rev().collect()
 }
