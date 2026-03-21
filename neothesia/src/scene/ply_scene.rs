@@ -111,8 +111,6 @@ impl PlyMenuScene {
     /// Activate the currently focused option
     fn activate_focused(&mut self) -> Option<NeothesiaEvent> {
         if let Some(focused) = self.input_manager.focus().focused_element() {
-            // Adjust option based on whether song is loaded
-            // Options: Play Song (only if song), Free Play, Song Library, Settings, Exit
             let has_song = self.song.is_some();
 
             match focused.id.as_str() {
@@ -705,12 +703,58 @@ impl PlyScene for PlySongLibraryScene {
     }
 }
 
-/// PLY Playing Scene
+/// Top bar button for Macroquad rendering
+struct TopBarButton {
+    x: f32,
+    y: f32,
+    w: f32,
+    h: f32,
+}
+
+impl TopBarButton {
+    fn new(x: f32, y: f32, w: f32, h: f32) -> Self {
+        Self { x, y, w, h }
+    }
+
+    fn is_hovered(&self, mx: f32, my: f32) -> bool {
+        mx >= self.x && mx <= self.x + self.w && my >= self.y && my <= self.y + self.h
+    }
+
+    fn render(&self, mx: f32, my: f32, mouse_down: bool) {
+        let hovered = self.is_hovered(mx, my);
+        let color = if hovered && mouse_down {
+            Color::from_rgba(97, 97, 97, 255)
+        } else if hovered {
+            Color::from_rgba(87, 87, 87, 255)
+        } else {
+            Color::from_rgba(67, 67, 67, 255)
+        };
+        draw_rectangle(self.x, self.y, self.w, self.h, color);
+    }
+}
+
+/// PLY Playing Scene — full Macroquad top bar with playback controls
 pub struct PlyPlayingScene {
     song: Song,
     paused: bool,
     piano_keyboard: PianoKeyboardRenderer,
     mouse_was_pressed: bool,
+    waterfall: Option<crate::render::ply::waterfall::PlyWaterfallRenderer>,
+    playback_time: f32,
+
+    // Top bar state
+    runtime_gain: f32,
+    looper_active: bool,
+    looper_start: f32,
+    looper_end: f32,
+    is_seeking: bool,
+    is_dragging_looper_start: bool,
+    is_dragging_looper_end: bool,
+    wait_mode: bool,
+
+    // Cached song duration
+    song_length: f32,
+    lead_in: f32,
 }
 
 impl PlyPlayingScene {
@@ -723,11 +767,433 @@ impl PlyPlayingScene {
 
         let piano_keyboard = PianoKeyboardRenderer::new(layout, &config);
 
+        // Compute song duration from tracks
+        let lead_in = 3.0f32;
+        let mut last_note_end = 0.0f32;
+        for track in song.file.tracks.iter() {
+            if let Some(note) = track.notes.last() {
+                let end = note.start.as_secs_f32() + note.duration.as_secs_f32();
+                last_note_end = last_note_end.max(end);
+            }
+        }
+        let song_length = last_note_end + lead_in;
+
+        // Initialize gain from config
+        let runtime_gain = config.playback_gain();
+
         Self {
             song,
             paused: false,
             piano_keyboard,
             mouse_was_pressed: false,
+            waterfall: None,
+            playback_time: -lead_in,
+            runtime_gain,
+            looper_active: false,
+            looper_start: 0.0,
+            looper_end: 0.0,
+            is_seeking: false,
+            is_dragging_looper_start: false,
+            is_dragging_looper_end: false,
+            wait_mode: false,
+            song_length,
+            lead_in,
+        }
+    }
+
+    fn initialize_waterfall(&mut self, ctx: &mut MacroquadContext) {
+        use crate::render::ply::waterfall::PlyWaterfallRenderer;
+        use neothesia_core::render::waterfall::TrackChannelConfig;
+
+        let mut waterfall = PlyWaterfallRenderer::new();
+        let tracks: &[midi_file::MidiTrack] = &self.song.file.tracks;
+        let hidden_tracks: Vec<usize> = Vec::new();
+        let track_channel_configs: Vec<TrackChannelConfig> = Vec::new();
+
+        let range = ctx.config.piano_range();
+        let keyboard_range = piano_layout::KeyboardRange::new(range);
+        let sizing = piano_layout::Sizing::new(40.0, 120.0);
+        let layout = KeyboardLayout::from_range(sizing, keyboard_range);
+
+        waterfall.initialize(
+            tracks,
+            &hidden_tracks,
+            &track_channel_configs,
+            &ctx.config,
+            &layout,
+        );
+        self.waterfall = Some(waterfall);
+    }
+
+    fn percentage(&self) -> f32 {
+        if self.song_length <= 0.0 {
+            return 0.0;
+        }
+        (self.playback_time / self.song_length).clamp(0.0, 1.0)
+    }
+
+    fn set_percentage(&mut self, p: f32) {
+        self.playback_time = p.clamp(0.0, 1.0) * self.song_length;
+    }
+
+    fn format_time(secs: f32) -> String {
+        let total_secs = secs.max(0.0) as u64;
+        let mins = total_secs / 60;
+        let secs = total_secs % 60;
+        format!("{}:{:02}", mins, secs)
+    }
+
+    // ─── Top Bar Layout Constants ───
+    const TOP_BAR_H: f32 = 30.0;
+    const PROGRESS_BAR_H: f32 = 45.0;
+
+    fn render_top_bar(&self, mx: f32, my: f32, mouse_down: bool) {
+        let sw = screen_width();
+        let dark_gray = Color::from_rgba(37, 35, 42, 255);
+
+        // Panel background
+        draw_rectangle(0.0, 0.0, sw, Self::TOP_BAR_H, dark_gray);
+
+        // ── Left: Back button ──
+        let back_btn = TopBarButton::new(0.0, 0.0, Self::TOP_BAR_H, Self::TOP_BAR_H);
+        back_btn.render(mx, my, mouse_down);
+        draw_text("<", 10.0, 20.0, 18.0, WHITE);
+
+        // ── Center: Speed + Gain ──
+        let group_w = 170.0;
+        let gap = 20.0;
+        let total_w = group_w * 2.0 + gap;
+        let start_x = (sw - total_w) / 2.0;
+
+        // Speed group
+        let speed_x = start_x;
+        draw_text(
+            "Speed",
+            speed_x,
+            20.0,
+            12.0,
+            Color::from_rgba(200, 200, 200, 255),
+        );
+
+        let speed_minus = TopBarButton::new(speed_x + 50.0, 3.0, 35.0, 24.0);
+        speed_minus.render(mx, my, mouse_down);
+        draw_text("-", speed_x + 63.0, 20.0, 16.0, WHITE);
+
+        let speed_pct = format!("{}%", (self.speed_multiplier() * 100.0).round());
+        draw_text(&speed_pct, speed_x + 88.0, 20.0, 14.0, WHITE);
+
+        let speed_plus = TopBarButton::new(speed_x + 135.0, 3.0, 35.0, 24.0);
+        speed_plus.render(mx, my, mouse_down);
+        draw_text("+", speed_x + 148.0, 20.0, 16.0, WHITE);
+
+        // Gain group
+        let gain_x = start_x + group_w + gap;
+        draw_text(
+            "Gain",
+            gain_x,
+            20.0,
+            12.0,
+            Color::from_rgba(200, 200, 200, 255),
+        );
+
+        let gain_minus = TopBarButton::new(gain_x + 50.0, 3.0, 35.0, 24.0);
+        gain_minus.render(mx, my, mouse_down);
+        draw_text("-", gain_x + 63.0, 20.0, 16.0, WHITE);
+
+        let gain_pct = format!("{}%", (self.runtime_gain * 100.0).round());
+        draw_text(&gain_pct, gain_x + 88.0, 20.0, 14.0, WHITE);
+
+        let gain_plus = TopBarButton::new(gain_x + 135.0, 3.0, 35.0, 24.0);
+        gain_plus.render(mx, my, mouse_down);
+        draw_text("+", gain_x + 148.0, 20.0, 16.0, WHITE);
+
+        // ── Right: Playback controls ──
+        let btn_size = Self::TOP_BAR_H;
+        let mut rx = sw;
+
+        // Play / Pause button
+        rx -= btn_size;
+        let play_btn = TopBarButton::new(rx, 0.0, btn_size, btn_size);
+        play_btn.render(mx, my, mouse_down);
+        if self.paused {
+            draw_text(">", rx + 10.0, 20.0, 18.0, WHITE);
+        } else {
+            draw_text("||", rx + 8.0, 20.0, 16.0, WHITE);
+        }
+
+        // Looper button
+        rx -= btn_size;
+        let looper_color = if self.looper_active {
+            Color::from_rgba(56, 145, 255, 255)
+        } else {
+            Color::from_rgba(67, 67, 67, 255)
+        };
+        let looper_hover = mx >= rx && mx <= rx + btn_size && my >= 0.0 && my <= btn_size;
+        let looper_bg = if looper_hover && mouse_down {
+            Color::from_rgba(97, 97, 97, 255)
+        } else if looper_hover {
+            Color::from_rgba(87, 87, 87, 255)
+        } else {
+            looper_color
+        };
+        draw_rectangle(rx, 0.0, btn_size, btn_size, looper_bg);
+        draw_text("L", rx + 10.0, 20.0, 16.0, WHITE);
+
+        // Wait mode button
+        rx -= btn_size;
+        let wait_color = if self.wait_mode {
+            Color::from_rgba(56, 145, 255, 255)
+        } else {
+            Color::from_rgba(67, 67, 67, 255)
+        };
+        let wait_hover = mx >= rx && mx <= rx + btn_size && my >= 0.0 && my <= btn_size;
+        let wait_bg = if wait_hover && mouse_down {
+            Color::from_rgba(97, 97, 97, 255)
+        } else if wait_hover {
+            Color::from_rgba(87, 87, 87, 255)
+        } else {
+            wait_color
+        };
+        draw_rectangle(rx, 0.0, btn_size, btn_size, wait_bg);
+        draw_text("W", rx + 10.0, 20.0, 16.0, WHITE);
+    }
+
+    fn render_progress_bar(&self, mx: f32, my: f32, mouse_down: bool) {
+        let sw = screen_width();
+        let bar_y = Self::TOP_BAR_H;
+        let bar_h = Self::PROGRESS_BAR_H;
+        let progress_w = sw * self.percentage();
+
+        // Background
+        draw_rectangle(0.0, bar_y, sw, bar_h, Color::from_rgba(30, 30, 35, 255));
+
+        // Played portion
+        draw_rectangle(
+            0.0,
+            bar_y,
+            progress_w,
+            bar_h,
+            Color::from_rgba(56, 145, 255, 255),
+        );
+
+        // Hover highlight
+        if my >= bar_y && my <= bar_y + bar_h && mx >= 0.0 && mx <= sw {
+            draw_rectangle(
+                mx - 1.0,
+                bar_y,
+                2.0,
+                bar_h,
+                Color::from_rgba(255, 255, 255, 100),
+            );
+        }
+
+        // Measure markers
+        let light = Color::from_rgba(255, 255, 255, 128);
+        let dark = Color::from_rgba(102, 102, 102, 255);
+        for m in self.song.file.measures.iter() {
+            let measure_pct = m.as_secs_f32() / self.song_length;
+            let mx_pos = measure_pct * sw;
+            let color = if mx_pos < progress_w { light } else { dark };
+            draw_rectangle(mx_pos, bar_y, 1.0, bar_h, color);
+        }
+
+        // Looper region
+        if self.looper_active && self.song_length > 0.0 {
+            let loop_start_x = (self.looper_start / self.song_length) * sw;
+            let loop_end_x = (self.looper_end / self.song_length) * sw;
+
+            // Looper region overlay
+            draw_rectangle(
+                loop_start_x,
+                bar_y - 5.0,
+                loop_end_x - loop_start_x,
+                bar_h + 10.0,
+                Color::from_rgba(255, 56, 187, 60),
+            );
+
+            // Looper handles
+            let handle_w = 5.0;
+            let handle_h = bar_h + 10.0;
+
+            let ls_hover = mx >= loop_start_x - 3.0
+                && mx <= loop_start_x + handle_w + 3.0
+                && my >= bar_y - 5.0
+                && my <= bar_y + bar_h + 5.0;
+            let ls_color = if ls_hover || self.is_dragging_looper_start {
+                WHITE
+            } else {
+                Color::from_rgba(255, 56, 187, 255)
+            };
+            draw_rectangle(loop_start_x, bar_y - 5.0, handle_w, handle_h, ls_color);
+
+            let le_hover = mx >= loop_end_x - 3.0
+                && mx <= loop_end_x + handle_w + 3.0
+                && my >= bar_y - 5.0
+                && my <= bar_y + bar_h + 5.0;
+            let le_color = if le_hover || self.is_dragging_looper_end {
+                WHITE
+            } else {
+                Color::from_rgba(255, 56, 187, 255)
+            };
+            draw_rectangle(loop_end_x, bar_y - 5.0, handle_w, handle_h, le_color);
+        }
+
+        // Playback cursor — thin white line
+        draw_rectangle(progress_w - 1.0, bar_y, 2.0, bar_h, WHITE);
+
+        // Time labels
+        let current = Self::format_time(self.playback_time.max(0.0));
+        let total = Self::format_time(self.song_length);
+        let time_text = format!("{} / {}", current, total);
+        draw_text(
+            &time_text,
+            10.0,
+            bar_y + bar_h - 8.0,
+            12.0,
+            Color::from_rgba(200, 200, 200, 255),
+        );
+    }
+
+    fn speed_multiplier(&self) -> f32 {
+        1.0
+    }
+
+    fn handle_top_bar_click(
+        &mut self,
+        ctx: &mut MacroquadContext,
+        mx: f32,
+        my: f32,
+    ) -> Option<NeothesiaEvent> {
+        let sw = screen_width();
+        let btn_size = Self::TOP_BAR_H;
+
+        // ── Back button ──
+        if mx >= 0.0 && mx <= btn_size && my >= 0.0 && my <= btn_size {
+            return Some(NeothesiaEvent::MainMenu(Some(self.song.clone())));
+        }
+
+        // ── Speed controls ──
+        let group_w = 170.0;
+        let gap = 20.0;
+        let total_w = group_w * 2.0 + gap;
+        let start_x = (sw - total_w) / 2.0;
+        let speed_x = start_x;
+
+        if mx >= speed_x + 50.0 && mx <= speed_x + 85.0 && my >= 3.0 && my <= 27.0 {
+            ctx.config
+                .set_speed_multiplier(ctx.config.speed_multiplier() - 0.1);
+        }
+        if mx >= speed_x + 135.0 && mx <= speed_x + 170.0 && my >= 3.0 && my <= 27.0 {
+            ctx.config
+                .set_speed_multiplier(ctx.config.speed_multiplier() + 0.1);
+        }
+
+        // ── Gain controls ──
+        let gain_x = start_x + group_w + gap;
+        if mx >= gain_x + 50.0 && mx <= gain_x + 85.0 && my >= 3.0 && my <= 27.0 {
+            self.runtime_gain = (self.runtime_gain - 0.1).max(0.0);
+            ctx.output_manager.connection().set_gain(self.runtime_gain);
+        }
+        if mx >= gain_x + 135.0 && mx <= gain_x + 170.0 && my >= 3.0 && my <= 27.0 {
+            self.runtime_gain += 0.1;
+            ctx.output_manager.connection().set_gain(self.runtime_gain);
+        }
+
+        // ── Right buttons ──
+        let mut rx = sw;
+
+        // Play / Pause
+        rx -= btn_size;
+        if mx >= rx && mx <= rx + btn_size && my >= 0.0 && my <= btn_size {
+            self.paused = !self.paused;
+        }
+
+        // Looper toggle
+        rx -= btn_size;
+        if mx >= rx && mx <= rx + btn_size && my >= 0.0 && my <= btn_size {
+            self.looper_active = !self.looper_active;
+            if self.looper_active && self.looper_start == 0.0 && self.looper_end == 0.0 {
+                self.looper_start = self.playback_time.max(0.0);
+                self.looper_end = (self.playback_time + 5.0).min(self.song_length);
+            }
+        }
+
+        // Wait mode toggle
+        rx -= btn_size;
+        if mx >= rx && mx <= rx + btn_size && my >= 0.0 && my <= btn_size {
+            self.wait_mode = !self.wait_mode;
+            self.song.config.wait_mode = self.wait_mode;
+        }
+
+        None
+    }
+
+    fn handle_progress_bar_click(
+        &mut self,
+        mx: f32,
+        my: f32,
+        mouse_down: bool,
+        mouse_just_pressed: bool,
+    ) {
+        let sw = screen_width();
+        let bar_y = Self::TOP_BAR_H;
+        let bar_h = Self::PROGRESS_BAR_H;
+
+        if !mouse_down {
+            self.is_seeking = false;
+            self.is_dragging_looper_start = false;
+            self.is_dragging_looper_end = false;
+            return;
+        }
+
+        // Check looper handle dragging
+        if self.looper_active && self.song_length > 0.0 {
+            let loop_start_x = (self.looper_start / self.song_length) * sw;
+            let loop_end_x = (self.looper_end / self.song_length) * sw;
+
+            if self.is_dragging_looper_start {
+                let p = (mx / sw).clamp(0.0, 1.0);
+                let new_time = p * self.song_length;
+                if new_time < self.looper_end - 0.5 {
+                    self.looper_start = new_time;
+                }
+                return;
+            }
+
+            if self.is_dragging_looper_end {
+                let p = (mx / sw).clamp(0.0, 1.0);
+                let new_time = p * self.song_length;
+                if new_time > self.looper_start + 0.5 {
+                    self.looper_end = new_time;
+                }
+                return;
+            }
+
+            // Start dragging on mouse press near handles
+            if mouse_just_pressed {
+                if (loop_start_x - mx).abs() < 10.0 {
+                    self.is_dragging_looper_start = true;
+                    return;
+                }
+                if (loop_end_x - mx).abs() < 10.0 {
+                    self.is_dragging_looper_end = true;
+                    return;
+                }
+            }
+        }
+
+        // Regular seek
+        if my >= bar_y && my <= bar_y + bar_h {
+            if mouse_just_pressed {
+                self.is_seeking = true;
+            }
+            if self.is_seeking {
+                let p = (mx / sw).clamp(0.0, 1.0);
+                self.set_percentage(p);
+                if let Some(waterfall) = &mut self.waterfall {
+                    waterfall.update(self.playback_time);
+                }
+            }
         }
     }
 }
@@ -737,117 +1203,127 @@ impl PlyScene for PlyPlayingScene {
         use midi_file::midly::{num::u7, MidiMessage};
 
         let dt = delta.as_secs_f32();
+        let (mouse_x, mouse_y) = mouse_position();
+        let mouse_down = is_mouse_button_down(MouseButton::Left);
+        let mouse_just_pressed = is_mouse_button_pressed(MouseButton::Left);
 
-        // Comprehensive mouse input logging
-        let screen_w = screen_width();
-        let screen_h = screen_height();
-        let mouse_pos = mouse_position();
-        let mouse_is_down = is_mouse_button_down(MouseButton::Left);
-        let mouse_is_pressed = is_mouse_button_pressed(MouseButton::Left);
-        let mouse_is_released = is_mouse_button_released(MouseButton::Left);
-
-        // Log all mouse buttons
-        let left_pressed = is_mouse_button_pressed(MouseButton::Left);
-        let right_pressed = is_mouse_button_pressed(MouseButton::Right);
-        let middle_pressed = is_mouse_button_pressed(MouseButton::Middle);
-
-        log::debug!("[DEBUG] [PlyPlayingScene::update] === MOUSE INPUT DUMP ===");
-        log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Screen size: {:.0}x{:.0}",
-            screen_w,
-            screen_h
-        );
-        log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Mouse position: ({:.1}, {:.1})",
-            mouse_pos.0,
-            mouse_pos.1
-        );
-        log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Mouse buttons - Left: pressed={} down={} released={}, Right: pressed={}, Middle: pressed={}",
-            left_pressed, mouse_is_down, mouse_is_released, right_pressed, middle_pressed
-        );
-        log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Previous state: mouse_was_pressed={}",
-            self.mouse_was_pressed
-        );
-
-        // Check if mouse is over the piano keyboard area
-        let keyboard_y_start = screen_h - 150.0; // Approximate keyboard area
-        let is_over_keyboard = mouse_pos.1 >= keyboard_y_start;
-        log::debug!(
-            "[DEBUG] [PlyPlayingScene::update] Mouse over keyboard area (y>={:.1}): {}",
-            keyboard_y_start,
-            is_over_keyboard
-        );
-
-        log::debug!("[DEBUG] [PlyPlayingScene::update] Entry - dt={:.4}", dt);
-        self.piano_keyboard.update(dt);
-
-        if is_key_pressed(KeyCode::Escape) {
-            return Some(NeothesiaEvent::MainMenu(None));
+        if self.waterfall.is_none() {
+            self.initialize_waterfall(ctx);
         }
 
+        // ── Keyboard shortcuts ──
+        if is_key_pressed(KeyCode::Escape) {
+            return Some(NeothesiaEvent::MainMenu(Some(self.song.clone())));
+        }
         if is_key_pressed(KeyCode::Space) {
             self.paused = !self.paused;
         }
 
-        if mouse_is_down && !self.mouse_was_pressed {
-            log::debug!("[DEBUG] [PlyPlayingScene::update] Mouse just pressed - calling handle_mouse_input()");
-            if let Some(notes) = self.piano_keyboard.handle_mouse_input(
-                Vec2::new(mouse_pos.0, mouse_pos.1),
-                MouseButton::Left,
-                true,
-            ) {
-                for note in notes {
-                    let message = MidiMessage::NoteOn {
-                        key: u7::new(note),
-                        vel: u7::new(100),
-                    };
-                    ctx.output_manager
-                        .connection()
-                        .midi_event(0u8.into(), message);
-                }
+        // Arrow keys: speed adjustment
+        if is_key_pressed(KeyCode::Up) {
+            ctx.config
+                .set_speed_multiplier(ctx.config.speed_multiplier() + 0.1);
+        }
+        if is_key_pressed(KeyCode::Down) {
+            ctx.config
+                .set_speed_multiplier(ctx.config.speed_multiplier() - 0.1);
+        }
+
+        // ── Top bar click handling ──
+        if mouse_just_pressed && mouse_y <= Self::TOP_BAR_H {
+            if let Some(event) = self.handle_top_bar_click(ctx, mouse_x, mouse_y) {
+                return Some(event);
             }
-        } else if !mouse_is_down && self.mouse_was_pressed {
-            log::debug!("[DEBUG] [PlyPlayingScene::update] Mouse just released - calling handle_mouse_input()");
-            if let Some(notes) = self.piano_keyboard.handle_mouse_input(
-                Vec2::new(mouse_pos.0, mouse_pos.1),
-                MouseButton::Left,
-                false,
-            ) {
-                for note in notes {
-                    let message = MidiMessage::NoteOff {
-                        key: u7::new(note),
-                        vel: u7::new(0),
-                    };
-                    ctx.output_manager
-                        .connection()
-                        .midi_event(0u8.into(), message);
-                }
-            }
-        } else if mouse_is_down && self.mouse_was_pressed {
-            log::debug!(
-                "[DEBUG] [PlyPlayingScene::update] Mouse dragging - calling handle_mouse_drag()"
-            );
-            if let Some(notes) = self
-                .piano_keyboard
-                .handle_mouse_drag(Vec2::new(mouse_pos.0, mouse_pos.1))
+        }
+
+        // ── Progress bar interaction ──
+        let progress_bar_bottom = Self::TOP_BAR_H + Self::PROGRESS_BAR_H;
+        if mouse_y >= Self::TOP_BAR_H && mouse_y <= progress_bar_bottom {
+            self.handle_progress_bar_click(mouse_x, mouse_y, mouse_down, mouse_just_pressed);
+        } else if !mouse_down {
+            self.is_seeking = false;
+            self.is_dragging_looper_start = false;
+            self.is_dragging_looper_end = false;
+        }
+
+        // ── Playback advancement ──
+        if !self.paused && !self.is_seeking {
+            let speed = ctx.config.speed_multiplier();
+            let effective_dt = dt * speed;
+            self.playback_time += effective_dt;
+
+            // Looper: wrap around
+            if self.looper_active
+                && self.playback_time > self.looper_end
+                && self.looper_end > self.looper_start
             {
-                for note in notes {
-                    let message = MidiMessage::NoteOn {
-                        key: u7::new(note),
-                        vel: u7::new(100),
-                    };
-                    ctx.output_manager
-                        .connection()
-                        .midi_event(0u8.into(), message);
+                self.playback_time = self.looper_start;
+            }
+        }
+
+        if let Some(waterfall) = &mut self.waterfall {
+            waterfall.update(self.playback_time);
+        }
+
+        self.piano_keyboard.update(dt);
+
+        // ── Piano keyboard mouse input ──
+        let keyboard_y_start = screen_height() - 150.0;
+        let is_over_keyboard = mouse_y >= keyboard_y_start;
+
+        if is_over_keyboard {
+            if mouse_down && !self.mouse_was_pressed {
+                if let Some(notes) = self.piano_keyboard.handle_mouse_input(
+                    Vec2::new(mouse_x, mouse_y),
+                    MouseButton::Left,
+                    true,
+                ) {
+                    for note in notes {
+                        let message = MidiMessage::NoteOn {
+                            key: u7::new(note),
+                            vel: u7::new(100),
+                        };
+                        ctx.output_manager
+                            .connection()
+                            .midi_event(0u8.into(), message);
+                    }
+                }
+            } else if !mouse_down && self.mouse_was_pressed {
+                if let Some(notes) = self.piano_keyboard.handle_mouse_input(
+                    Vec2::new(mouse_x, mouse_y),
+                    MouseButton::Left,
+                    false,
+                ) {
+                    for note in notes {
+                        let message = MidiMessage::NoteOff {
+                            key: u7::new(note),
+                            vel: u7::new(0),
+                        };
+                        ctx.output_manager
+                            .connection()
+                            .midi_event(0u8.into(), message);
+                    }
+                }
+            } else if mouse_down && self.mouse_was_pressed {
+                if let Some(notes) = self
+                    .piano_keyboard
+                    .handle_mouse_drag(Vec2::new(mouse_x, mouse_y))
+                {
+                    for note in notes {
+                        let message = MidiMessage::NoteOn {
+                            key: u7::new(note),
+                            vel: u7::new(100),
+                        };
+                        ctx.output_manager
+                            .connection()
+                            .midi_event(0u8.into(), message);
+                    }
                 }
             }
         }
 
-        self.mouse_was_pressed = mouse_is_down;
+        self.mouse_was_pressed = mouse_down;
 
-        log::debug!("[DEBUG] [PlyPlayingScene::update] Exit - update complete");
         None
     }
 
@@ -869,67 +1345,18 @@ impl PlyScene for PlyPlayingScene {
     fn render(&mut self, _ctx: &mut MacroquadContext) {
         clear_background(BLACK);
 
-        let screen_w = screen_width();
-        let screen_h = screen_height();
-        let center_x = screen_w / 2.0;
-        let center_y = screen_h / 2.0;
+        let (mx, my) = mouse_position();
+        let mouse_down = is_mouse_button_down(MouseButton::Left);
 
-        // Draw PLY rendering indicator
-        draw_text(
-            "🎨 PLY RENDERING ACTIVE - PLAYING",
-            10.0,
-            10.0,
-            18.0,
-            Color::from_rgba(0, 255, 0, 255),
-        );
-
-        draw_text(
-            &format!("FPS: {}", get_fps()),
-            10.0,
-            35.0,
-            14.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
-
-        // Draw song info
-        draw_text(
-            &format!("Playing: {}", self.song.file.name),
-            center_x - 150.0,
-            center_y - 100.0,
-            24.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
-
-        // Draw status
-        if self.paused {
-            draw_text(
-                "PAUSED",
-                center_x - 40.0,
-                center_y,
-                40.0,
-                Color::from_rgba(255, 200, 0, 255),
-            );
-        } else {
-            draw_text(
-                "Playing...",
-                center_x - 60.0,
-                center_y,
-                30.0,
-                Color::from_rgba(100, 255, 100, 255),
-            );
+        // ── Render waterfall + keyboard ──
+        if let Some(waterfall) = &mut self.waterfall {
+            waterfall.render_ply();
         }
-
-        // Draw instructions
-        draw_text(
-            "SPACE: Pause/Resume | ESC: Return to menu",
-            center_x - 200.0,
-            screen_h - 50.0,
-            14.0,
-            Color::from_rgba(100, 100, 100, 255),
-        );
-
-        // Render piano keyboard at bottom
         self.piano_keyboard.render();
+
+        // ── Render top bar (on top of everything) ──
+        self.render_top_bar(mx, my, mouse_down);
+        self.render_progress_bar(mx, my, mouse_down);
     }
 }
 
@@ -1440,8 +1867,8 @@ impl PlyScene for PlyScoreScene {
 
         // Draw instructions
         draw_text(
-            "Press ENTER or ESC to return to menu",
-            center_x - 180.0,
+            "SPACE: Pause/Resume | ESC: Return to menu",
+            center_x - 200.0,
             screen_h - 50.0,
             14.0,
             Color::from_rgba(100, 100, 100, 255),
@@ -1470,13 +1897,10 @@ struct InteractiveSetting {
 
 /// PLY Settings Scene - Interactive settings menu with all controls
 pub struct PlySettingsScene {
-    /// Current scroll offset
     scroll_offset: f32,
-    /// Currently hovered section
     hovered_section: Option<String>,
-    /// Popup state
     popup: SettingsPopup,
-    /// Discovered SoundFont files
+    popup_opened_this_frame: bool,
     soundfont_files: Vec<crate::output_manager::SoundFontEntry>,
     /// Current SoundFont index
     current_soundfont_index: Option<usize>,
@@ -1582,6 +2006,7 @@ enum SettingsPopup {
     None,
     OutputSelector,
     InputSelector,
+    ThemeSelector,
 }
 
 impl PlySettingsScene {
@@ -1604,6 +2029,7 @@ impl PlySettingsScene {
             scroll_offset: 0.0,
             hovered_section: None,
             popup: SettingsPopup::None,
+            popup_opened_this_frame: false,
             soundfont_files: Vec::new(),
             current_soundfont_index: None,
             song_directories: Vec::new(),
@@ -2343,6 +2769,84 @@ impl PlySettingsScene {
         )
     }
 
+    fn draw_mini_keyboard_preview(
+        &self,
+        ctx: &MacroquadContext,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+    ) {
+        use crate::render::ply::piano_keyboard::KeyboardTheme;
+        use macroquad::prelude::*;
+
+        let theme_name = ctx.config.piano_theme_name();
+        let theme = KeyboardTheme::get_theme(theme_name).unwrap_or_else(|| KeyboardTheme::modern());
+
+        draw_rectangle(x, y, width, height, Color::from_rgba(30, 28, 35, 255));
+
+        let note_names = [
+            "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+        ];
+        let is_sharp = [
+            false, true, false, true, false, false, true, false, true, false, true, false,
+        ];
+
+        let num_white_keys = 14;
+        let white_key_width = width / num_white_keys as f32;
+        let black_key_width = white_key_width * 0.6;
+        let black_key_height = height * 0.65;
+
+        let white_key_positions: Vec<f32> = (0..num_white_keys)
+            .map(|i| x + i as f32 * white_key_width)
+            .collect();
+
+        let black_key_offsets = [0.7, 1.7, 3.7, 4.7, 5.7, 7.7, 8.7, 10.7, 11.7, 12.7];
+        let black_key_indices = [1, 3, 6, 8, 10, 13, 15, 18, 20, 22];
+
+        let white_note_map = [0, 2, 4, 5, 7, 9, 11];
+
+        for wi in 0..num_white_keys {
+            let note_idx = white_note_map[wi % 7];
+            let kx = white_key_positions[wi];
+            let note_color = theme.octave_theme.note_color(note_idx);
+            let (r, g, b) = note_color.normal;
+
+            draw_rectangle(
+                kx + 0.5,
+                y + 2.0,
+                white_key_width - 1.0,
+                height - 4.0,
+                Color::from_rgba(r, g, b, 255),
+            );
+
+            let label = note_names[note_idx];
+            draw_text(
+                label,
+                kx + white_key_width / 2.0 - 4.0,
+                y + height - 6.0,
+                10.0,
+                Color::from_rgba(100, 100, 100, 255),
+            );
+        }
+
+        for (idx, &black_idx) in black_key_indices.iter().enumerate() {
+            if idx < black_key_offsets.len() {
+                let kx = x + black_key_offsets[idx] * white_key_width - black_key_width / 2.0;
+                let note_color = theme.octave_theme.note_color(black_idx % 12);
+                let (r, g, b) = note_color.normal;
+
+                draw_rectangle(
+                    kx,
+                    y + 2.0,
+                    black_key_width,
+                    black_key_height,
+                    Color::from_rgba(r, g, b, 255),
+                );
+            }
+        }
+    }
+
     /// Handle button click
     fn handle_button_click(
         &mut self,
@@ -2392,6 +2896,21 @@ impl PlySettingsScene {
                     .iter()
                     .position(|i| i == &selected_input)
                     .unwrap_or(0);
+            }
+            "piano_theme" => {
+                self.popup = SettingsPopup::ThemeSelector;
+                self.popup_opened_this_frame = true;
+                let themes = [
+                    "Classic",
+                    "Modern",
+                    "Classic Colors",
+                    "Rainbow",
+                    "Neon",
+                    "Pastel",
+                ];
+                let current_theme = ctx.config.piano_theme_name();
+                self.popup_selected_index =
+                    themes.iter().position(|t| *t == current_theme).unwrap_or(0);
             }
             "add_soundfont_folder" => {
                 log::info!(
@@ -2788,6 +3307,45 @@ impl PlySettingsScene {
 
                 None
             }
+            SettingsPopup::ThemeSelector => {
+                let themes = [
+                    "Classic",
+                    "Modern",
+                    "Classic Colors",
+                    "Rainbow",
+                    "Neon",
+                    "Pastel",
+                ];
+
+                if self.is_key_just_pressed("Up") {
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .set_keyboard_priority();
+                    if self.popup_selected_index > 0 {
+                        self.popup_selected_index -= 1;
+                    }
+                }
+                if self.is_key_just_pressed("Down") {
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .set_keyboard_priority();
+                    if self.popup_selected_index < themes.len().saturating_sub(1) {
+                        self.popup_selected_index += 1;
+                    }
+                }
+
+                if self.is_key_just_pressed("Enter") {
+                    if let Some(theme_name) = themes.get(self.popup_selected_index) {
+                        ctx.config.set_piano_theme_name(theme_name.to_string());
+                        ctx.config.save();
+                        self.popup = SettingsPopup::None;
+                    }
+                }
+
+                None
+            }
         }
     }
 
@@ -2800,6 +3358,9 @@ impl PlySettingsScene {
             }
             SettingsPopup::InputSelector => {
                 self.draw_input_selector(ctx);
+            }
+            SettingsPopup::ThemeSelector => {
+                self.draw_theme_selector(ctx);
             }
         }
     }
@@ -3151,6 +3712,242 @@ impl PlySettingsScene {
         }
 
         // Draw keyboard navigation hint
+        draw_text(
+            "↑↓: Navigate • Enter: Select • ESC: Close",
+            popup_x + 10.0,
+            popup_y + popup_h - 25.0,
+            12.0,
+            Color::from_rgba(150, 150, 150, 255),
+        );
+    }
+
+    fn draw_theme_selector(&mut self, ctx: &mut MacroquadContext) {
+        use crate::render::ply::piano_keyboard::KeyboardTheme;
+        use macroquad::prelude::*;
+
+        let skip_clicks = self.popup_opened_this_frame;
+        self.popup_opened_this_frame = false;
+
+        let screen_w = screen_width();
+        let screen_h = screen_height();
+
+        let popup_w = 400.0;
+        let popup_h = 420.0;
+        let popup_x = (screen_w - popup_w) / 2.0;
+        let popup_y = (screen_h - popup_h) / 2.0;
+
+        let themes = [
+            "Classic",
+            "Modern",
+            "Classic Colors",
+            "Rainbow",
+            "Neon",
+            "Pastel",
+        ];
+        let descriptions = [
+            "Traditional black and white piano",
+            "Clean design with green highlights",
+            "Classic look with subtle color on pressed keys",
+            "Each note has a unique spectral color",
+            "Dark background with bright glowing colors",
+            "Soft, muted colors",
+        ];
+
+        draw_rectangle(0.0, 0.0, screen_w, screen_h, Color::from_rgba(0, 0, 0, 200));
+
+        draw_rectangle(
+            popup_x,
+            popup_y,
+            popup_w,
+            popup_h,
+            Color::from_rgba(45, 43, 50, 255),
+        );
+        draw_rectangle_lines(
+            popup_x,
+            popup_y,
+            popup_w,
+            popup_h,
+            2.0,
+            Color::from_rgba(160, 81, 255, 255),
+        );
+
+        draw_text(
+            "Select Piano Theme",
+            popup_x + 10.0,
+            popup_y + 10.0,
+            18.0,
+            Color::from_rgba(255, 255, 255, 255),
+        );
+
+        let current_theme = ctx.config.piano_theme_name();
+        let mut y = popup_y + 45.0;
+
+        for (idx, theme_name) in themes.iter().enumerate() {
+            let is_selected = current_theme == *theme_name;
+            let is_focused = idx == self.popup_selected_index;
+            let theme =
+                KeyboardTheme::get_theme(theme_name).unwrap_or_else(|| KeyboardTheme::modern());
+
+            if is_selected {
+                draw_rectangle(
+                    popup_x + 10.0,
+                    y,
+                    popup_w - 20.0,
+                    65.0,
+                    Color::from_rgba(160, 81, 255, 255),
+                );
+            } else if is_focused {
+                draw_rectangle(
+                    popup_x + 10.0,
+                    y,
+                    popup_w - 20.0,
+                    65.0,
+                    Color::from_rgba(100, 80, 140, 255),
+                );
+                draw_rectangle_lines(
+                    popup_x + 10.0,
+                    y,
+                    popup_w - 20.0,
+                    65.0,
+                    2.0,
+                    Color::from_rgba(160, 81, 255, 255),
+                );
+            }
+
+            draw_text(
+                theme_name,
+                popup_x + 20.0,
+                y + 5.0,
+                14.0,
+                if is_selected || is_focused {
+                    Color::from_rgba(255, 255, 255, 255)
+                } else {
+                    Color::from_rgba(200, 200, 200, 255)
+                },
+            );
+
+            let note_names = [
+                "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B",
+            ];
+            let white_key_map = [0, 2, 4, 5, 7, 9, 11];
+            let preview_w = popup_w - 40.0;
+            let preview_h = 25.0;
+            let preview_x = popup_x + 20.0;
+            let preview_y = y + 20.0;
+            let white_key_w = preview_w / 7.0;
+
+            for wi in 0..7 {
+                let note_idx = white_key_map[wi];
+                let kx = preview_x + wi as f32 * white_key_w;
+                let note_color = theme.octave_theme.note_color(note_idx);
+                let (r, g, b) = note_color.normal;
+                draw_rectangle(
+                    kx + 0.5,
+                    preview_y,
+                    white_key_w - 1.0,
+                    preview_h,
+                    Color::from_rgba(r, g, b, 255),
+                );
+                draw_text(
+                    note_names[note_idx],
+                    kx + white_key_w / 2.0 - 4.0,
+                    preview_y + preview_h - 4.0,
+                    8.0,
+                    Color::from_rgba(100, 100, 100, 255),
+                );
+            }
+
+            let black_key_offsets = [0.65, 1.65, 3.65, 4.65, 5.65];
+            let black_key_indices = [1, 3, 6, 8, 10];
+            let black_key_w = white_key_w * 0.5;
+            let black_key_h = preview_h * 0.65;
+
+            for (bi, &note_idx) in black_key_indices.iter().enumerate() {
+                let kx = preview_x + black_key_offsets[bi] * white_key_w - black_key_w / 2.0;
+                let note_color = theme.octave_theme.note_color(note_idx);
+                let (r, g, b) = note_color.normal;
+                draw_rectangle(
+                    kx,
+                    preview_y,
+                    black_key_w,
+                    black_key_h,
+                    Color::from_rgba(r, g, b, 255),
+                );
+            }
+
+            draw_text(
+                descriptions[idx],
+                popup_x + 20.0,
+                y + 50.0,
+                10.0,
+                if is_selected {
+                    Color::from_rgba(230, 230, 230, 255)
+                } else {
+                    Color::from_rgba(150, 150, 150, 255)
+                },
+            );
+
+            let (mouse_x, mouse_y) = mouse_position();
+            if mouse_x >= popup_x + 10.0
+                && mouse_x <= popup_x + popup_w - 10.0
+                && mouse_y >= y
+                && mouse_y <= y + 65.0
+            {
+                if self.input_manager.focus().priority().has_mouse_priority()
+                    || self.input_manager.get_priority()
+                        == crate::ply_integration::input::InputPriority::None
+                {
+                    self.input_manager
+                        .focus()
+                        .priority()
+                        .update_mouse_position(mouse_x, mouse_y);
+                    if self.popup_selected_index != idx {
+                        self.popup_selected_index = idx;
+                    }
+                }
+
+                if !skip_clicks && is_mouse_button_pressed(MouseButton::Left) {
+                    ctx.config.set_piano_theme_name(theme_name.to_string());
+                    ctx.config.save();
+                    self.popup = SettingsPopup::None;
+                    return;
+                }
+            }
+
+            y += 70.0;
+        }
+
+        let close_x = popup_x + popup_w - 40.0;
+        let close_y = popup_y + 10.0;
+        let (mouse_x, mouse_y) = mouse_position();
+        let close_hovered = mouse_x >= close_x
+            && mouse_x <= close_x + 30.0
+            && mouse_y >= close_y
+            && mouse_y <= close_y + 30.0;
+
+        draw_rectangle(
+            close_x,
+            close_y,
+            30.0,
+            30.0,
+            if close_hovered {
+                Color::from_rgba(120, 120, 120, 255)
+            } else {
+                Color::from_rgba(80, 80, 80, 255)
+            },
+        );
+        draw_text(
+            "✕",
+            close_x + 8.0,
+            close_y + 5.0,
+            18.0,
+            Color::from_rgba(255, 255, 255, 255),
+        );
+
+        if !skip_clicks && close_hovered && is_mouse_button_pressed(MouseButton::Left) {
+            self.popup = SettingsPopup::None;
+        }
+
         draw_text(
             "↑↓: Navigate • Enter: Select • ESC: Close",
             popup_x + 10.0,
@@ -3764,6 +4561,53 @@ impl PlyScene for PlySettingsScene {
             SettingType::Spinner,
         );
         current_y += row_height + section_gap;
+
+        // THEME SECTION
+        draw_text(
+            "PIANO THEME",
+            margin_x,
+            current_y,
+            22.0,
+            Color::from_rgba(160, 81, 255, 255),
+        );
+        current_y += 30.0;
+
+        let current_theme = ctx.config.piano_theme_name();
+        self.register_setting(
+            "piano_theme".to_string(),
+            "Theme".to_string(),
+            SettingType::Picker,
+            current_y,
+        );
+
+        let theme_focused = self
+            .focused_setting()
+            .map(|focused| focused.id == "piano_theme")
+            .unwrap_or(false);
+
+        self.draw_settings_row(
+            margin_x,
+            current_y,
+            650.0,
+            row_height,
+            "Theme",
+            current_theme,
+            theme_focused,
+            Some("piano_theme"),
+            SettingType::Picker,
+        );
+
+        self.button_areas.push(ButtonArea {
+            id: "piano_theme".to_string(),
+            x: margin_x,
+            y: current_y,
+            width: 650.0,
+            height: row_height,
+        });
+        current_y += row_height + 10.0;
+
+        self.draw_mini_keyboard_preview(ctx, margin_x, current_y, 650.0, 50.0);
+        current_y += 50.0 + section_gap;
 
         // RENDER SECTION
         draw_text(
