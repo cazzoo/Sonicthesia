@@ -71,6 +71,9 @@ impl MacroquadNeothesia {
             }
             NeothesiaEvent::MainMenu(song) => {
                 log::info!("🎯 EVENT: MainMenu with song: {:?}", song.as_ref().map(|s| &s.file.name));
+                // Reset playback gain to config value when returning to menu
+                let playback_gain = self.context.config.playback_gain();
+                self.context.output_manager.connection().set_gain(playback_gain);
                 self.current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::ShowSettings => {

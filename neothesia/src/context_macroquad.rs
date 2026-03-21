@@ -92,6 +92,7 @@ impl MacroquadContext {
             let descriptor = OutputDescriptor::Synth(soundfont_path);
             output_manager.connect(descriptor);
             output_manager.connection().set_gain(config.audio_gain());
+            output_manager.set_keyboard_gain(config.keyboard_gain());
             log::info!("Connected to synth output");
         }
 

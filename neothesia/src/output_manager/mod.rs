@@ -232,6 +232,13 @@ impl OutputManager {
         })
     }
 
+    /// Set the gain for the keyboard connection
+    pub fn set_keyboard_gain(&self, gain: f32) {
+        if let Some(conn) = &self.keyboard_connection {
+            conn.set_gain(gain);
+        }
+    }
+
     /// Open a dedicated MIDI output connection to the LUMI device.
     /// Matches by port name (the LUMI appears with identical names on input and output).
     /// This is independent of the main audio output connection.
