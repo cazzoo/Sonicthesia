@@ -200,6 +200,42 @@ impl PlyWaterfallRenderer {
         self.layout.as_ref()
     }
 
+    /// Get notes that should be playing right now (current_time is between start and end)
+    pub fn get_active_notes(&self) -> Vec<(u8, u8)> {
+        if !self.initialized {
+            return Vec::new();
+        }
+
+        self.notes
+            .inner()
+            .iter()
+            .filter(|note| {
+                let start = note.start.as_secs_f32();
+                let end = start + note.duration.as_secs_f32();
+                self.current_time >= start && self.current_time < end
+            })
+            .map(|note| (note.note, note.velocity))
+            .collect()
+    }
+
+    /// Get notes that should be highlighted (about to be played within threshold)
+    pub fn get_upcoming_notes(&self, threshold: f32) -> Vec<u8> {
+        if !self.initialized {
+            return Vec::new();
+        }
+
+        self.notes
+            .inner()
+            .iter()
+            .filter(|note| {
+                let start = note.start.as_secs_f32();
+                let time_until = start - self.current_time;
+                time_until > 0.0 && time_until <= threshold
+            })
+            .map(|note| note.note)
+            .collect()
+    }
+
     pub fn render_ply(&self) {
         if !self.initialized {
             return;

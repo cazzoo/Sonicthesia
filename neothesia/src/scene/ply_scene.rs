@@ -755,6 +755,9 @@ pub struct PlyPlayingScene {
     // Cached song duration
     song_length: f32,
     lead_in: f32,
+
+    // Waterfall audio tracking
+    active_waterfall_notes: std::collections::HashSet<u8>,
 }
 
 impl PlyPlayingScene {
@@ -798,6 +801,7 @@ impl PlyPlayingScene {
             wait_mode: false,
             song_length,
             lead_in,
+            active_waterfall_notes: std::collections::HashSet::new(),
         }
     }
 
@@ -1263,6 +1267,47 @@ impl PlyScene for PlyPlayingScene {
 
         if let Some(waterfall) = &mut self.waterfall {
             waterfall.update(self.playback_time);
+
+            // Waterfall audio and learn mode
+            if !self.paused && !self.is_seeking {
+                let active_notes = waterfall.get_active_notes();
+                let mut current_notes = std::collections::HashSet::new();
+
+                // Trigger NoteOn for new active notes
+                for (note, velocity) in &active_notes {
+                    current_notes.insert(*note);
+                    if !self.active_waterfall_notes.contains(note) {
+                        let message = MidiMessage::NoteOn {
+                            key: u7::new(*note),
+                            vel: u7::new(*velocity),
+                        };
+                        ctx.output_manager
+                            .connection()
+                            .midi_event(0u8.into(), message);
+                    }
+                }
+
+                // Trigger NoteOff for notes that are no longer active
+                for note in self.active_waterfall_notes.drain() {
+                    if !current_notes.contains(&note) {
+                        let message = MidiMessage::NoteOff {
+                            key: u7::new(note),
+                            vel: u7::new(0),
+                        };
+                        ctx.output_manager
+                            .connection()
+                            .midi_event(0u8.into(), message);
+                    }
+                }
+
+                self.active_waterfall_notes = current_notes;
+
+                // Learn mode: highlight upcoming notes
+                let upcoming_notes = waterfall.get_upcoming_notes(0.5);
+                for note in upcoming_notes {
+                    self.piano_keyboard.highlight_key(note, true);
+                }
+            }
         }
 
         self.piano_keyboard.update(dt);

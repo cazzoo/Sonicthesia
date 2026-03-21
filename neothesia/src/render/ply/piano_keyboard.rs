@@ -222,9 +222,36 @@ impl ThemeName {
 impl KeyboardTheme {
     /// Classic piano theme (black and white)
     pub fn classic() -> Self {
+        let white = NoteColor {
+            normal: (255, 255, 255),
+            pressed: (200, 200, 200),
+            glow: None,
+            glow_intensity: 0.0,
+        };
+        let black = NoteColor {
+            normal: (26, 26, 26),
+            pressed: (60, 60, 60),
+            glow: None,
+            glow_intensity: 0.0,
+        };
+
+        let is_sharp = [
+            false, true, false, true, false, false, true, false, true, false, true, false,
+        ];
+        let notes: [NoteColor; 12] =
+            is_sharp.map(|sharp| if sharp { black.clone() } else { white.clone() });
+
         Self {
             name: "Classic".to_string(),
-            octave_theme: OctaveTheme::default(),
+            octave_theme: OctaveTheme {
+                notes,
+                settings: ThemeSettings {
+                    border_color: (0, 0, 0),
+                    corner_radius: 2.0,
+                    depth_2d5: 0.0,
+                    use_per_note_colors: true,
+                },
+            },
             variant: ThemeVariant::Classic,
         }
     }
@@ -235,6 +262,41 @@ impl KeyboardTheme {
             name: "Modern".to_string(),
             octave_theme: OctaveTheme::default(),
             variant: ThemeVariant::Modern,
+        }
+    }
+
+    pub fn classic_colors() -> Self {
+        let white = NoteColor {
+            normal: (255, 255, 255),
+            pressed: (100, 180, 255),
+            glow: None,
+            glow_intensity: 0.5,
+        };
+        let black = NoteColor {
+            normal: (26, 26, 26),
+            pressed: (60, 120, 200),
+            glow: None,
+            glow_intensity: 0.5,
+        };
+
+        let is_sharp = [
+            false, true, false, true, false, false, true, false, true, false, true, false,
+        ];
+        let notes: [NoteColor; 12] =
+            is_sharp.map(|sharp| if sharp { black.clone() } else { white.clone() });
+
+        Self {
+            name: "Classic Colors".to_string(),
+            octave_theme: OctaveTheme {
+                notes,
+                settings: ThemeSettings {
+                    border_color: (0, 0, 0),
+                    corner_radius: 2.0,
+                    depth_2d5: 1.0,
+                    use_per_note_colors: true,
+                },
+            },
+            variant: ThemeVariant::Classic,
         }
     }
 
@@ -542,6 +604,7 @@ impl KeyboardTheme {
         match name {
             "Classic" => Some(Self::classic()),
             "Modern" => Some(Self::modern()),
+            "Classic Colors" => Some(Self::classic_colors()),
             "Rainbow" => Some(Self::rainbow()),
             "Neon" => Some(Self::neon()),
             "Pastel" => Some(Self::pastel()),
@@ -1117,6 +1180,11 @@ impl PianoKeyboardRenderer {
             "[DEBUG] [handle_note_event] Exit\n  - Result: pressed_keys_sources={:?}",
             self.pressed_keys_sources
         );
+    }
+
+    /// Highlight a key visually without triggering audio (for learn mode)
+    pub fn highlight_key(&mut self, note: u8, highlight: bool) {
+        self.set_key_pressed(note, highlight);
     }
 
     /// Add an input source for a pressed key
