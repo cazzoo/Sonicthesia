@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sonic Obsidian Piano - Performance Engine</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-tint": "#db90ff",
+              "surface-dim": "#0e0e13",
+              "surface-container-lowest": "#000000",
+              "error": "#ff6e84",
+              "surface-container-low": "#131318",
+              "on-primary-fixed-variant": "#4a006b",
+              "on-primary-fixed": "#000000",
+              "on-tertiary-fixed": "#39000b",
+              "secondary": "#5f9eff",
+              "on-primary-container": "#3c0057",
+              "outline-variant": "#48474d",
+              "inverse-on-surface": "#55545a",
+              "on-primary": "#4e0070",
+              "secondary-fixed": "#bcd2ff",
+              "primary-dim": "#d277ff",
+              "primary-fixed-dim": "#cb66fe",
+              "background": "#0e0e13",
+              "primary-container": "#d37bff",
+              "on-secondary-container": "#f7f7ff",
+              "surface-container": "#19191f",
+              "tertiary": "#ff6e80",
+              "error-dim": "#d73357",
+              "on-secondary": "#001f46",
+              "surface-variant": "#25252c",
+              "tertiary-container": "#fc345d",
+              "tertiary-dim": "#e21d4d",
+              "on-tertiary-container": "#000000",
+              "on-error-container": "#ffb2b9",
+              "tertiary-fixed-dim": "#ff7987",
+              "secondary-dim": "#0073e0",
+              "on-secondary-fixed-variant": "#004f9f",
+              "secondary-container": "#005db8",
+              "on-tertiary": "#490011",
+              "on-tertiary-fixed-variant": "#780022",
+              "inverse-primary": "#9027c4",
+              "tertiary-fixed": "#ff909a",
+              "on-surface": "#f8f5fd",
+              "secondary-fixed-dim": "#a5c5ff",
+              "surface-container-high": "#1f1f26",
+              "on-secondary-fixed": "#00336b",
+              "primary": "#db90ff",
+              "surface-bright": "#2c2b33",
+              "on-surface-variant": "#acaab1",
+              "on-error": "#490013",
+              "error-container": "#a70138",
+              "outline": "#76747b",
+              "surface": "#0e0e13",
+              "surface-container-highest": "#25252c",
+              "inverse-surface": "#fbf8ff",
+              "on-background": "#f8f5fd",
+              "primary-fixed": "#d37bff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .perspective-view {
+            perspective: 1000px;
+            transform-style: preserve-3d;
+        }
+        .waterfall-plane {
+            transform: rotateX(45deg) translateY(-10%);
+        }
+        .piano-key-white {
+            background: linear-gradient(to bottom, #f8f5fd 0%, #d1d1d6 100%);
+            box-shadow: 0 4px 0 #8e8e93;
+        }
+        .piano-key-black {
+            background: linear-gradient(to bottom, #25252c 0%, #000000 100%);
+            box-shadow: 0 4px 0 #131318;
+        }
+        .key-active-glow {
+            background: #db90ff !important;
+            box-shadow: 0 0 25px #db90ff, 0 0 50px rgba(219, 144, 255, 0.5) !important;
+            transform: translateY(2px);
+        }
+        .grid-bg {
+            background-image: linear-gradient(rgba(219, 144, 255, 0.05) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(219, 144, 255, 0.05) 1px, transparent 1px);
+            background-size: 50px 50px;
+        }
+        input[type=range]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            height: 16px;
+            width: 16px;
+            border-radius: 50%;
+            background: #db90ff;
+            box-shadow: 0 0 10px #db90ff;
+            cursor: pointer;
+            margin-top: -6px;
+        }
+        input[type=range]::-webkit-slider-runnable-track {
+            height: 4px;
+            background: rgba(219,144,255,0.2);
+            border-radius: 2px;
+        }
+        .vertical-range {
+            writing-mode: bt-lr; /* IE */
+            -webkit-appearance: slider-vertical; /* WebKit */
+            width: 4px;
+            height: 300px;
+            padding: 0 5px;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-fixed overflow-hidden h-screen w-screen">
+<!-- Background Layer -->
+<div class="fixed inset-0 grid-bg opacity-30 pointer-events-none"></div>
+<div class="fixed inset-0 bg-gradient-to-b from-surface-container-lowest to-transparent h-1/2 pointer-events-none"></div>
+<!-- Left Side: Vertical Song Progress Timeline -->
+<div class="fixed top-1/2 left-8 -translate-y-1/2 flex flex-col items-center gap-4 z-50">
+<span class="font-mono text-[10px] text-on-surface-variant">4:32</span>
+<div class="relative flex flex-col items-center group h-[300px]">
+<input class="vertical-range bg-surface-container-highest rounded-full appearance-none cursor-pointer focus:outline-none" max="100" min="0" type="range" value="30"/>
+<!-- Custom track overlay for vertical -->
+<div class="absolute bottom-0 w-1 bg-gradient-to-t from-primary to-secondary rounded-full pointer-events-none" style="height: 30%"></div>
+</div>
+<span class="font-mono text-[10px] text-primary/80">1:24</span>
+</div>
+<!-- HUD (Heads-Up Display) -->
+<div class="fixed top-0 left-0 right-0 p-8 flex flex-col items-center z-50">
+<!-- Top Row: Performance Stats & Center Info & Close -->
+<div class="w-full flex justify-between items-start">
+<!-- Left: Performance Stats -->
+<div class="flex flex-col gap-4">
+<div class="bg-surface-container/60 backdrop-blur-xl p-6 rounded-xl border-l-4 border-primary shadow-[0_0_32px_rgba(219,144,255,0.06)]">
+<div class="flex flex-col gap-1">
+<span class="font-label text-xs tracking-widest text-on-surface-variant uppercase">Current Score</span>
+<span class="font-headline text-4xl font-bold text-primary tracking-tighter">142,850</span>
+</div>
+<div class="mt-4 flex items-center gap-3">
+<div class="flex flex-col">
+<span class="font-label text-[10px] text-on-surface-variant uppercase tracking-tighter">Streak</span>
+<span class="font-headline text-xl font-bold text-secondary">x52</span>
+</div>
+<div class="h-8 w-px bg-outline-variant/30"></div>
+<div class="flex flex-col">
+<span class="font-label text-[10px] text-on-surface-variant uppercase tracking-tighter">Accuracy</span>
+<span class="font-headline text-xl font-bold text-tertiary">98.4%</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Center: Song Title & Artist -->
+<div class="flex flex-col items-center">
+<h1 class="font-headline text-2xl font-bold tracking-tight text-on-surface">Nocturne in Eb Major</h1>
+<p class="font-label text-sm text-on-surface-variant">Frédéric Chopin • Performance Engine v2.4</p>
+<!-- Relocated Session Configuration Bar -->
+<div class="mt-4 flex items-center gap-6 bg-surface-container/60 backdrop-blur-xl px-8 py-3 rounded-full border border-outline-variant/20 shadow-[0_10px_30px_rgba(0,0,0,0.3)]">
+<div class="flex flex-col items-center">
+<span class="font-label text-[10px] text-on-surface-variant uppercase">Tempo</span>
+<span class="font-headline text-sm font-bold text-primary">120 BPM</span>
+</div>
+<div class="h-6 w-px bg-outline-variant/30"></div>
+<div class="flex flex-col items-center">
+<span class="font-label text-[10px] text-on-surface-variant uppercase">Key</span>
+<span class="font-headline text-sm font-bold text-secondary">Eb Maj</span>
+</div>
+<div class="h-6 w-px bg-outline-variant/30"></div>
+<div class="flex items-center gap-3">
+<button class="w-10 h-10 rounded-full bg-primary flex items-center justify-center hover:scale-110 transition-all shadow-[0_0_15px_#db90ff]">
+<span class="material-symbols-outlined text-on-primary text-lg">pause</span>
+</button>
+<button class="w-10 h-10 rounded-full bg-surface-variant flex items-center justify-center hover:bg-primary/20 transition-all border border-outline-variant/10">
+<span class="material-symbols-outlined text-on-surface-variant text-lg">tune</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Right: Close Button -->
+<div class="flex items-start">
+<button class="bg-surface-container-highest p-2 rounded-lg hover:bg-error/20 transition-all active:scale-95 group">
+<span class="material-symbols-outlined text-on-surface group-hover:text-error">close</span>
+</button>
+</div>
+</div>
+</div>
+<!-- MIDI Waterfall Performance Area -->
+<div class="relative w-full h-full flex flex-col items-center justify-end perspective-view overflow-hidden">
+<!-- Waterfall Container -->
+<div class="waterfall-plane absolute inset-0 w-full h-[150%] flex justify-center opacity-90">
+<!-- Simulated MIDI Streams -->
+<div class="relative w-[1200px] h-full flex items-end">
+<!-- Track 1: Lead -->
+<div class="absolute bottom-[40%] left-[15%] w-12 h-48 bg-gradient-to-t from-primary to-transparent rounded-full shadow-[0_0_20px_rgba(219,144,255,0.6)] blur-[1px]"></div>
+<div class="absolute bottom-[65%] left-[15%] w-12 h-32 bg-gradient-to-t from-primary to-transparent rounded-full shadow-[0_0_20px_rgba(219,144,255,0.6)] blur-[1px]"></div>
+<!-- Track 2: Chords -->
+<div class="absolute bottom-[20%] left-[30%] w-10 h-24 bg-gradient-to-t from-secondary to-transparent rounded-full shadow-[0_0_20px_rgba(95,158,255,0.6)] blur-[1px]"></div>
+<div class="absolute bottom-[20%] left-[35%] w-10 h-24 bg-gradient-to-t from-secondary to-transparent rounded-full shadow-[0_0_20px_rgba(95,158,255,0.6)] blur-[1px]"></div>
+<div class="absolute bottom-[20%] left-[40%] w-10 h-24 bg-gradient-to-t from-secondary to-transparent rounded-full shadow-[0_0_20px_rgba(95,158,255,0.6)] blur-[1px]"></div>
+<!-- Track 3: Bass -->
+<div class="absolute bottom-[10%] left-[60%] w-14 h-64 bg-gradient-to-t from-tertiary to-transparent rounded-full shadow-[0_0_20px_rgba(255,110,128,0.6)] blur-[1px]"></div>
+<!-- Incoming Next Section -->
+<div class="absolute top-[10%] left-[45%] w-12 h-20 bg-primary/20 rounded-full blur-xl"></div>
+</div>
+</div>
+<!-- Keyboard UI Section -->
+<div class="relative z-20 w-full bg-surface-container-lowest/80 backdrop-blur-sm pt-8">
+<!-- Key Visual Bursts (Floating above active keys) -->
+<div class="absolute top-0 left-0 w-full h-32 pointer-events-none">
+<div class="absolute bottom-0 left-[21%] w-16 h-32 bg-gradient-to-t from-primary/40 to-transparent blur-xl"></div>
+<div class="absolute bottom-0 left-[62%] w-16 h-48 bg-gradient-to-t from-tertiary/40 to-transparent blur-2xl"></div>
+</div>
+<!-- Virtual Keyboard -->
+<div class="flex justify-center items-end px-4 max-w-[1400px] mx-auto pb-4 gap-px bg-black/40">
+<!-- Octave Segment -->
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg key-active-glow"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<!-- Black Keys (Absolute Positioning) -->
+<div class="absolute bottom-20 left-[18%] w-[35px] h-28 piano-key-black rounded-b-md z-10"></div>
+<div class="absolute bottom-20 left-[24%] w-[35px] h-28 piano-key-black rounded-b-md z-10"></div>
+<div class="absolute bottom-20 left-[35%] w-[35px] h-28 piano-key-black rounded-b-md z-10"></div>
+<div class="absolute bottom-20 left-[41%] w-[35px] h-28 piano-key-black rounded-b-md z-10"></div>
+<div class="absolute bottom-20 left-[47%] w-[35px] h-28 piano-key-black rounded-b-md z-10"></div>
+<!-- Next Octave -->
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg key-active-glow">
+<!-- Visual Burst for Active Key -->
+<div class="absolute -top-16 left-1/2 -translate-x-1/2 w-24 h-24 bg-tertiary/60 rounded-full blur-2xl animate-pulse"></div>
+</div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<!-- Repeat more keys to fill width -->
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+<div class="flex-1 flex relative h-48 min-w-[50px] piano-key-white rounded-b-lg"></div>
+</div>
+</div>
+</div>
+<!-- Right Side Overlay: Real-time MIDI Log (Micro-Technical Detail) -->
+<div class="fixed top-1/2 right-4 -translate-y-1/2 flex flex-col gap-2 pointer-events-none">
+<div class="bg-black/60 backdrop-blur-sm p-2 rounded border-r-2 border-primary text-[10px] font-mono text-primary/80 opacity-60">NOTE_ON 64 VEL:98</div>
+<div class="bg-black/60 backdrop-blur-sm p-2 rounded border-r-2 border-secondary text-[10px] font-mono text-secondary/80 opacity-80">NOTE_ON 67 VEL:102</div>
+<div class="bg-black/60 backdrop-blur-sm p-2 rounded border-r-2 border-primary text-[10px] font-mono text-primary/80 opacity-40">NOTE_OFF 64 VEL:0</div>
+<div class="bg-black/60 backdrop-blur-sm p-2 rounded border-r-2 border-tertiary text-[10px] font-mono text-tertiary/80">CC_SUSTAIN 127</div>
+</div>
+</body></html>

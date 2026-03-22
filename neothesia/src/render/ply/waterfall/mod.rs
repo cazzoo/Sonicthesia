@@ -1,6 +1,6 @@
 use midi_file::{MidiNote, MidiTrack};
-use neothesia_core::render::waterfall::{NoteList, TrackChannelConfig};
-use neothesia_core::{config, render};
+use neothesia_core::config;
+use neothesia_core::waterfall::{NoteList, TrackChannelConfig};
 use piano_layout::KeyboardLayout;
 use std::rc::Rc;
 use std::time::Duration;

@@ -1,7 +1,6 @@
 use midi_file::MidiTrack;
 use std::collections::HashSet;
 
-use crate::context::Context;
 use crate::context_macroquad::MacroquadContext;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -88,20 +87,11 @@ pub struct Song {
 impl Song {
     pub fn new(file: midi_file::MidiFile) -> Self {
         let config = SongConfig::new(&file.tracks);
-        Self { file, config, song_id: None }
-    }
-
-    pub fn from_env(ctx: &Context) -> Option<Self> {
-        let args: Vec<String> = std::env::args().collect();
-        let midi_file = if args.len() > 1 {
-            midi_file::MidiFile::new(&args[1]).ok()
-        } else if let Some(last) = ctx.config.last_opened_song() {
-            midi_file::MidiFile::new(last).ok()
-        } else {
-            None
-        };
-
-        Some(Self::new(midi_file?))
+        Self {
+            file,
+            config,
+            song_id: None,
+        }
     }
 
     pub fn from_env_macroquad(ctx: &MacroquadContext) -> Option<Self> {

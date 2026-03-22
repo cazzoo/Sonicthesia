@@ -4,14 +4,16 @@
 //! adapted from the WGPU versions to work with MacroquadContext.
 
 use crate::{
-    context::Context, context_macroquad::MacroquadContext, song::Song,
-    song_library::SongRepository, NeothesiaEvent,
+    context_macroquad::MacroquadContext,
+    effects::{EffectsManager, ScreenFlash, ScreenShake},
+    scoring::{LiveScoreTracker, StreakMilestone, TimingQuality},
+    song::Song,
+    song_library::SongRepository,
+    NeothesiaEvent,
 };
 use std::time::Duration;
 
-use crate::ply_integration::input::{
-    ElementType, FocusManager, FocusableElement, InputAction, UnifiedInputManager,
-};
+use crate::input_stubs::{ElementType, FocusableElement, InputPriority, UnifiedInputManager};
 use crate::render::ply::PianoKeyboardRenderer;
 use macroquad::prelude::*;
 use neothesia_core::config::Config;
@@ -255,25 +257,8 @@ impl PlyScene for PlyMenuScene {
         let center_x = screen_w / 2.0;
         let center_y = screen_h / 2.0;
 
-        // Draw PLY rendering indicator
-        draw_text(
-            "🎨 PLY RENDERING ACTIVE",
-            10.0,
-            10.0,
-            18.0,
-            Color::from_rgba(0, 255, 0, 255),
-        );
-
-        draw_text(
-            &format!("FPS: {}", get_fps()),
-            10.0,
-            35.0,
-            14.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
-
-        // Draw title
-        draw_text(
+        // Draw title with headline font
+        crate::scene::ply_fonts::draw_headline(
             "NEOTHESIA",
             center_x - 100.0,
             center_y - 150.0,
@@ -283,7 +268,7 @@ impl PlyScene for PlyMenuScene {
 
         // Draw song info if available
         if let Some(song) = &self.song {
-            draw_text(
+            crate::scene::ply_fonts::draw_body(
                 &format!("Song: {}", song.file.name),
                 center_x - 150.0,
                 center_y - 80.0,
@@ -291,14 +276,14 @@ impl PlyScene for PlyMenuScene {
                 Color::from_rgba(200, 200, 255, 255),
             );
         } else {
-            draw_text(
+            crate::scene::ply_fonts::draw_body(
                 "No song loaded",
                 center_x - 80.0,
                 center_y - 80.0,
                 20.0,
                 Color::from_rgba(255, 100, 100, 255),
             );
-            draw_text(
+            crate::scene::ply_fonts::draw_body(
                 "Use --midi-file <path> to load a song",
                 center_x - 200.0,
                 center_y - 50.0,
@@ -339,7 +324,7 @@ impl PlyScene for PlyMenuScene {
 
             let prefix = if is_focused { "> " } else { "  " };
 
-            draw_text(
+            crate::scene::ply_fonts::draw_body(
                 &format!("{}{}", prefix, option),
                 center_x - 80.0,
                 start_y + (i as f32 * 40.0),
@@ -348,8 +333,8 @@ impl PlyScene for PlyMenuScene {
             );
         }
 
-        // Draw instructions
-        draw_text(
+        // Draw instructions with body font
+        crate::scene::ply_fonts::draw_body(
             "Use UP/DOWN to select, ENTER to choose, or click with mouse",
             center_x - 230.0,
             screen_h - 50.0,
@@ -504,26 +489,9 @@ impl PlyScene for PlySongLibraryScene {
         let screen_w = screen_width();
         let screen_h = screen_height();
 
-        // Draw PLY rendering indicator
-        draw_text(
-            "🎨 PLY RENDERING ACTIVE - SONG LIBRARY",
-            10.0,
-            10.0,
-            18.0,
-            Color::from_rgba(0, 255, 0, 255),
-        );
-
-        draw_text(
-            &format!("FPS: {}", get_fps()),
-            10.0,
-            35.0,
-            14.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
-
-        // Draw title
-        let title = format!("📚 Song Library - {} songs", self.songs.len());
-        draw_text(
+        // Draw title with headline font
+        let title = format!("Song Library - {} songs", self.songs.len());
+        crate::scene::ply_fonts::draw_headline(
             &title,
             screen_w / 2.0 - 100.0,
             20.0,
@@ -567,8 +535,8 @@ impl PlyScene for PlySongLibraryScene {
             };
             draw_rectangle_lines(card_x, card_y, card_w, card_h, 2.0, border_color);
 
-            // Draw song name
-            draw_text(
+            // Draw song name with headline font
+            crate::scene::ply_fonts::draw_headline(
                 &entry.name,
                 card_x + 12.0,
                 card_y + 20.0,
@@ -576,7 +544,7 @@ impl PlyScene for PlySongLibraryScene {
                 Color::from_rgba(255, 255, 255, 255),
             );
 
-            // Draw difficulty
+            // Draw difficulty with body font
             let difficulty = crate::song_library::difficulty_label(entry.difficulty);
             let diff_color = match entry.difficulty {
                 1..=3 => Color::from_rgba(80, 180, 112, 255),
@@ -584,7 +552,7 @@ impl PlyScene for PlySongLibraryScene {
                 8..=10 => Color::from_rgba(180, 80, 80, 255),
                 _ => Color::from_rgba(150, 150, 150, 255),
             };
-            draw_text(
+            crate::scene::ply_fonts::draw_body(
                 &format!("Difficulty: {}", difficulty),
                 card_x + 12.0,
                 card_y + 45.0,
@@ -592,13 +560,13 @@ impl PlyScene for PlySongLibraryScene {
                 diff_color,
             );
 
-            // Draw play count
+            // Draw play count with body font
             let play_text = if entry.play_count == 0 {
                 "Never played".to_string()
             } else {
                 format!("Played {} times", entry.play_count)
             };
-            draw_text(
+            crate::scene::ply_fonts::draw_body(
                 &play_text,
                 card_x + 12.0,
                 card_y + 65.0,
@@ -606,10 +574,10 @@ impl PlyScene for PlySongLibraryScene {
                 Color::from_rgba(150, 150, 150, 255),
             );
 
-            // Draw scores
+            // Draw scores with body font
             let mut y_offset = 85.0;
             if let Some(score) = entry.last_score {
-                draw_text(
+                crate::scene::ply_fonts::draw_body(
                     &format!("Last Score: {:.0}%", score),
                     card_x + 12.0,
                     card_y + y_offset,
@@ -620,7 +588,7 @@ impl PlyScene for PlySongLibraryScene {
             }
 
             if let Some(best) = entry.best_score {
-                draw_text(
+                crate::scene::ply_fonts::draw_body(
                     &format!("Best Score: {:.0}%", best),
                     card_x + 12.0,
                     card_y + y_offset,
@@ -629,9 +597,9 @@ impl PlyScene for PlySongLibraryScene {
                 );
             }
 
-            // Draw click instruction
+            // Draw click instruction with body font
             if is_hovered {
-                draw_text(
+                crate::scene::ply_fonts::draw_body(
                     "Click to load",
                     card_x + card_w - 90.0,
                     card_y + card_h - 15.0,
@@ -684,7 +652,8 @@ impl PlyScene for PlySongLibraryScene {
             Color::from_rgba(100, 100, 100, 255),
         );
 
-        draw_text(
+        // Draw back button with headline font
+        crate::scene::ply_fonts::draw_headline(
             "← Back",
             back_btn_x + 20.0,
             back_btn_y + 25.0,
@@ -692,8 +661,8 @@ impl PlyScene for PlySongLibraryScene {
             Color::from_rgba(255, 255, 255, 255),
         );
 
-        // Draw instructions
-        draw_text(
+        // Draw instructions with body font
+        crate::scene::ply_fonts::draw_body(
             "Click a song to load it • ESC: Back to menu",
             screen_w / 2.0 - 180.0,
             bar_y + 25.0,
@@ -758,6 +727,10 @@ pub struct PlyPlayingScene {
 
     // Waterfall audio tracking
     active_waterfall_notes: std::collections::HashSet<u8>,
+
+    live_score: LiveScoreTracker,
+    effects: EffectsManager,
+    last_timing_quality: Option<TimingQuality>,
 }
 
 impl PlyPlayingScene {
@@ -802,12 +775,15 @@ impl PlyPlayingScene {
             song_length,
             lead_in,
             active_waterfall_notes: std::collections::HashSet::new(),
+            live_score: LiveScoreTracker::new(),
+            effects: EffectsManager::new(),
+            last_timing_quality: None,
         }
     }
 
     fn initialize_waterfall(&mut self, ctx: &mut MacroquadContext) {
         use crate::render::ply::waterfall::PlyWaterfallRenderer;
-        use neothesia_core::render::waterfall::TrackChannelConfig;
+        use neothesia_core::waterfall::TrackChannelConfig;
 
         let mut waterfall = PlyWaterfallRenderer::new();
         let tracks: &[midi_file::MidiTrack] = &self.song.file.tracks;
@@ -861,7 +837,7 @@ impl PlyPlayingScene {
         // ── Left: Back button ──
         let back_btn = TopBarButton::new(0.0, 0.0, Self::TOP_BAR_H, Self::TOP_BAR_H);
         back_btn.render(mx, my, mouse_down);
-        draw_text("<", 10.0, 20.0, 18.0, WHITE);
+        crate::scene::ply_fonts::draw_body("<", 10.0, 20.0, 18.0, WHITE);
 
         // ── Center: Speed + Gain ──
         let group_w = 170.0;
@@ -871,7 +847,7 @@ impl PlyPlayingScene {
 
         // Speed group
         let speed_x = start_x;
-        draw_text(
+        crate::scene::ply_fonts::draw_body(
             "Speed",
             speed_x,
             20.0,
@@ -881,18 +857,18 @@ impl PlyPlayingScene {
 
         let speed_minus = TopBarButton::new(speed_x + 50.0, 3.0, 35.0, 24.0);
         speed_minus.render(mx, my, mouse_down);
-        draw_text("-", speed_x + 63.0, 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("-", speed_x + 63.0, 20.0, 16.0, WHITE);
 
         let speed_pct = format!("{}%", (self.speed_multiplier() * 100.0).round());
-        draw_text(&speed_pct, speed_x + 88.0, 20.0, 14.0, WHITE);
+        crate::scene::ply_fonts::draw_body(&speed_pct, speed_x + 88.0, 20.0, 14.0, WHITE);
 
         let speed_plus = TopBarButton::new(speed_x + 135.0, 3.0, 35.0, 24.0);
         speed_plus.render(mx, my, mouse_down);
-        draw_text("+", speed_x + 148.0, 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("+", speed_x + 148.0, 20.0, 16.0, WHITE);
 
         // Gain group
         let gain_x = start_x + group_w + gap;
-        draw_text(
+        crate::scene::ply_fonts::draw_body(
             "Gain",
             gain_x,
             20.0,
@@ -902,14 +878,14 @@ impl PlyPlayingScene {
 
         let gain_minus = TopBarButton::new(gain_x + 50.0, 3.0, 35.0, 24.0);
         gain_minus.render(mx, my, mouse_down);
-        draw_text("-", gain_x + 63.0, 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("-", gain_x + 63.0, 20.0, 16.0, WHITE);
 
         let gain_pct = format!("{}%", (self.runtime_gain * 100.0).round());
-        draw_text(&gain_pct, gain_x + 88.0, 20.0, 14.0, WHITE);
+        crate::scene::ply_fonts::draw_body(&gain_pct, gain_x + 88.0, 20.0, 14.0, WHITE);
 
         let gain_plus = TopBarButton::new(gain_x + 135.0, 3.0, 35.0, 24.0);
         gain_plus.render(mx, my, mouse_down);
-        draw_text("+", gain_x + 148.0, 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("+", gain_x + 148.0, 20.0, 16.0, WHITE);
 
         // ── Right: Playback controls ──
         let btn_size = Self::TOP_BAR_H;
@@ -920,9 +896,9 @@ impl PlyPlayingScene {
         let play_btn = TopBarButton::new(rx, 0.0, btn_size, btn_size);
         play_btn.render(mx, my, mouse_down);
         if self.paused {
-            draw_text(">", rx + 10.0, 20.0, 18.0, WHITE);
+            crate::scene::ply_fonts::draw_body(">", rx + 10.0, 20.0, 18.0, WHITE);
         } else {
-            draw_text("||", rx + 8.0, 20.0, 16.0, WHITE);
+            crate::scene::ply_fonts::draw_body("||", rx + 8.0, 20.0, 16.0, WHITE);
         }
 
         // Looper button
@@ -941,7 +917,7 @@ impl PlyPlayingScene {
             looper_color
         };
         draw_rectangle(rx, 0.0, btn_size, btn_size, looper_bg);
-        draw_text("L", rx + 10.0, 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("L", rx + 10.0, 20.0, 16.0, WHITE);
 
         // Wait mode button
         rx -= btn_size;
@@ -959,7 +935,7 @@ impl PlyPlayingScene {
             wait_color
         };
         draw_rectangle(rx, 0.0, btn_size, btn_size, wait_bg);
-        draw_text("W", rx + 10.0, 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("W", rx + 10.0, 20.0, 16.0, WHITE);
     }
 
     fn render_progress_bar(&self, mx: f32, my: f32, mouse_down: bool) {
@@ -1060,6 +1036,187 @@ impl PlyPlayingScene {
 
     fn speed_multiplier(&self) -> f32 {
         1.0
+    }
+
+    fn find_matching_note(&self, pressed_note: u8) -> Option<std::time::Duration> {
+        use std::time::Duration;
+
+        let Some(waterfall) = &self.waterfall else {
+            return None;
+        };
+
+        let current_time_secs = self.playback_time;
+        let timing_window = Duration::from_millis(200);
+
+        for midi_note in waterfall.notes().inner().iter() {
+            if midi_note.note != pressed_note {
+                continue;
+            }
+
+            let note_start = midi_note.start;
+            let note_start_secs = note_start.as_secs_f32();
+
+            let delta = if current_time_secs >= note_start_secs {
+                Duration::from_secs_f32(current_time_secs - note_start_secs)
+            } else {
+                Duration::from_secs_f32(note_start_secs - current_time_secs)
+            };
+
+            if delta <= timing_window {
+                return Some(delta);
+            }
+        }
+
+        None
+    }
+
+    fn process_note_hit(&mut self, pressed_note: u8) {
+        use std::time::Duration;
+
+        if let Some(delta) = self.find_matching_note(pressed_note) {
+            let quality = TimingQuality::from_delta(delta);
+            let (_, milestone) = self.live_score.on_note_hit(quality);
+            self.last_timing_quality = Some(quality);
+
+            match quality {
+                TimingQuality::Miss => {
+                    self.effects.trigger_shake(ScreenShake::small());
+                }
+                _ => {}
+            }
+
+            if let Some(m) = milestone {
+                match m {
+                    StreakMilestone::Multiplier8x => {
+                        self.effects.trigger_flash(ScreenFlash::gold(0.3));
+                    }
+                    StreakMilestone::OnFire => {
+                        self.effects.trigger_shake(ScreenShake::medium());
+                        self.effects.trigger_flash(ScreenFlash::gold(0.5));
+                    }
+                    StreakMilestone::Legendary => {
+                        self.effects.trigger_shake(ScreenShake::large());
+                        self.effects.trigger_flash(ScreenFlash::gold(0.8));
+                    }
+                    _ => {}
+                }
+            }
+        }
+    }
+
+    fn create_score_data(&self) -> crate::scoring_data::ScoreData {
+        let result = self.live_score.to_score_data();
+        crate::scoring_data::ScoreData {
+            total_notes: result.total_notes as usize,
+            correct_notes: (result.total_notes - result.miss_count) as usize,
+            missed_notes: result.miss_count as usize,
+            too_early: 0,
+            too_late: 0,
+            on_time: (result.perfect_count + result.good_count + result.okay_count) as usize,
+            accuracy: result.accuracy,
+            grade: result.grade().to_string(),
+            stars: result.stars.count(),
+            max_streak: result.max_streak,
+            score: result.score,
+            perfect_count: result.perfect_count,
+            good_count: result.good_count,
+            okay_count: result.okay_count,
+        }
+    }
+
+    fn render_live_score(&self) {
+        let score = self.live_score.score();
+        let multiplier = self.live_score.multiplier();
+        let streak = self.live_score.streak().current();
+
+        let y_start = Self::TOP_BAR_H + Self::PROGRESS_BAR_H + 15.0;
+
+        let score_text = format!("{:}", score);
+        draw_text(&score_text, screen_width() - 200.0, y_start, 32.0, WHITE);
+
+        let mult_text = format!("x{}", multiplier);
+        let mult_color = match multiplier {
+            8 => Color::from_rgba(255, 215, 0, 255),
+            4 => Color::from_rgba(0, 136, 255, 255),
+            2 => Color::from_rgba(0, 255, 0, 255),
+            _ => Color::from_rgba(200, 200, 200, 255),
+        };
+        crate::scene::ply_fonts::draw_headline(
+            &mult_text,
+            screen_width() - 80.0,
+            y_start,
+            24.0,
+            mult_color,
+        );
+
+        if streak > 0 {
+            let (streak_text, streak_color) = if streak >= 200 {
+                (
+                    format!("LEGENDARY: {}", streak),
+                    Color::from_rgba(255, 0, 255, 255),
+                )
+            } else if streak >= 100 {
+                (
+                    format!("ON FIRE: {}", streak),
+                    Color::from_rgba(255, 136, 0, 255),
+                )
+            } else if streak >= 50 {
+                (
+                    format!("Streak: {}", streak),
+                    Color::from_rgba(255, 215, 0, 255),
+                )
+            } else if streak >= 30 {
+                (
+                    format!("Streak: {}", streak),
+                    Color::from_rgba(0, 136, 255, 255),
+                )
+            } else if streak >= 10 {
+                (
+                    format!("Streak: {}", streak),
+                    Color::from_rgba(0, 255, 0, 255),
+                )
+            } else {
+                (
+                    format!("Streak: {}", streak),
+                    Color::from_rgba(170, 170, 170, 255),
+                )
+            };
+
+            crate::scene::ply_fonts::draw_headline(
+                &streak_text,
+                screen_width() - 200.0,
+                y_start + 30.0,
+                18.0,
+                streak_color,
+            );
+        }
+
+        let accuracy = self.live_score.accuracy();
+        if accuracy > 0.0 {
+            crate::scene::ply_fonts::draw_headline(
+                &format!("{:.0}%", accuracy),
+                screen_width() - 200.0,
+                y_start + 55.0,
+                16.0,
+                Color::from_rgba(150, 200, 255, 255),
+            );
+        }
+
+        if let Some(quality) = &self.last_timing_quality {
+            let (text, color) = match quality {
+                TimingQuality::Perfect => ("PERFECT", Color::from_rgba(255, 215, 0, 255)),
+                TimingQuality::Good => ("GOOD", Color::from_rgba(0, 255, 0, 255)),
+                TimingQuality::Okay => ("OKAY", Color::from_rgba(0, 136, 255, 255)),
+                TimingQuality::Miss => ("MISS", Color::from_rgba(255, 0, 0, 255)),
+            };
+            crate::scene::ply_fonts::draw_headline(
+                text,
+                screen_width() / 2.0 - 40.0,
+                screen_height() - 180.0,
+                20.0,
+                color,
+            );
+        }
     }
 
     fn handle_top_bar_click(
@@ -1324,6 +1481,7 @@ impl PlyScene for PlyPlayingScene {
                     true,
                 ) {
                     for note in notes {
+                        self.process_note_hit(note);
                         let message = MidiMessage::NoteOn {
                             key: u7::new(note),
                             vel: u7::new(100),
@@ -1369,6 +1527,15 @@ impl PlyScene for PlyPlayingScene {
 
         self.mouse_was_pressed = mouse_down;
 
+        self.effects.update(delta);
+
+        if !self.paused && !self.looper_active && self.playback_time >= self.song_length {
+            return Some(NeothesiaEvent::ShowScore {
+                song: self.song.clone(),
+                score_data: self.create_score_data(),
+            });
+        }
+
         None
     }
 
@@ -1377,8 +1544,9 @@ impl PlyScene for PlyPlayingScene {
 
         match message {
             MidiMessage::NoteOn { key, vel } => {
-                self.piano_keyboard
-                    .handle_note_event(key.as_int(), vel.as_int());
+                let note = key.as_int();
+                self.process_note_hit(note);
+                self.piano_keyboard.handle_note_event(note, vel.as_int());
             }
             MidiMessage::NoteOff { key, .. } => {
                 self.piano_keyboard.handle_note_event(key.as_int(), 0);
@@ -1393,13 +1561,13 @@ impl PlyScene for PlyPlayingScene {
         let (mx, my) = mouse_position();
         let mouse_down = is_mouse_button_down(MouseButton::Left);
 
-        // ── Render waterfall + keyboard ──
         if let Some(waterfall) = &mut self.waterfall {
             waterfall.render_ply();
         }
         self.piano_keyboard.render();
 
-        // ── Render top bar (on top of everything) ──
+        self.render_live_score();
+
         self.render_top_bar(mx, my, mouse_down);
         self.render_progress_bar(mx, my, mouse_down);
     }
@@ -1722,12 +1890,24 @@ impl PlyScene for PlyFreeplayScene {
             btn_color
         };
         draw_rectangle(back_x, btn_y, btn_size, btn_size, back_color);
-        draw_text("<-", back_x + 8.0, btn_y + 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("<-", back_x + 8.0, btn_y + 20.0, 16.0, WHITE);
 
         let soundfont_name = self.current_soundfont_name();
-        let text_w = measure_text(&soundfont_name, None, 14, 1.0).width;
+        let text_w = measure_text(
+            &soundfont_name,
+            crate::scene::ply_fonts::body_font(),
+            14,
+            1.0,
+        )
+        .width;
         let center_x = screen_w / 2.0;
-        draw_text(&soundfont_name, center_x - text_w / 2.0, 20.0, 14.0, WHITE);
+        crate::scene::ply_fonts::draw_body(
+            &soundfont_name,
+            center_x - text_w / 2.0,
+            20.0,
+            14.0,
+            WHITE,
+        );
 
         let prev_x = center_x - text_w / 2.0 - 40.0;
         let prev_hover = mouse_x >= prev_x
@@ -1742,7 +1922,7 @@ impl PlyScene for PlyFreeplayScene {
             btn_color
         };
         draw_rectangle(prev_x, btn_y, btn_size, btn_size, prev_color);
-        draw_text("<", prev_x + 10.0, btn_y + 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("<", prev_x + 10.0, btn_y + 20.0, 16.0, WHITE);
 
         let next_x = center_x + text_w / 2.0 + 10.0;
         let next_hover = mouse_x >= next_x
@@ -1757,12 +1937,13 @@ impl PlyScene for PlyFreeplayScene {
             btn_color
         };
         draw_rectangle(next_x, btn_y, btn_size, btn_size, next_color);
-        draw_text(">", next_x + 10.0, btn_y + 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body(">", next_x + 10.0, btn_y + 20.0, 16.0, WHITE);
 
         let gain_text = format!("Gain: {:.1}", self.audio_gain);
-        let gain_text_w = measure_text(&gain_text, None, 14, 1.0).width;
+        let gain_text_w =
+            measure_text(&gain_text, crate::scene::ply_fonts::body_font(), 14, 1.0).width;
         let gain_text_x = screen_w - 180.0;
-        draw_text(&gain_text, gain_text_x, 20.0, 14.0, WHITE);
+        crate::scene::ply_fonts::draw_body(&gain_text, gain_text_x, 20.0, 14.0, WHITE);
 
         let dec_x = screen_w - 100.0;
         let dec_hover = mouse_x >= dec_x
@@ -1777,7 +1958,7 @@ impl PlyScene for PlyFreeplayScene {
             btn_color
         };
         draw_rectangle(dec_x, btn_y, btn_size, btn_size, dec_color);
-        draw_text("-", dec_x + 12.0, btn_y + 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("-", dec_x + 12.0, btn_y + 20.0, 16.0, WHITE);
 
         let inc_x = screen_w - 65.0;
         let inc_hover = mouse_x >= inc_x
@@ -1792,24 +1973,130 @@ impl PlyScene for PlyFreeplayScene {
             btn_color
         };
         draw_rectangle(inc_x, btn_y, btn_size, btn_size, inc_color);
-        draw_text("+", inc_x + 10.0, btn_y + 20.0, 16.0, WHITE);
+        crate::scene::ply_fonts::draw_body("+", inc_x + 10.0, btn_y + 20.0, 16.0, WHITE);
 
         self.piano_keyboard.render();
     }
 }
 
+fn format_score_display(score: u64) -> String {
+    let s = score.to_string();
+    let mut result = String::with_capacity(s.len() + s.len() / 3);
+    for (i, c) in s.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            result.push(',');
+        }
+        result.push(c);
+    }
+    format!("Score: {}", result.chars().rev().collect::<String>())
+}
+
 /// PLY Score Scene
 pub struct PlyScoreScene {
     song: Song,
-    score_data: crate::scene::playing_scene::midi_player::ScoreData,
+    score_data: crate::scoring_data::ScoreData,
 }
 
 impl PlyScoreScene {
-    pub fn new(
-        song: Song,
-        score_data: crate::scene::playing_scene::midi_player::ScoreData,
-    ) -> Self {
+    pub fn new(song: Song, score_data: crate::scoring_data::ScoreData) -> Self {
         Self { song, score_data }
+    }
+
+    pub fn from_live_score(song: Song, live_score: &crate::scoring::LiveScoreTracker) -> Self {
+        let result = live_score.to_score_data();
+
+        Self {
+            song,
+            score_data: crate::scoring_data::ScoreData {
+                total_notes: result.total_notes as usize,
+                correct_notes: (result.total_notes - result.miss_count) as usize,
+                missed_notes: result.miss_count as usize,
+                too_early: 0,
+                too_late: 0,
+                on_time: (result.perfect_count + result.good_count + result.okay_count) as usize,
+                accuracy: result.accuracy,
+                grade: result.grade().to_string(),
+                stars: result.stars.count(),
+                max_streak: result.max_streak,
+                score: result.score,
+                perfect_count: result.perfect_count,
+                good_count: result.good_count,
+                okay_count: result.okay_count,
+            },
+        }
+    }
+
+    /// Draw text with headline font (Space Grotesk) - delegates to shared module
+    fn draw_headline(&self, text: &str, x: f32, y: f32, size: f32, color: Color) {
+        crate::scene::ply_fonts::draw_headline(text, x, y, size, color);
+    }
+
+    /// Draw text with body font (Inter) - delegates to shared module
+    fn draw_body(&self, text: &str, x: f32, y: f32, size: f32, color: Color) {
+        crate::scene::ply_fonts::draw_body(text, x, y, size, color);
+    }
+
+    /// Calculate grade from accuracy
+    fn grade(&self) -> &str {
+        &self.score_data.grade
+    }
+
+    /// Get grade color (purple for high grades)
+    fn grade_color(&self) -> Color {
+        match self.score_data.grade.as_str() {
+            "S" => Color::from_rgba(219, 144, 255, 255), // primary #db90ff
+            "A" | "A+" => Color::from_rgba(219, 144, 255, 255),
+            "B" => Color::from_rgba(95, 158, 255, 255), // secondary
+            "C" => Color::from_rgba(100, 200, 120, 255),
+            "D" => Color::from_rgba(220, 160, 80, 255),
+            _ => Color::from_rgba(255, 110, 128, 255), // tertiary
+        }
+    }
+
+    /// Draw a glassmorphism-style card with rounded corners
+    fn draw_glass_card(x: f32, y: f32, w: f32, h: f32, color: &Color) {
+        use macroquad::prelude::*;
+
+        let border_radius = 12.0;
+
+        // Draw rounded rectangle background
+        draw_rectangle(x + border_radius, y, w - 2.0 * border_radius, h, *color);
+        draw_rectangle(x, y + border_radius, w, h - 2.0 * border_radius, *color);
+
+        // Draw corner circles to complete rounded shape
+        draw_circle(x + border_radius, y + border_radius, border_radius, *color);
+        draw_circle(
+            x + w - border_radius,
+            y + border_radius,
+            border_radius,
+            *color,
+        );
+        draw_circle(
+            x + border_radius,
+            y + h - border_radius,
+            border_radius,
+            *color,
+        );
+        draw_circle(
+            x + w - border_radius,
+            y + h - border_radius,
+            border_radius,
+            *color,
+        );
+    }
+
+    /// Draw an accuracy progress bar
+    fn draw_accuracy_bar(x: f32, y: f32, w: f32, h: f32, pct: f32, color: &Color) {
+        // Background
+        draw_rectangle(x, y, w, h, Color::from_rgba(37, 37, 44, 255));
+        // Fill
+        draw_rectangle(x, y, w * pct.min(1.0), h, *color);
+    }
+
+    /// Check if mouse is in a rectangle
+    fn is_mouse_in_rect(x: f32, y: f32, w: f32, h: f32) -> bool {
+        let (mx, my) = mouse_position();
+        mx >= x && mx <= x + w && my >= y && my <= y + h
     }
 }
 
@@ -1817,9 +2104,48 @@ impl PlyScene for PlyScoreScene {
     fn update(&mut self, _ctx: &mut MacroquadContext, _delta: Duration) -> Option<NeothesiaEvent> {
         use macroquad::prelude::*;
 
-        // Handle keyboard input
+        // Keyboard shortcuts
         if is_key_pressed(KeyCode::Escape) || is_key_pressed(KeyCode::Enter) {
             return Some(NeothesiaEvent::MainMenu(None));
+        }
+
+        if is_key_pressed(KeyCode::R) {
+            return Some(NeothesiaEvent::Play(self.song.clone()));
+        }
+
+        // Mouse click handling
+        if is_mouse_button_pressed(MouseButton::Left) {
+            let screen_w = screen_width();
+            let margin = 40.0;
+            let content_w = (screen_w - margin * 2.0).min(1200.0);
+            let content_x = (screen_w - content_w) / 2.0;
+
+            // Right column buttons
+            let right_col_w = content_w * 0.25;
+            let right_x = content_x + content_w * 0.35 + 16.0 + content_w * 0.40 + 16.0;
+
+            let main_y = 60.0 + 140.0; // header_y + 140.0
+            let timeline_h = 200.0;
+            let btn_y = main_y + timeline_h + 16.0;
+            let btn_h = 48.0;
+            let btn_gap = 12.0;
+
+            // PLAY AGAIN button
+            if Self::is_mouse_in_rect(right_x, btn_y, right_col_w, btn_h) {
+                return Some(NeothesiaEvent::Play(self.song.clone()));
+            }
+
+            // NEXT SONG button
+            let next_y = btn_y + btn_h + btn_gap;
+            if Self::is_mouse_in_rect(right_x, next_y, right_col_w, btn_h) {
+                return Some(NeothesiaEvent::MainMenu(None));
+            }
+
+            // VIEW REPLAY button (same as PLAY AGAIN)
+            let replay_y = next_y + btn_h + btn_gap;
+            if Self::is_mouse_in_rect(right_x, replay_y, right_col_w, 40.0) {
+                return Some(NeothesiaEvent::Play(self.song.clone()));
+            }
         }
 
         None
@@ -1828,95 +2154,529 @@ impl PlyScene for PlyScoreScene {
     fn render(&mut self, _ctx: &mut MacroquadContext) {
         use macroquad::prelude::*;
 
-        clear_background(BLACK);
+        // Sonic Obsidian Design System Colors
+        let bg_color = Color::from_rgba(14, 14, 19, 255); // #0e0e13
+        let surface_low = Color::from_rgba(19, 19, 24, 255); // #131318
+        let surface = Color::from_rgba(25, 25, 31, 255); // #19191f
+        let surface_high = Color::from_rgba(37, 37, 44, 255); // #25252c
+        let surface_bright = Color::from_rgba(44, 43, 51, 255); // #2c2b33
+
+        let primary = Color::from_rgba(219, 144, 255, 255); // #db90ff
+        let primary_dim = Color::from_rgba(210, 119, 255, 255); // #d277ff
+        let secondary = Color::from_rgba(95, 158, 255, 255); // #5f9eff
+        let tertiary = Color::from_rgba(255, 110, 128, 255); // #ff6e80
+
+        let on_surface = Color::from_rgba(248, 245, 253, 255); // #f8f5fd
+        let on_surface_var = Color::from_rgba(172, 170, 177, 255); // #acaab1
+        let error = Color::from_rgba(255, 110, 132, 255); // #ff6e84
+
+        clear_background(bg_color);
 
         let screen_w = screen_width();
         let screen_h = screen_height();
-        let center_x = screen_w / 2.0;
-        let center_y = screen_h / 2.0;
 
-        // Draw PLY rendering indicator
-        draw_text(
-            "🎨 PLY RENDERING ACTIVE - SCORE",
-            10.0,
-            10.0,
-            18.0,
-            Color::from_rgba(0, 255, 0, 255),
-        );
+        // Layout constants
+        let margin = 40.0;
+        let card_gap = 16.0;
+        let content_w = (screen_w - margin * 2.0).min(1200.0);
+        let content_x = (screen_w - content_w) / 2.0;
 
-        draw_text(
-            &format!("FPS: {}", get_fps()),
-            10.0,
-            35.0,
+        // Header section
+        let header_y = 60.0;
+
+        // "PERFORMANCE COMPLETE" label (Space Grotesk - headline)
+        self.draw_body(
+            "PERFORMANCE COMPLETE",
+            content_x + content_w / 2.0 - 130.0,
+            header_y,
             14.0,
-            Color::from_rgba(255, 255, 255, 255),
+            primary,
         );
 
-        // Draw title
-        draw_text(
-            "SONG COMPLETE!",
-            center_x - 100.0,
-            center_y - 150.0,
-            40.0,
-            Color::from_rgba(100, 255, 100, 255),
+        // Song title (Space Grotesk - headline)
+        let title = &self.song.file.name;
+        let title_size = 48.0;
+        self.draw_headline(
+            title,
+            content_x + content_w / 2.0 - (title.len() as f32 * 12.0),
+            header_y + 50.0,
+            title_size,
+            on_surface,
         );
 
-        // Draw song info
-        draw_text(
-            &format!("Song: {}", self.song.file.name),
-            center_x - 150.0,
-            center_y - 80.0,
+        // Artist placeholder (Space Grotesk - headline)
+        self.draw_body(
+            "Frédéric Chopin",
+            content_x + content_w / 2.0 - 70.0,
+            header_y + 90.0,
+            18.0,
+            on_surface_var,
+        );
+
+        // Main content area starts here
+        let main_y = header_y + 140.0;
+        let card_h = 200.0;
+
+        // === LEFT COLUMN: Grade Card + VS Personal Best ===
+        let left_col_w = content_w * 0.35;
+        let left_x = content_x;
+
+        // Grade Card
+        Self::draw_glass_card(left_x, main_y, left_col_w, card_h, &surface_high);
+
+        // Grade display (A+) - Space Grotesk headline
+        let grade_color = self.grade_color();
+        self.draw_headline(
+            "A+",
+            left_x + left_col_w / 2.0 - 35.0,
+            main_y + 60.0,
+            64.0,
+            grade_color,
+        );
+
+        // Score - Space Grotesk headline
+        let score_str = format_score_display(self.score_data.score);
+        self.draw_headline(
+            &score_str,
+            left_x + left_col_w / 2.0 - (score_str.len() as f32 * 8.0),
+            main_y + 110.0,
+            28.0,
+            on_surface,
+        );
+        // TOTAL SCORE - Inter body (uppercase label)
+        self.draw_body(
+            "TOTAL SCORE",
+            left_x + left_col_w / 2.0 - 50.0,
+            main_y + 135.0,
+            12.0,
+            on_surface_var,
+        );
+
+        // NEW PERSONAL BEST badge
+        let badge_w = 160.0;
+        let badge_x = left_x + left_col_w / 2.0 - badge_w / 2.0;
+        let badge_y = main_y + 155.0;
+        draw_rectangle(
+            badge_x,
+            badge_y,
+            badge_w,
             24.0,
-            Color::from_rgba(255, 255, 255, 255),
+            Color::from_rgba(219, 144, 255, 40),
+        );
+        draw_rectangle_lines(
+            badge_x,
+            badge_y,
+            badge_w,
+            24.0,
+            1.0,
+            Color::from_rgba(219, 144, 255, 80),
+        );
+        self.draw_body(
+            "NEW PERSONAL BEST!",
+            badge_x + 12.0,
+            badge_y + 16.0,
+            10.0,
+            primary,
         );
 
-        // Draw score
-        let score = if self.score_data.total_notes > 0 {
-            (self.score_data.correct_notes as f32 / self.score_data.total_notes as f32) * 100.0
+        // VS Personal Best Card
+        let vs_card_y = main_y + card_h + card_gap;
+        let vs_card_h = 80.0;
+        Self::draw_glass_card(left_x, vs_card_y, left_col_w, vs_card_h, &surface_high);
+
+        self.draw_body(
+            "VS PERSONAL BEST",
+            left_x + 20.0,
+            vs_card_y + 25.0,
+            10.0,
+            on_surface_var,
+        );
+        self.draw_headline(
+            "+15,000 pts",
+            left_x + 20.0,
+            vs_card_y + 55.0,
+            20.0,
+            secondary,
+        );
+
+        // === CENTER COLUMN: Accuracy Breakdown + Stats ===
+        let center_col_w = content_w * 0.40;
+        let center_x = left_x + left_col_w + card_gap;
+
+        // Accuracy Breakdown Card
+        let acc_card_h = 200.0;
+        Self::draw_glass_card(center_x, main_y, center_col_w, acc_card_h, &surface_high);
+
+        self.draw_body(
+            "ACCURACY BREAKDOWN",
+            center_x + 20.0,
+            main_y + 25.0,
+            10.0,
+            on_surface_var,
+        );
+
+        // Progress bars for accuracy categories
+        let bar_start_y = main_y + 50.0;
+        let bar_h = 8.0;
+        let bar_gap = 35.0;
+        let total = self.score_data.total_notes as f32;
+
+        let perfect_pct = if total > 0.0 {
+            self.score_data.perfect_count as f32 / total
+        } else {
+            0.0
+        };
+        let good_pct = if total > 0.0 {
+            self.score_data.good_count as f32 / total
+        } else {
+            0.0
+        };
+        let okay_pct = if total > 0.0 {
+            self.score_data.okay_count as f32 / total
+        } else {
+            0.0
+        };
+        let miss_pct = if total > 0.0 {
+            self.score_data.missed_notes as f32 / total
         } else {
             0.0
         };
 
-        draw_text(
-            &format!("Score: {:.0}%", score),
-            center_x - 80.0,
-            center_y,
-            30.0,
-            Color::from_rgba(255, 200, 0, 255),
+        // Perfect bar
+        Self::draw_accuracy_bar(
+            center_x + 20.0,
+            bar_start_y,
+            center_col_w - 120.0,
+            bar_h,
+            perfect_pct,
+            &primary,
+        );
+        self.draw_body(
+            "Perfect",
+            center_x + center_col_w - 90.0,
+            bar_start_y + 8.0,
+            12.0,
+            on_surface,
+        );
+        self.draw_headline(
+            &self.score_data.perfect_count.to_string(),
+            center_x + center_col_w - 30.0,
+            bar_start_y + 8.0,
+            12.0,
+            primary,
         );
 
-        // Draw accuracy
-        if self.score_data.total_notes > 0 {
-            let accuracy =
-                (self.score_data.correct_notes as f32 / self.score_data.total_notes as f32) * 100.0;
-            draw_text(
-                &format!("Accuracy: {:.1}%", accuracy),
-                center_x - 100.0,
-                center_y + 50.0,
-                24.0,
-                Color::from_rgba(100, 200, 255, 255),
+        // Great/Good bar
+        Self::draw_accuracy_bar(
+            center_x + 20.0,
+            bar_start_y + bar_gap,
+            center_col_w - 120.0,
+            bar_h,
+            good_pct,
+            &secondary,
+        );
+        self.draw_body(
+            "Great",
+            center_x + center_col_w - 90.0,
+            bar_start_y + bar_gap + 8.0,
+            12.0,
+            on_surface,
+        );
+        self.draw_headline(
+            &self.score_data.good_count.to_string(),
+            center_x + center_col_w - 30.0,
+            bar_start_y + bar_gap + 8.0,
+            12.0,
+            secondary,
+        );
+
+        // Good/Okay bar
+        Self::draw_accuracy_bar(
+            center_x + 20.0,
+            bar_start_y + bar_gap * 2.0,
+            center_col_w - 120.0,
+            bar_h,
+            okay_pct,
+            &on_surface_var,
+        );
+        self.draw_body(
+            "Good",
+            center_x + center_col_w - 90.0,
+            bar_start_y + bar_gap * 2.0 + 8.0,
+            12.0,
+            on_surface,
+        );
+        self.draw_headline(
+            &self.score_data.okay_count.to_string(),
+            center_x + center_col_w - 30.0,
+            bar_start_y + bar_gap * 2.0 + 8.0,
+            12.0,
+            on_surface_var,
+        );
+
+        // Miss bar
+        Self::draw_accuracy_bar(
+            center_x + 20.0,
+            bar_start_y + bar_gap * 3.0,
+            center_col_w - 120.0,
+            bar_h,
+            miss_pct,
+            &error,
+        );
+        self.draw_body(
+            "Miss",
+            center_x + center_col_w - 90.0,
+            bar_start_y + bar_gap * 3.0 + 8.0,
+            12.0,
+            on_surface,
+        );
+        self.draw_headline(
+            &self.score_data.missed_notes.to_string(),
+            center_x + center_col_w - 30.0,
+            bar_start_y + bar_gap * 3.0 + 8.0,
+            12.0,
+            error,
+        );
+
+        // Stats row (MAX STREAK + MAX COMBO)
+        let stats_y = main_y + acc_card_h + card_gap;
+        let stats_h = 80.0;
+        let stats_half_w = (center_col_w - card_gap) / 2.0;
+
+        // MAX STREAK card
+        Self::draw_glass_card(center_x, stats_y, stats_half_w, stats_h, &surface_high);
+        self.draw_body(
+            "MAX STREAK",
+            center_x + stats_half_w / 2.0 - 45.0,
+            stats_y + 25.0,
+            10.0,
+            on_surface_var,
+        );
+        self.draw_headline(
+            &format!("x{}", self.score_data.max_streak),
+            center_x + stats_half_w / 2.0 - 25.0,
+            stats_y + 60.0,
+            24.0,
+            primary,
+        );
+
+        // MAX COMBO card
+        Self::draw_glass_card(
+            center_x + stats_half_w + card_gap,
+            stats_y,
+            stats_half_w,
+            stats_h,
+            &surface_high,
+        );
+        self.draw_body(
+            "MAX COMBO",
+            center_x + stats_half_w + card_gap + stats_half_w / 2.0 - 40.0,
+            stats_y + 25.0,
+            10.0,
+            on_surface_var,
+        );
+        let combo_text = if self.score_data.max_streak >= 100 {
+            "UNSTOPPABLE"
+        } else if self.score_data.max_streak >= 50 {
+            "ON FIRE"
+        } else {
+            "COMBO"
+        };
+        self.draw_headline(
+            combo_text,
+            center_x + stats_half_w + card_gap + stats_half_w / 2.0
+                - (combo_text.len() as f32 * 4.0),
+            stats_y + 60.0,
+            16.0,
+            tertiary,
+        );
+
+        // === RIGHT COLUMN: Timeline + Actions ===
+        let right_col_w = content_w * 0.25;
+        let right_x = center_x + center_col_w + card_gap;
+
+        // Accuracy Timeline Card
+        let timeline_h = 200.0;
+        Self::draw_glass_card(right_x, main_y, right_col_w, timeline_h, &surface_high);
+
+        self.draw_body(
+            "ACCURACY TIMELINE",
+            right_x + 20.0,
+            main_y + 25.0,
+            10.0,
+            on_surface_var,
+        );
+
+        // Draw bar chart for timeline
+        let chart_start_y = main_y + 50.0;
+        let chart_h = 120.0;
+        let bar_count = 12;
+        let chart_bar_w = (right_col_w - 40.0) / bar_count as f32 - 2.0;
+
+        for i in 0..bar_count {
+            let bar_x = right_x + 20.0 + i as f32 * (chart_bar_w + 2.0);
+            let bar_ratio = 0.5 + (i as f32 * 0.05).min(0.5);
+            let h = chart_h * bar_ratio;
+            let bar_color = if i == 5 {
+                error
+            } else {
+                Color::from_rgba(219, 144, 255, 100)
+            };
+            draw_rectangle(
+                bar_x,
+                chart_start_y + chart_h - h,
+                chart_bar_w,
+                h,
+                bar_color,
             );
         }
 
-        // Draw additional stats
-        draw_text(
-            &format!(
-                "Correct: {} | Missed: {}",
-                self.score_data.correct_notes, self.score_data.missed_notes
-            ),
-            center_x - 150.0,
-            center_y + 90.0,
-            16.0,
-            Color::from_rgba(200, 200, 200, 255),
+        self.draw_body(
+            "START",
+            right_x + 20.0,
+            chart_start_y + chart_h + 15.0,
+            8.0,
+            on_surface_var,
+        );
+        self.draw_body(
+            "04:32",
+            right_x + right_col_w - 50.0,
+            chart_start_y + chart_h + 15.0,
+            8.0,
+            on_surface_var,
         );
 
-        // Draw instructions
-        draw_text(
-            "SPACE: Pause/Resume | ESC: Return to menu",
-            center_x - 200.0,
-            screen_h - 50.0,
+        // Action buttons
+        let btn_y = main_y + timeline_h + card_gap;
+        let btn_h = 48.0;
+        let btn_gap = 12.0;
+
+        // PLAY AGAIN button (gradient style)
+        let play_again_hover = Self::is_mouse_in_rect(right_x, btn_y, right_col_w, btn_h);
+        let play_again_color = if play_again_hover {
+            Color::from_rgba(211, 123, 255, 255) // brighter on hover
+        } else {
+            primary
+        };
+        draw_rectangle(right_x, btn_y, right_col_w, btn_h, play_again_color);
+        self.draw_headline(
+            "PLAY AGAIN",
+            right_x + right_col_w / 2.0 - 45.0,
+            btn_y + 30.0,
             14.0,
-            Color::from_rgba(100, 100, 100, 255),
+            bg_color,
+        );
+
+        // NEXT SONG button (outlined style)
+        let next_y = btn_y + btn_h + btn_gap;
+        let next_hover = Self::is_mouse_in_rect(right_x, next_y, right_col_w, btn_h);
+        let next_bg = if next_hover {
+            surface_bright
+        } else {
+            surface_high
+        };
+        draw_rectangle(right_x, next_y, right_col_w, btn_h, next_bg);
+        draw_rectangle_lines(
+            right_x,
+            next_y,
+            right_col_w,
+            btn_h,
+            1.0,
+            Color::from_rgba(72, 71, 77, 50),
+        );
+        self.draw_headline(
+            "NEXT SONG",
+            right_x + right_col_w / 2.0 - 42.0,
+            next_y + 30.0,
+            14.0,
+            on_surface,
+        );
+
+        // VIEW REPLAY button (text only)
+        let replay_y = next_y + btn_h + btn_gap;
+        let replay_hover = Self::is_mouse_in_rect(right_x, replay_y, right_col_w, 40.0);
+        let replay_color = if replay_hover { primary } else { primary_dim };
+        self.draw_body(
+            "VIEW REPLAY",
+            right_x + right_col_w / 2.0 - 48.0,
+            replay_y + 20.0,
+            12.0,
+            replay_color,
+        );
+
+        // === FOOTER STATS ===
+        let footer_y = screen_h - 60.0;
+        let footer_w = content_w;
+        let stat_w = footer_w / 4.0;
+
+        // Time Played
+        self.draw_body(
+            "TIME PLAYED",
+            content_x + 10.0,
+            footer_y,
+            8.0,
+            on_surface_var,
+        );
+        self.draw_headline("04:32", content_x + 10.0, footer_y + 20.0, 16.0, on_surface);
+
+        // Average Offset
+        self.draw_body(
+            "AVERAGE OFFSET",
+            content_x + stat_w + 10.0,
+            footer_y,
+            8.0,
+            on_surface_var,
+        );
+        self.draw_headline(
+            "+12ms",
+            content_x + stat_w + 10.0,
+            footer_y + 20.0,
+            16.0,
+            on_surface,
+        );
+
+        // Difficulty
+        self.draw_body(
+            "DIFFICULTY",
+            content_x + stat_w * 2.0 + 10.0,
+            footer_y,
+            8.0,
+            on_surface_var,
+        );
+        self.draw_headline(
+            "MAESTRO",
+            content_x + stat_w * 2.0 + 10.0,
+            footer_y + 20.0,
+            16.0,
+            tertiary,
+        );
+
+        // Notes Processed
+        self.draw_body(
+            "NOTES PROCESSED",
+            content_x + stat_w * 3.0 + 10.0,
+            footer_y,
+            8.0,
+            on_surface_var,
+        );
+        self.draw_headline(
+            &format!(
+                "{} / {}",
+                self.score_data.correct_notes, self.score_data.total_notes
+            ),
+            content_x + stat_w * 3.0 + 10.0,
+            footer_y + 20.0,
+            16.0,
+            on_surface,
+        );
+
+        // Keyboard hints
+        self.draw_body(
+            "ENTER: Main Menu | R: Replay | ESC: Main Menu",
+            screen_w / 2.0 - 150.0,
+            screen_h - 15.0,
+            10.0,
+            on_surface_var,
         );
     }
 }
@@ -2395,16 +3155,16 @@ impl PlySettingsScene {
             draw_rectangle(x, y, 4.0, height, Color::from_rgba(160, 81, 255, 255));
         }
 
-        // Draw title
+        // Draw title with headline font
         let title_color = if is_focused {
             Color::from_rgba(200, 180, 255, 255)
         } else {
             Color::from_rgba(255, 255, 255, 255)
         };
-        draw_text(title, x + 15.0, y + 12.0, 16.0, title_color);
+        crate::scene::ply_fonts::draw_headline(title, x + 15.0, y + 12.0, 16.0, title_color);
 
-        // Draw subtitle
-        draw_text(
+        // Draw subtitle with body font
+        crate::scene::ply_fonts::draw_body(
             subtitle,
             x + 15.0,
             y + 32.0,
@@ -2417,7 +3177,7 @@ impl PlySettingsScene {
         mouse_x >= x && mouse_x <= x + width && mouse_y >= y && mouse_y <= y + height
     }
 
-    /// Draw a button
+    /// Draw a button with custom font
     fn draw_button(
         &self,
         x: f32,
@@ -2462,9 +3222,10 @@ impl PlySettingsScene {
             );
         }
 
-        // Center text
-        let text_width = measure_text(label, None, 14, 1.0).width;
-        draw_text(
+        // Center text with headline font
+        let text_width =
+            measure_text(label, crate::scene::ply_fonts::headline_font(), 14, 1.0).width;
+        crate::scene::ply_fonts::draw_headline(
             label,
             x + (width - text_width) / 2.0,
             y + (height - 14.0) / 2.0 + 10.0,
@@ -3516,20 +4277,8 @@ impl PlySettingsScene {
                 && mouse_y >= y
                 && mouse_y <= y + 40.0
             {
-                // Update selected index on hover ONLY if mouse has priority or no priority is set
-                // This prevents hover from overriding keyboard navigation
-                if self.input_manager.focus().priority().has_mouse_priority()
-                    || self.input_manager.get_priority()
-                        == crate::ply_integration::input::InputPriority::None
-                {
-                    // Set mouse priority when hovering
-                    self.input_manager
-                        .focus()
-                        .priority()
-                        .update_mouse_position(mouse_x, mouse_y);
-                    if self.popup_selected_index != idx {
-                        self.popup_selected_index = idx;
-                    }
+                if self.popup_selected_index != idx {
+                    self.popup_selected_index = idx;
                 }
 
                 if is_mouse_button_pressed(MouseButton::Left) {
@@ -3696,20 +4445,8 @@ impl PlySettingsScene {
                 && mouse_y >= y
                 && mouse_y <= y + 40.0
             {
-                // Update selected index on hover ONLY if mouse has priority or no priority is set
-                // This prevents hover from overriding keyboard navigation
-                if self.input_manager.focus().priority().has_mouse_priority()
-                    || self.input_manager.get_priority()
-                        == crate::ply_integration::input::InputPriority::None
-                {
-                    // Set mouse priority when hovering
-                    self.input_manager
-                        .focus()
-                        .priority()
-                        .update_mouse_position(mouse_x, mouse_y);
-                    if self.popup_selected_index != idx {
-                        self.popup_selected_index = idx;
-                    }
+                if self.popup_selected_index != idx {
+                    self.popup_selected_index = idx;
                 }
 
                 if is_mouse_button_pressed(MouseButton::Left) {
@@ -3938,9 +4675,8 @@ impl PlySettingsScene {
                 && mouse_y >= y
                 && mouse_y <= y + 65.0
             {
-                if self.input_manager.focus().priority().has_mouse_priority()
-                    || self.input_manager.get_priority()
-                        == crate::ply_integration::input::InputPriority::None
+                if self.input_manager.has_mouse_priority()
+                    || self.input_manager.get_priority() == InputPriority::None
                 {
                     self.input_manager
                         .focus()
