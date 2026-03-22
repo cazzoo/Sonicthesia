@@ -14,7 +14,7 @@ use super::{
     PlyGuidelineRenderer, PlyKeyboardRenderer, PlyNoteLabelsRenderer, PlyWaterfallRenderer,
 };
 use midi_file::MidiTrack;
-use neothesia_core::render::waterfall::TrackChannelConfig;
+use neothesia_core::waterfall::TrackChannelConfig;
 
 /// Main PLY rendering coordinator for Neothesia
 ///

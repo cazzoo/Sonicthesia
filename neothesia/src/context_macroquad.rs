@@ -2,16 +2,11 @@
 //!
 //! This replaces the WGPU-dependent Context with a macroquad-based version.
 
-use std::sync::Arc;
-use std::time::Duration;
-
 use crate::{
     output_manager::OutputManager,
-    song_library::{default_db_path, SongLibraryDatabase, SongRepository},
-    NeothesiaEvent,
+    song_library::{SongLibraryDatabase, SongRepository},
 };
 
-use crate::utils::window::WindowState;
 use neothesia_core::config::Config;
 
 /// Simplified PLY input handler for macroquad (doesn't use winit)

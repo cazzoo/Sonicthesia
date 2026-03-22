@@ -4,9 +4,8 @@
 //! adapted from the WGPU versions to work with MacroquadContext.
 
 use crate::{
-    context::Context,
     context_macroquad::MacroquadContext,
-    effects::{EffectsManager, ScreenFlash, ScreenShake, TimingFeedback},
+    effects::{EffectsManager, ScreenFlash, ScreenShake},
     scoring::{LiveScoreTracker, StreakMilestone, TimingQuality},
     song::Song,
     song_library::SongRepository,
@@ -14,9 +13,7 @@ use crate::{
 };
 use std::time::Duration;
 
-use crate::ply_integration::input::{
-    ElementType, FocusManager, FocusableElement, InputAction, UnifiedInputManager,
-};
+use crate::input_stubs::{ElementType, FocusableElement, InputPriority, UnifiedInputManager};
 use crate::render::ply::PianoKeyboardRenderer;
 use macroquad::prelude::*;
 use neothesia_core::config::Config;
@@ -786,7 +783,7 @@ impl PlyPlayingScene {
 
     fn initialize_waterfall(&mut self, ctx: &mut MacroquadContext) {
         use crate::render::ply::waterfall::PlyWaterfallRenderer;
-        use neothesia_core::render::waterfall::TrackChannelConfig;
+        use neothesia_core::waterfall::TrackChannelConfig;
 
         let mut waterfall = PlyWaterfallRenderer::new();
         let tracks: &[midi_file::MidiTrack] = &self.song.file.tracks;
@@ -1082,9 +1079,9 @@ impl PlyPlayingScene {
         }
     }
 
-    fn create_score_data(&self) -> crate::scene::playing_scene::midi_player::ScoreData {
+    fn create_score_data(&self) -> crate::scoring_data::ScoreData {
         let result = self.live_score.to_score_data();
-        crate::scene::playing_scene::midi_player::ScoreData {
+        crate::scoring_data::ScoreData {
             total_notes: result.total_notes as usize,
             correct_notes: (result.total_notes - result.miss_count) as usize,
             missed_notes: result.miss_count as usize,
@@ -1971,14 +1968,11 @@ fn format_score_display(score: u64) -> String {
 /// PLY Score Scene
 pub struct PlyScoreScene {
     song: Song,
-    score_data: crate::scene::playing_scene::midi_player::ScoreData,
+    score_data: crate::scoring_data::ScoreData,
 }
 
 impl PlyScoreScene {
-    pub fn new(
-        song: Song,
-        score_data: crate::scene::playing_scene::midi_player::ScoreData,
-    ) -> Self {
+    pub fn new(song: Song, score_data: crate::scoring_data::ScoreData) -> Self {
         Self { song, score_data }
     }
 
@@ -1987,7 +1981,7 @@ impl PlyScoreScene {
 
         Self {
             song,
-            score_data: crate::scene::playing_scene::midi_player::ScoreData {
+            score_data: crate::scoring_data::ScoreData {
                 total_notes: result.total_notes as usize,
                 correct_notes: (result.total_notes - result.miss_count) as usize,
                 missed_notes: result.miss_count as usize,
@@ -4257,20 +4251,8 @@ impl PlySettingsScene {
                 && mouse_y >= y
                 && mouse_y <= y + 40.0
             {
-                // Update selected index on hover ONLY if mouse has priority or no priority is set
-                // This prevents hover from overriding keyboard navigation
-                if self.input_manager.focus().priority().has_mouse_priority()
-                    || self.input_manager.get_priority()
-                        == crate::ply_integration::input::InputPriority::None
-                {
-                    // Set mouse priority when hovering
-                    self.input_manager
-                        .focus()
-                        .priority()
-                        .update_mouse_position(mouse_x, mouse_y);
-                    if self.popup_selected_index != idx {
-                        self.popup_selected_index = idx;
-                    }
+                if self.popup_selected_index != idx {
+                    self.popup_selected_index = idx;
                 }
 
                 if is_mouse_button_pressed(MouseButton::Left) {
@@ -4437,20 +4419,8 @@ impl PlySettingsScene {
                 && mouse_y >= y
                 && mouse_y <= y + 40.0
             {
-                // Update selected index on hover ONLY if mouse has priority or no priority is set
-                // This prevents hover from overriding keyboard navigation
-                if self.input_manager.focus().priority().has_mouse_priority()
-                    || self.input_manager.get_priority()
-                        == crate::ply_integration::input::InputPriority::None
-                {
-                    // Set mouse priority when hovering
-                    self.input_manager
-                        .focus()
-                        .priority()
-                        .update_mouse_position(mouse_x, mouse_y);
-                    if self.popup_selected_index != idx {
-                        self.popup_selected_index = idx;
-                    }
+                if self.popup_selected_index != idx {
+                    self.popup_selected_index = idx;
                 }
 
                 if is_mouse_button_pressed(MouseButton::Left) {
@@ -4679,9 +4649,8 @@ impl PlySettingsScene {
                 && mouse_y >= y
                 && mouse_y <= y + 65.0
             {
-                if self.input_manager.focus().priority().has_mouse_priority()
-                    || self.input_manager.get_priority()
-                        == crate::ply_integration::input::InputPriority::None
+                if self.input_manager.has_mouse_priority()
+                    || self.input_manager.get_priority() == InputPriority::None
                 {
                     self.input_manager
                         .focus()

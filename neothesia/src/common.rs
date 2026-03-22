@@ -1,6 +1,8 @@
-//! Common types used by both WGPU and PLY rendering paths
+//! Common types used by Neothesia
 
 use midi_file::midly::MidiMessage;
+
+use crate::scoring_data::ScoreData;
 
 /// Events that can be sent to the Neothesia application
 #[derive(Debug)]
@@ -12,7 +14,7 @@ pub enum NeothesiaEvent {
     ShowSongLibrary(Option<crate::Song>),
     ShowScore {
         song: crate::Song,
-        score_data: crate::scene::playing_scene::midi_player::ScoreData,
+        score_data: ScoreData,
     },
     MidiInput {
         channel: u8,

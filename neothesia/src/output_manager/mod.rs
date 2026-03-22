@@ -7,9 +7,6 @@ pub mod synth_backend;
 #[cfg(feature = "synth")]
 pub use synth_backend::SynthBackend;
 
-pub mod ply_bridge;
-pub use ply_bridge::{PlyAudioBridge, PlyAudioIntegration, PlyOutputWrapper};
-
 use std::{
     fmt::{self, Display, Formatter},
     fs,
