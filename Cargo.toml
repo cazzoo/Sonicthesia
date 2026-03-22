@@ -1,16 +1,12 @@
 [workspace]
 members = [
   "piano-layout",
-  "wgpu-jumpstart",
-  "ffmpeg-encoder",
   "neothesia",
   "neothesia-ai",
-  "neothesia-cli",
   "neothesia-core",
   "neothesia-image",
   "midi-file",
   "midi-io",
-  "nuon",
 ]
 
 default-members = ["neothesia"]
@@ -20,22 +16,16 @@ resolver = "2"
 edition = "2024"
 
 [workspace.dependencies]
-wgpu-jumpstart = { path = "./wgpu-jumpstart" }
 neothesia-core = { path = "./neothesia-core" }
 neothesia-image = { path = "./neothesia-image" }
 midi-file = { path = "./midi-file" }
 midi-io = { path = "./midi-io" }
 piano-layout = { path = "./piano-layout" }
-ffmpeg-encoder = { path = "./ffmpeg-encoder" }
-nuon = { path = "./nuon" }
 ply-engine = "1.0.3"
 
 anyhow = "1"
 thiserror = "2.0"
 log = "0.4"
-
-wgpu = "28"
-glyphon = "0.10"
 
 bytes = "1"
 
@@ -66,16 +56,6 @@ puffin_http = "0.16"
 cosmic-text = "0.15"
 png = "0.18"
 midly = "0.5"
-
-# neothesia-cli deps
-ffmpeg = { package = "ffmpeg-sys-next", version = "8", default-features = false }
-clap = { version = "4.5.41", default-features = false, features = [
-  "color",
-  "error-context",
-  "help",
-  "std",
-  "usage",
-] }
 
 # neothesia-ai deps
 ndarray = "0.17"
