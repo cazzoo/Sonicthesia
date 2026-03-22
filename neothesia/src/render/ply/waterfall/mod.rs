@@ -259,33 +259,34 @@ impl PlyWaterfallRenderer {
 
         let range_start = layout.range.start() as usize;
 
-        // Debug: Log rendering state every 60 frames (approx 1 second)
-        static mut FRAME_COUNT: u32 = 0;
-        let should_log = unsafe {
-            FRAME_COUNT += 1;
-            FRAME_COUNT % 60 == 0
-        };
-
-        let mut visible_notes = 0;
-        let mut culled_notes = 0;
-        let mut total_notes = 0;
-        let mut min_start_time = f32::MAX;
-        let mut max_start_time = f32::MIN;
+        // Color palettes from design spec
+        // Right Hand (RH): Warm colors - Magenta, Purple, Pink
+        let rh_colors = [
+            Color::from_rgba(255, 0, 255, 255),   // Magenta #ff00ff
+            Color::from_rgba(168, 85, 247, 255),  // Purple #a855f7
+            Color::from_rgba(244, 114, 182, 255), // Pink #f472b6
+        ];
+        // Left Hand (LH): Cool colors - Blue, Cyan, Teal
+        let lh_colors = [
+            Color::from_rgba(37, 99, 235, 255),  // Blue #2563eb
+            Color::from_rgba(34, 211, 238, 255), // Cyan #22d3ee
+            Color::from_rgba(45, 212, 191, 255), // Teal #2dd4bf
+        ];
 
         for note in self.notes.inner().iter() {
             if layout.range.contains(note.note) && note.channel != 9 {
-                total_notes += 1;
-
                 let key = &layout.keys[note.note as usize - range_start];
 
-                let color_idx = note.track_color_id % self.config.color_scheme.len();
-                let ply_color = &self.config.color_scheme[color_idx];
-                let color = Color {
-                    r: ply_color.r / 255.0,
-                    g: ply_color.g / 255.0,
-                    b: ply_color.b / 255.0,
-                    a: 1.0,
+                // Determine left/right hand based on MIDI channel
+                // Channel 0 = Right Hand, Channel 1 = Left Hand
+                let is_right_hand = note.channel == 0;
+                let color_palette = if is_right_hand {
+                    &rh_colors
+                } else {
+                    &lh_colors
                 };
+                let color_idx = note.track_color_id % color_palette.len();
+                let color = color_palette[color_idx];
 
                 let note_start = note.start.as_secs_f32();
                 let note_duration = note.duration.as_secs_f32();
@@ -293,61 +294,37 @@ impl PlyWaterfallRenderer {
                 let y = keyboard_top - (time_until_start * pixels_per_second);
                 let height = note_duration * pixels_per_second;
 
-                // Track note time range for debug
-                if should_log {
-                    min_start_time = min_start_time.min(note_start);
-                    max_start_time = max_start_time.max(note_start);
-                }
-
-                // Culling: hide notes completely off-screen
-                // Notes should be visible while falling from top toward keyboard
-                let note_bottom = y + height;
-                if note_bottom < 0.0 || y > screen_h {
-                    culled_notes += 1;
-                    continue;
-                }
-
-                visible_notes += 1;
-
                 let x = keyboard_x + key.x() * scale_x;
                 let w = key.width() * scale_x - 1.0;
 
-                draw_rectangle(x, y, w, height.max(4.0), color);
-            }
-        }
+                // Clip notes at keyboard boundary - don't show below keyboard
+                let note_bottom = y + height;
+                let clipped_bottom = note_bottom.min(keyboard_top);
+                let clipped_height = (clipped_bottom - y).max(0.0);
 
-        // Debug logging with println! for visibility
-        if should_log {
-            println!(
-                "[WATERFALL] t={:.2}s | {} total, {} vis, {} culled | range: {:.1}-{:.1}s | kb_top={:.0} pps={:.0}",
-                self.current_time,
-                total_notes,
-                visible_notes,
-                culled_notes,
-                min_start_time,
-                max_start_time,
-                keyboard_top,
-                pixels_per_second
-            );
+                // Skip if note is completely off screen
+                if clipped_height <= 0.0 || y > keyboard_top || y + clipped_height < 0.0 {
+                    continue;
+                }
 
-            // Log first 3 notes with positions
-            for (i, note) in self.notes.inner().iter().take(3).enumerate() {
-                let note_start = note.start.as_secs_f32();
-                let note_dur = note.duration.as_secs_f32();
-                let time_until = note_start - self.current_time;
-                let y_pos = keyboard_top - (time_until * pixels_per_second);
-                let h = note_dur * pixels_per_second;
-                println!(
-                    "  [{}] midi={} start={:.2}s dur={:.2}s => y={:.0} h={:.0} bot={:.0} in={:.2}s",
-                    i,
-                    note.note,
-                    note_start,
-                    note_dur,
-                    y_pos,
-                    h,
-                    y_pos + h,
-                    time_until
+                // Draw glow effect (larger, semi-transparent rectangle behind)
+                let glow_color =
+                    Color::from_rgba((color.r as u8), (color.g as u8), (color.b as u8), 60);
+                draw_rectangle(x - 2.0, y - 2.0, w + 4.0, clipped_height + 4.0, glow_color);
+
+                // Draw main note with rounded appearance (simulated via multiple rects)
+                // Main body
+                draw_rectangle(x, y, w, clipped_height.max(4.0), color);
+
+                // Top highlight for depth
+                let highlight_height = (clipped_height * 0.15).min(8.0);
+                let highlight_color = Color::from_rgba(
+                    ((color.r as f32) * 1.3).min(255.0) as u8,
+                    ((color.g as f32) * 1.3).min(255.0) as u8,
+                    ((color.b as f32) * 1.3).min(255.0) as u8,
+                    180,
                 );
+                draw_rectangle(x, y, w, highlight_height, highlight_color);
             }
         }
     }

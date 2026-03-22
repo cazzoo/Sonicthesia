@@ -12,6 +12,8 @@ pub struct Waterfall2D {
     pressed_keys: Vec<u8>,
     keyboard_top: f32,
     keyboard_height: f32,
+    rh_colors: Vec<(u8, u8, u8)>,
+    lh_colors: Vec<(u8, u8, u8)>,
 }
 
 impl Waterfall2D {
@@ -29,6 +31,18 @@ impl Waterfall2D {
             pressed_keys: Vec::new(),
             keyboard_top,
             keyboard_height,
+            // Right Hand: Magenta, Purple, Pink
+            rh_colors: vec![
+                (255, 0, 255),   // Magenta
+                (168, 85, 247),  // Purple
+                (244, 114, 182), // Pink
+            ],
+            // Left Hand: Blue, Cyan, Teal
+            lh_colors: vec![
+                (37, 99, 235),  // Blue
+                (34, 211, 238), // Cyan
+                (45, 212, 191), // Teal
+            ],
         }
     }
 
@@ -52,18 +66,30 @@ impl Waterfall2D {
         let y = self.keyboard_top - (time_until_start * pixels_per_second);
         let height = note_duration * pixels_per_second;
 
-        if y + height < 0.0 || y > self.keyboard_top {
+        // Clip at keyboard boundary
+        let note_bottom = y + height;
+        let clipped_bottom = note_bottom.min(self.keyboard_top);
+        let clipped_height = (clipped_bottom - y).max(0.0);
+
+        if clipped_height <= 0.0 || y > self.keyboard_top || y + clipped_height < 0.0 {
             return None;
         }
 
-        let color_idx = note.track_color_id % self.config.colors.len();
-        let color = self.config.colors[color_idx];
+        // Determine color based on hand (channel)
+        let is_right_hand = note.channel == 0;
+        let color_palette = if is_right_hand {
+            &self.rh_colors
+        } else {
+            &self.lh_colors
+        };
+        let color_idx = note.track_color_id % color_palette.len();
+        let color = color_palette[color_idx];
 
         Some(NoteVisual {
             x: key.x(),
             y,
             width: key.width() - 1.0,
-            height: height.max(4.0),
+            height: clipped_height.max(4.0),
             color: (color.0, color.1, color.2, 255),
             is_sharp,
             progress: 0.0,
@@ -109,7 +135,35 @@ impl WaterfallRenderer for Waterfall2D {
                 visual.color.2,
                 visual.color.3,
             );
+
+            // Glow effect
+            let glow_color = Color::from_rgba(visual.color.0, visual.color.1, visual.color.2, 60);
+            draw_rectangle(
+                visual.x - 2.0,
+                visual.y - 2.0,
+                visual.width + 4.0,
+                visual.height + 4.0,
+                glow_color,
+            );
+
+            // Main note body
             draw_rectangle(visual.x, visual.y, visual.width, visual.height, color);
+
+            // Top highlight for depth
+            let highlight_height = (visual.height * 0.15).min(8.0);
+            let highlight_color = Color::from_rgba(
+                ((visual.color.0 as f32) * 1.3).min(255.0) as u8,
+                ((visual.color.1 as f32) * 1.3).min(255.0) as u8,
+                ((visual.color.2 as f32) * 1.3).min(255.0) as u8,
+                180,
+            );
+            draw_rectangle(
+                visual.x,
+                visual.y,
+                visual.width,
+                highlight_height,
+                highlight_color,
+            );
         }
     }
 
