@@ -1038,43 +1038,68 @@ impl PlyPlayingScene {
         1.0
     }
 
-    fn simulate_note_hit(&mut self) {
-        let roll = ((self.playback_time * 1000.0) as u32 % 100) as f32 / 100.0;
+    fn find_matching_note(&self, pressed_note: u8) -> Option<std::time::Duration> {
+        use std::time::Duration;
 
-        let quality = if roll < 0.4 {
-            TimingQuality::Perfect
-        } else if roll < 0.7 {
-            TimingQuality::Good
-        } else if roll < 0.9 {
-            TimingQuality::Okay
-        } else {
-            TimingQuality::Miss
+        let Some(waterfall) = &self.waterfall else {
+            return None;
         };
 
-        let (_, milestone) = self.live_score.on_note_hit(quality);
-        self.last_timing_quality = Some(quality);
+        let current_time_secs = self.playback_time;
+        let timing_window = Duration::from_millis(200);
 
-        match quality {
-            TimingQuality::Miss => {
-                self.effects.trigger_shake(ScreenShake::small());
+        for midi_note in waterfall.notes().inner().iter() {
+            if midi_note.note != pressed_note {
+                continue;
             }
-            _ => {}
+
+            let note_start = midi_note.start;
+            let note_start_secs = note_start.as_secs_f32();
+
+            let delta = if current_time_secs >= note_start_secs {
+                Duration::from_secs_f32(current_time_secs - note_start_secs)
+            } else {
+                Duration::from_secs_f32(note_start_secs - current_time_secs)
+            };
+
+            if delta <= timing_window {
+                return Some(delta);
+            }
         }
 
-        if let Some(m) = milestone {
-            match m {
-                StreakMilestone::Multiplier8x => {
-                    self.effects.trigger_flash(ScreenFlash::gold(0.3));
-                }
-                StreakMilestone::OnFire => {
-                    self.effects.trigger_shake(ScreenShake::medium());
-                    self.effects.trigger_flash(ScreenFlash::gold(0.5));
-                }
-                StreakMilestone::Legendary => {
-                    self.effects.trigger_shake(ScreenShake::large());
-                    self.effects.trigger_flash(ScreenFlash::gold(0.8));
+        None
+    }
+
+    fn process_note_hit(&mut self, pressed_note: u8) {
+        use std::time::Duration;
+
+        if let Some(delta) = self.find_matching_note(pressed_note) {
+            let quality = TimingQuality::from_delta(delta);
+            let (_, milestone) = self.live_score.on_note_hit(quality);
+            self.last_timing_quality = Some(quality);
+
+            match quality {
+                TimingQuality::Miss => {
+                    self.effects.trigger_shake(ScreenShake::small());
                 }
                 _ => {}
+            }
+
+            if let Some(m) = milestone {
+                match m {
+                    StreakMilestone::Multiplier8x => {
+                        self.effects.trigger_flash(ScreenFlash::gold(0.3));
+                    }
+                    StreakMilestone::OnFire => {
+                        self.effects.trigger_shake(ScreenShake::medium());
+                        self.effects.trigger_flash(ScreenFlash::gold(0.5));
+                    }
+                    StreakMilestone::Legendary => {
+                        self.effects.trigger_shake(ScreenShake::large());
+                        self.effects.trigger_flash(ScreenFlash::gold(0.8));
+                    }
+                    _ => {}
+                }
             }
         }
     }
@@ -1455,8 +1480,8 @@ impl PlyScene for PlyPlayingScene {
                     MouseButton::Left,
                     true,
                 ) {
-                    self.simulate_note_hit();
                     for note in notes {
+                        self.process_note_hit(note);
                         let message = MidiMessage::NoteOn {
                             key: u7::new(note),
                             vel: u7::new(100),
@@ -1519,8 +1544,9 @@ impl PlyScene for PlyPlayingScene {
 
         match message {
             MidiMessage::NoteOn { key, vel } => {
-                self.piano_keyboard
-                    .handle_note_event(key.as_int(), vel.as_int());
+                let note = key.as_int();
+                self.process_note_hit(note);
+                self.piano_keyboard.handle_note_event(note, vel.as_int());
             }
             MidiMessage::NoteOff { key, .. } => {
                 self.piano_keyboard.handle_note_event(key.as_int(), 0);
