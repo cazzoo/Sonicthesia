@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Piano Studio - Folders Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+        tailwind.config = {
+            darkMode: "class",
+            theme: {
+                extend: {
+                    colors: {
+                        "surface-container-highest": "#25252c",
+                        "primary-dim": "#d277ff",
+                        "outline-variant": "#48474d",
+                        "inverse-primary": "#9027c4",
+                        "tertiary-container": "#fc345d",
+                        "secondary": "#5f9eff",
+                        "error-container": "#a70138",
+                        "primary-container": "#d37bff",
+                        "surface-tint": "#db90ff",
+                        "on-primary-fixed-variant": "#4a006b",
+                        "surface-container": "#19191f",
+                        "tertiary": "#ff6e80",
+                        "primary-fixed": "#d37bff",
+                        "on-tertiary-fixed": "#39000b",
+                        "on-surface-variant": "#acaab1",
+                        "secondary-container": "#005db8",
+                        "on-background": "#f8f5fd",
+                        "on-error": "#490013",
+                        "on-secondary-fixed-variant": "#004f9f",
+                        "on-tertiary-container": "#000000",
+                        "primary": "#db90ff",
+                        "tertiary-fixed-dim": "#ff7987",
+                        "on-tertiary-fixed-variant": "#780022",
+                        "on-primary-container": "#3c0057",
+                        "surface-bright": "#2c2b33",
+                        "tertiary-fixed": "#ff909a",
+                        "surface-container-lowest": "#000000",
+                        "secondary-fixed-dim": "#a5c5ff",
+                        "surface-container-low": "#131318",
+                        "inverse-on-surface": "#55545a",
+                        "secondary-dim": "#0073e0",
+                        "surface-variant": "#25252c",
+                        "on-secondary-container": "#f7f7ff",
+                        "tertiary-dim": "#e21d4d",
+                        "surface-container-high": "#1f1f26",
+                        "on-tertiary": "#490011",
+                        "on-secondary-fixed": "#00336b",
+                        "primary-fixed-dim": "#cb66fe",
+                        "on-primary-fixed": "#000000",
+                        "outline": "#76747b",
+                        "on-surface": "#f8f5fd",
+                        "background": "#0e0e13",
+                        "error-dim": "#d73357",
+                        "error": "#ff6e84",
+                        "on-secondary": "#001f46",
+                        "surface": "#0e0e13",
+                        "inverse-surface": "#fbf8ff",
+                        "surface-dim": "#0e0e13",
+                        "on-primary": "#4e0070",
+                        "secondary-fixed": "#bcd2ff",
+                        "on-error-container": "#ffb2b9"
+                    },
+                    fontFamily: {
+                        "headline": ["Space Grotesk"],
+                        "body": ["Inter"],
+                        "label": ["Inter"]
+                    },
+                    borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+                },
+            },
+        }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(37, 37, 44, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .neon-gradient {
+            background: linear-gradient(135deg, #db90ff 0%, #d37bff 100%);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30">
+<!-- SideNavBar Anchor -->
+<aside class="flex flex-col h-screen p-6 h-full w-64 fixed left-0 top-0 border-r border-transparent bg-[#0e0e13] shadow-[0_0_32px_0_rgba(219,144,255,0.06)] z-50">
+<div class="mb-10 px-2">
+<span class="text-2xl font-bold tracking-tighter text-[#db90ff] font-['Space_Grotesk']">Piano Studio</span>
+<div class="flex items-center mt-6 gap-3">
+<div class="w-10 h-10 rounded-lg overflow-hidden bg-surface-container-highest flex items-center justify-center">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Cyberpunk style user profile avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuC_NLW65DShb4mkjyhv6NUn96hsPyhdRl9---RSqY8dwp-nFsa1kAkzK29i6lfCRANP7Vkljc6nZoJ6T44b0rTyW7VrjUxZea8-sIngYe-F33iI2ifU8WiiNcD_rzGEQ-nCsg4QqMGGhQEVQR8gMn76hohcDpIKZaoR-6xyNO2r5NLnZ1FNEOV8gnsii2gXW3m_Z_-sMoYHcoofkIzURJJKBNxViI-uJnmJM-jdmLsRPvO87qckMCbJiH7PnzZASdILLePMx3-lDR-W"/>
+</div>
+<div>
+<p class="text-sm font-bold text-on-surface font-headline leading-none">Pro Performer</p>
+<p class="text-[10px] text-on-surface-variant tracking-wider uppercase mt-1">Status: Active</p>
+</div>
+</div>
+</div>
+<nav class="flex-1 space-y-2">
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#acaab1] hover:text-[#f8f5fd] hover:bg-[#19191f] transition-all duration-300 active:scale-95 font-['Space_Grotesk'] tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="settings">settings</span>
+<span>General</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#acaab1] hover:text-[#f8f5fd] hover:bg-[#19191f] transition-all duration-300 active:scale-95 font-['Space_Grotesk'] tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="piano">piano</span>
+<span>MIDI Setup</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#acaab1] hover:text-[#f8f5fd] hover:bg-[#19191f] transition-all duration-300 active:scale-95 font-['Space_Grotesk'] tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="speaker_group">speaker_group</span>
+<span>Audio/Soundfonts</span>
+</a>
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#acaab1] hover:text-[#f8f5fd] hover:bg-[#19191f] transition-all duration-300 active:scale-95 font-['Space_Grotesk'] tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="palette">palette</span>
+<span>Themes</span>
+</a>
+<!-- Active State: Folders -->
+<a class="flex items-center gap-3 px-4 py-3 rounded-lg text-[#db90ff] bg-[#25252c] border-l-2 border-[#ff6e80] transition-all duration-300 active:scale-95 font-['Space_Grotesk'] tracking-tight" href="#">
+<span class="material-symbols-outlined" data-icon="folder_open">folder_open</span>
+<span>Folders</span>
+</a>
+</nav>
+<div class="mt-auto pt-6 border-t border-outline-variant/20">
+<div class="bg-surface-container-low p-4 rounded-xl">
+<p class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest mb-2">Storage Usage</p>
+<div class="h-1 w-full bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full w-2/3 bg-primary"></div>
+</div>
+<p class="text-[10px] text-primary mt-2">1.2 GB / 2.0 GB</p>
+</div>
+</div>
+</aside>
+<!-- Main Content Area -->
+<main class="ml-64 min-h-screen">
+<!-- TopAppBar Anchor -->
+<header class="fixed top-0 right-0 w-[calc(100%-16rem)] z-40 bg-[#0e0e13]/80 backdrop-blur-xl flex justify-between items-center px-10 py-4 font-['Space_Grotesk'] font-medium">
+<div class="flex items-center gap-4">
+<span class="text-xl font-black text-[#f8f5fd]">Settings</span>
+<span class="text-on-surface-variant text-sm">/ Folders</span>
+</div>
+<div class="flex items-center gap-6">
+<div class="relative group">
+<input class="bg-surface-container border-none rounded-lg py-2 pl-10 pr-4 text-sm focus:ring-1 focus:ring-primary w-64 transition-all" placeholder="Search parameters..." type="text"/>
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant text-sm" data-icon="search">search</span>
+</div>
+<div class="flex items-center gap-4 text-on-surface-variant">
+<button class="hover:text-[#db90ff] transition-colors tap-highlight-transparent">
+<span class="material-symbols-outlined" data-icon="help_outline">help_outline</span>
+</button>
+<button class="hover:text-[#db90ff] transition-colors tap-highlight-transparent relative">
+<span class="material-symbols-outlined" data-icon="notifications">notifications</span>
+<span class="absolute top-0 right-0 w-2 h-2 bg-tertiary rounded-full"></span>
+</button>
+</div>
+</div>
+</header>
+<!-- Page Content -->
+<div class="pt-24 px-10 pb-20 max-w-6xl">
+<div class="mb-12">
+<h1 class="text-4xl font-black font-headline tracking-tighter mb-4 text-on-surface">Directory Management</h1>
+<p class="text-on-surface-variant max-w-2xl leading-relaxed">Configure the source directories for your MIDI compositions and Soundfont libraries. Changes take effect after the next index scan.</p>
+</div>
+<!-- Bento Grid Layout -->
+<div class="grid grid-cols-12 gap-8">
+<!-- MIDI Folders Section -->
+<div class="col-span-12 lg:col-span-7 space-y-6">
+<div class="glass-panel p-8 rounded-xl border border-outline-variant/10">
+<div class="flex items-center justify-between mb-8">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary">
+<span class="material-symbols-outlined text-3xl" data-icon="library_music">library_music</span>
+</div>
+<div>
+<h2 class="text-xl font-bold font-headline">MIDI Song Directories</h2>
+<p class="text-xs text-on-surface-variant">Search paths for .mid and .midi files</p>
+</div>
+</div>
+<button class="neon-gradient px-4 py-2 rounded-lg text-on-primary font-bold text-sm flex items-center gap-2 hover:shadow-[0_0_20px_0_rgba(219,144,255,0.4)] transition-all active:scale-95">
+<span class="material-symbols-outlined text-sm" data-icon="add">add</span>
+                                Add MIDI Folder
+                            </button>
+</div>
+<div class="space-y-4">
+<!-- Folder Item 1 -->
+<div class="flex items-center justify-between p-4 bg-surface-container-high rounded-lg hover:bg-surface-container-highest transition-colors group">
+<div class="flex items-center gap-4 min-w-0">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="folder">folder</span>
+<div class="min-w-0">
+<p class="text-sm font-medium text-on-surface truncate">C:\Users\StudioUser\Documents\PianoStudio\MIDI_Exports</p>
+<p class="text-[10px] text-on-surface-variant">428 files detected • Last scanned 2h ago</p>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+<!-- Folder Item 2 -->
+<div class="flex items-center justify-between p-4 bg-surface-container-high rounded-lg hover:bg-surface-container-highest transition-colors group">
+<div class="flex items-center gap-4 min-w-0">
+<span class="material-symbols-outlined text-on-surface-variant" data-icon="folder">folder</span>
+<div class="min-w-0">
+<p class="text-sm font-medium text-on-surface truncate">D:\Production\Assets\Midi_Archive\Classical</p>
+<p class="text-[10px] text-on-surface-variant">1,205 files detected • Last scanned 1d ago</p>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+<!-- Folder Item 3 (External) -->
+<div class="flex items-center justify-between p-4 bg-surface-container-high rounded-lg hover:bg-surface-container-highest transition-colors group">
+<div class="flex items-center gap-4 min-w-0">
+<span class="material-symbols-outlined text-secondary" data-icon="usb">usb</span>
+<div class="min-w-0">
+<p class="text-sm font-medium text-on-surface truncate">E:\Live_Performance_Stems</p>
+<p class="text-[10px] text-secondary">External Drive • Ready</p>
+</div>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Soundfonts & Global Actions -->
+<div class="col-span-12 lg:col-span-5 space-y-8">
+<!-- Soundfont Section -->
+<div class="glass-panel p-8 rounded-xl border border-outline-variant/10">
+<div class="flex items-center gap-4 mb-8">
+<div class="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined text-3xl" data-icon="audio_file">audio_file</span>
+</div>
+<div>
+<h2 class="text-xl font-bold font-headline">Soundfont Libraries</h2>
+<p class="text-xs text-on-surface-variant">Path for .sf2 and .sf3 files</p>
+</div>
+</div>
+<div class="space-y-4 mb-6">
+<div class="p-4 bg-surface-container-high rounded-lg border-l-2 border-secondary group relative">
+<div class="flex items-center justify-between">
+<p class="text-xs font-bold text-secondary uppercase tracking-widest mb-1">System Default</p>
+<span class="material-symbols-outlined text-xs text-secondary" data-icon="verified" data-weight="fill">verified</span>
+</div>
+<p class="text-sm text-on-surface truncate">C:\Program Files\PianoStudio\Assets\Soundfonts</p>
+</div>
+<div class="flex items-center justify-between p-4 bg-surface-container-high rounded-lg hover:bg-surface-container-highest transition-colors group">
+<div class="min-w-0">
+<p class="text-sm font-medium text-on-surface truncate">D:\Audio\Libraries\Custom_SFX</p>
+<p class="text-[10px] text-on-surface-variant">12 items</p>
+</div>
+<button class="p-2 text-on-surface-variant hover:text-error transition-colors">
+<span class="material-symbols-outlined" data-icon="delete">delete</span>
+</button>
+</div>
+</div>
+<button class="w-full py-3 rounded-lg border border-secondary/30 text-secondary hover:bg-secondary/10 transition-colors font-bold text-sm flex items-center justify-center gap-2">
+<span class="material-symbols-outlined text-sm" data-icon="folder_zip">folder_zip</span>
+                            Import Soundfont Pack
+                        </button>
+</div>
+<!-- Global Actions -->
+<div class="glass-panel p-8 rounded-xl border border-outline-variant/10 relative overflow-hidden">
+<!-- Background glow effect -->
+<div class="absolute -top-10 -right-10 w-32 h-32 bg-primary/20 blur-3xl rounded-full"></div>
+<h2 class="text-lg font-bold font-headline mb-6 relative z-10">Global Operations</h2>
+<div class="grid grid-cols-2 gap-4 relative z-10">
+<button class="flex flex-col items-center justify-center gap-3 p-6 bg-surface-container-high rounded-xl hover:bg-surface-container-highest border border-outline-variant/20 transition-all active:scale-95 group">
+<div class="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" data-icon="refresh">refresh</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-widest">Scan All</span>
+</button>
+<button class="flex flex-col items-center justify-center gap-3 p-6 bg-surface-container-high rounded-xl hover:bg-surface-container-highest border border-outline-variant/20 transition-all active:scale-95 group">
+<div class="w-10 h-10 rounded-full bg-tertiary/20 flex items-center justify-center text-tertiary group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined" data-icon="cleaning_services">cleaning_services</span>
+</div>
+<span class="text-xs font-bold uppercase tracking-widest">Clear Cache</span>
+</button>
+</div>
+<div class="mt-8 pt-6 border-t border-outline-variant/10">
+<div class="flex items-center justify-between text-[11px] mb-2">
+<span class="text-on-surface-variant">Database Integrity</span>
+<span class="text-secondary">Optimized</span>
+</div>
+<div class="flex items-center justify-between text-[11px]">
+<span class="text-on-surface-variant">Last Full Reindex</span>
+<span class="text-on-surface">Oct 24, 2023 14:20</span>
+</div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer Task Info -->
+<div class="mt-16 flex items-center gap-6 p-6 bg-surface-container-low rounded-xl border-l-4 border-tertiary">
+<div class="w-10 h-10 flex-shrink-0 bg-tertiary/10 rounded-full flex items-center justify-center text-tertiary">
+<span class="material-symbols-outlined" data-icon="info">info</span>
+</div>
+<div>
+<h4 class="text-sm font-bold font-headline text-on-surface">Auto-Sync Enabled</h4>
+<p class="text-xs text-on-surface-variant">Piano Studio is currently monitoring your specified folders for real-time updates. Large directories may impact background CPU performance.</p>
+</div>
+</div>
+</div>
+</main>
+<!-- Floating Toast Notification (Simulated State) -->
+<div class="fixed bottom-10 right-10 z-50 glass-panel border border-primary/30 p-4 rounded-xl shadow-[0_0_32px_0_rgba(219,144,255,0.1)] flex items-center gap-4">
+<div class="w-2 h-2 rounded-full bg-primary animate-pulse"></div>
+<p class="text-xs font-medium font-headline tracking-tight">Syncing folders: "MIDI_Exports" ...</p>
+</div>
+</body></html>

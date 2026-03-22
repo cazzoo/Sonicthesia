@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "tertiary-dim": "#e21d4d",
+              "surface-container-highest": "#25252c",
+              "on-secondary-fixed-variant": "#004f9f",
+              "inverse-on-surface": "#55545a",
+              "secondary-fixed": "#bcd2ff",
+              "background": "#0e0e13",
+              "inverse-primary": "#9027c4",
+              "outline": "#76747b",
+              "on-background": "#f8f5fd",
+              "on-error": "#490013",
+              "on-primary-container": "#3c0057",
+              "secondary-fixed-dim": "#a5c5ff",
+              "on-secondary": "#001f46",
+              "error-container": "#a70138",
+              "on-secondary-fixed": "#00336b",
+              "on-tertiary-container": "#000000",
+              "surface-dim": "#0e0e13",
+              "primary-fixed-dim": "#cb66fe",
+              "tertiary-fixed-dim": "#ff7987",
+              "on-tertiary": "#490011",
+              "outline-variant": "#48474d",
+              "secondary": "#5f9eff",
+              "secondary-container": "#005db8",
+              "on-tertiary-fixed": "#39000b",
+              "primary-fixed": "#d37bff",
+              "tertiary": "#ff6e80",
+              "surface-variant": "#25252c",
+              "tertiary-fixed": "#ff909a",
+              "on-primary-fixed": "#000000",
+              "surface-bright": "#2c2b33",
+              "surface-tint": "#db90ff",
+              "error": "#ff6e84",
+              "primary-container": "#d37bff",
+              "on-primary": "#4e0070",
+              "primary-dim": "#d277ff",
+              "on-tertiary-fixed-variant": "#780022",
+              "primary": "#db90ff",
+              "secondary-dim": "#0073e0",
+              "on-error-container": "#ffb2b9",
+              "surface-container-lowest": "#000000",
+              "on-surface": "#f8f5fd",
+              "on-surface-variant": "#acaab1",
+              "error-dim": "#d73357",
+              "inverse-surface": "#fbf8ff",
+              "surface": "#0e0e13",
+              "on-primary-fixed-variant": "#4a006b",
+              "on-secondary-container": "#f7f7ff",
+              "surface-container": "#19191f",
+              "surface-container-low": "#131318",
+              "surface-container-high": "#1f1f26",
+              "tertiary-container": "#fc345d"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        body {
+            background-color: #0e0e13;
+            color: #f8f5fd;
+            font-family: 'Inter', sans-serif;
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(37, 37, 44, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .primary-gradient {
+            background: linear-gradient(135deg, #db90ff 0%, #d37bff 100%);
+        }
+    </style>
+</head>
+<body class="selection:bg-primary/30">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-[#0e0e13] text-[#db90ff] font-['Space_Grotesk'] font-bold tracking-tight shadow-[0_0_20px_rgba(219,144,255,0.06)] flex items-center justify-between px-10 h-20 w-full">
+<div class="text-2xl font-black tracking-tighter text-[#db90ff] uppercase">Sonic Obsidian</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors" href="#">Library</a>
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors" href="#">Practice</a>
+<a class="text-[#db90ff] border-b-2 border-[#db90ff] pb-1" href="#">Settings</a>
+</nav>
+<div class="flex items-center gap-4">
+<div class="hidden lg:block relative">
+<input class="bg-[#19191f] border-none rounded-full px-4 py-2 text-sm focus:ring-1 focus:ring-primary w-64 text-on-surface placeholder-on-surface-variant" placeholder="Search..." type="text"/>
+</div>
+<button class="material-symbols-outlined p-2 rounded-full hover:bg-[#19191f] transition-all duration-300 active:scale-95 text-on-surface-variant">account_circle</button>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-20 h-[calc(100vh-5rem)] w-64 bg-[#131318] border-r border-[#48474d]/20 flex flex-col py-8 z-40">
+<div class="px-6 mb-8">
+<h2 class="text-lg font-bold text-[#f8f5fd] font-headline">Settings</h2>
+<p class="text-xs text-on-surface-variant uppercase tracking-widest font-medium">Configuration</p>
+</div>
+<nav class="flex flex-col">
+<a class="flex items-center gap-3 text-[#acaab1] px-6 py-4 hover:bg-[#19191f] transition-all hover:text-[#f8f5fd] active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span class="font-['Inter'] text-sm font-medium">General</span>
+</a>
+<a class="flex items-center gap-3 text-[#acaab1] px-6 py-4 hover:bg-[#19191f] transition-all hover:text-[#f8f5fd] active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined">piano</span>
+<span class="font-['Inter'] text-sm font-medium">MIDI Setup</span>
+</a>
+<a class="flex items-center gap-3 text-[#acaab1] px-6 py-4 hover:bg-[#19191f] transition-all hover:text-[#f8f5fd] active:translate-x-1 duration-200" href="#">
+<span class="material-symbols-outlined">graphic_eq</span>
+<span class="font-['Inter'] text-sm font-medium">Audio/Soundfonts</span>
+</a>
+<a class="flex items-center gap-3 bg-[#25252c] text-[#db90ff] border-l-4 border-[#ff6e80] px-6 py-4 active:translate-x-1 transition-transform" href="#">
+<span class="material-symbols-outlined">palette</span>
+<span class="font-['Inter'] text-sm font-medium">Themes</span>
+</a>
+</nav>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 mt-20 p-10 min-h-screen">
+<div class="max-w-6xl mx-auto">
+<!-- Header Section -->
+<header class="mb-12">
+<h1 class="text-5xl font-headline font-black text-on-surface mb-4 tracking-tighter">Themes &amp; Customization</h1>
+<p class="text-on-surface-variant text-lg max-w-2xl leading-relaxed">Personalize your sonic landscape. Adjust the visual harmonics of your performance environment to match your creative flow.</p>
+</header>
+<!-- Preset Gallery -->
+<section class="mb-16">
+<div class="flex items-center justify-between mb-8">
+<h2 class="text-2xl font-headline font-bold text-on-surface">Keyboard Theme Presets</h2>
+<span class="text-sm text-primary font-medium tracking-wide bg-primary/10 px-3 py-1 rounded-full uppercase">4 Presets Available</span>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+<!-- Cyberpunk (Active) -->
+<div class="group relative surface-container-highest rounded-lg p-1 bg-gradient-to-br from-primary to-tertiary overflow-hidden cursor-pointer">
+<div class="bg-surface-container-highest rounded-[0.4rem] p-4 h-full flex flex-col">
+<div class="aspect-video mb-4 rounded bg-background overflow-hidden relative border border-outline-variant/30">
+<div class="absolute inset-0 bg-gradient-to-t from-primary/20 to-transparent"></div>
+<div class="absolute bottom-2 left-2 right-2 flex gap-1 items-end h-12">
+<div class="w-1/6 h-full bg-on-surface rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-on-surface rounded-t-sm"></div>
+<div class="w-1/6 h-4/5 bg-primary shadow-[0_0_8px_rgba(219,144,255,0.8)] rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-on-surface rounded-t-sm"></div>
+<div class="w-1/6 h-3/5 bg-on-surface rounded-t-sm opacity-50"></div>
+<div class="w-1/6 h-full bg-on-surface rounded-t-sm"></div>
+</div>
+<img class="w-full h-full object-cover opacity-30" data-alt="Cyberpunk neon piano key visualization" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAQSwGaoY9LpXP1GI7ACJVfVYgPjAeVSetdXWbjTpemYtAZdS2X2LQRhsGLxAsUOTtuI2807hejwRhSkxXJPTPjFBK3fy-pnRvK7PFbbsId_Yjz2EXHDV8NqrqJlPHLvH2hoKiBdq4bpQ7Z2jSURHkOPw5TlV74lRzrPpFUvr2vUPsecZZmKEmaO-6YfmxoGBoH044S6g1bdgiBVlAd6oWxsj4QECqHYK-pAsDsh1Un9_28mhBL1aA0u2BJe6-ST4ZT_5AYp2tvV9kj"/>
+</div>
+<div class="flex items-center justify-between">
+<span class="font-headline font-bold text-on-surface">Cyberpunk</span>
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">check_circle</span>
+</div>
+</div>
+</div>
+<!-- Classic Ivory -->
+<div class="group surface-container rounded-lg p-5 cursor-pointer hover:bg-surface-container-high transition-all duration-300">
+<div class="aspect-video mb-4 rounded bg-background overflow-hidden relative border border-outline-variant/20">
+<div class="absolute bottom-2 left-2 right-2 flex gap-1 items-end h-12">
+<div class="w-1/6 h-full bg-[#f8f5fd] rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-[#f8f5fd] rounded-t-sm"></div>
+<div class="w-1/6 h-2/3 bg-[#131318] rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-[#f8f5fd] rounded-t-sm"></div>
+<div class="w-1/6 h-2/3 bg-[#131318] rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-[#f8f5fd] rounded-t-sm"></div>
+</div>
+</div>
+<span class="font-headline font-bold text-on-surface-variant group-hover:text-on-surface">Classic Ivory</span>
+</div>
+<!-- Neon Void -->
+<div class="group surface-container rounded-lg p-5 cursor-pointer hover:bg-surface-container-high transition-all duration-300">
+<div class="aspect-video mb-4 rounded bg-background overflow-hidden relative border border-outline-variant/20">
+<div class="absolute inset-0 bg-blue-500/10"></div>
+<div class="absolute bottom-2 left-2 right-2 flex gap-1 items-end h-12">
+<div class="w-1/6 h-full bg-secondary shadow-[0_0_8px_#5f9eff] rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-secondary/40 rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-secondary/20 rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-secondary/40 rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-secondary shadow-[0_0_8px_#5f9eff] rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-secondary/20 rounded-t-sm"></div>
+</div>
+</div>
+<span class="font-headline font-bold text-on-surface-variant group-hover:text-on-surface">Neon Void</span>
+</div>
+<!-- Retro Wave -->
+<div class="group surface-container rounded-lg p-5 cursor-pointer hover:bg-surface-container-high transition-all duration-300">
+<div class="aspect-video mb-4 rounded bg-background overflow-hidden relative border border-outline-variant/20">
+<div class="absolute inset-0 bg-gradient-to-br from-tertiary/20 to-primary/20"></div>
+<div class="absolute bottom-2 left-2 right-2 flex gap-1 items-end h-12">
+<div class="w-1/6 h-full bg-tertiary rounded-t-sm"></div>
+<div class="w-1/6 h-3/4 bg-primary rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-tertiary rounded-t-sm"></div>
+<div class="w-1/6 h-3/4 bg-primary rounded-t-sm"></div>
+<div class="w-1/6 h-full bg-tertiary rounded-t-sm"></div>
+<div class="w-1/6 h-3/4 bg-primary rounded-t-sm"></div>
+</div>
+</div>
+<span class="font-headline font-bold text-on-surface-variant group-hover:text-on-surface">Retro Wave</span>
+</div>
+</div>
+</section>
+<!-- Theme Creator -->
+<section class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+<!-- Form Area -->
+<div class="lg:col-span-7 surface-container p-8 rounded-lg shadow-[0_20px_40px_rgba(0,0,0,0.4)]">
+<h2 class="text-2xl font-headline font-bold text-on-surface mb-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary">edit_note</span>
+                        Create Custom Theme
+                    </h2>
+<div class="space-y-8">
+<!-- Theme Name -->
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Theme Name</label>
+<input class="w-full bg-surface-container-highest border-none rounded-lg p-4 text-on-surface focus:ring-1 focus:ring-secondary placeholder-on-surface-variant/30" type="text" value="Obsidian Night"/>
+</div>
+<!-- Color Pickers Grid -->
+<div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+<div class="space-y-3">
+<label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block">Primary Key Glow</label>
+<div class="flex items-center gap-3 bg-surface-container-highest p-3 rounded-lg border border-outline-variant/10">
+<div class="w-10 h-10 rounded-full bg-primary shadow-[0_0_10px_#db90ff]"></div>
+<span class="text-xs font-mono text-on-surface">#DB90FF</span>
+</div>
+</div>
+<div class="space-y-3">
+<label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block">Secondary Key Glow</label>
+<div class="flex items-center gap-3 bg-surface-container-highest p-3 rounded-lg border border-outline-variant/10">
+<div class="w-10 h-10 rounded-full bg-secondary shadow-[0_0_10px_#5f9eff]"></div>
+<span class="text-xs font-mono text-on-surface">#5F9EFF</span>
+</div>
+</div>
+<div class="space-y-3">
+<label class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block">Background Gradient</label>
+<div class="flex items-center gap-3 bg-surface-container-highest p-3 rounded-lg border border-outline-variant/10">
+<div class="w-10 h-10 rounded-full bg-tertiary shadow-[0_0_10px_#ff6e80]"></div>
+<span class="text-xs font-mono text-on-surface">#FF6E80</span>
+</div>
+</div>
+</div>
+<!-- Sliders -->
+<div class="grid grid-cols-1 md:grid-cols-2 gap-10">
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Glow Intensity</label>
+<span class="text-xs font-mono text-primary">85%</span>
+</div>
+<input class="w-full h-1 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" type="range"/>
+</div>
+<div class="space-y-4">
+<div class="flex justify-between items-center">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Glow Radius</label>
+<span class="text-xs font-mono text-primary">24px</span>
+</div>
+<input class="w-full h-1 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" type="range"/>
+</div>
+</div>
+<!-- Dropdown -->
+<div class="space-y-2">
+<label class="text-xs font-bold uppercase tracking-widest text-on-surface-variant ml-1">Note Trail Style</label>
+<div class="relative">
+<select class="w-full bg-surface-container-highest border-none rounded-lg p-4 text-on-surface focus:ring-1 focus:ring-secondary appearance-none">
+<option>Particles</option>
+<option>Solid Beam</option>
+<option selected="">Neon Fade</option>
+<option>Digital Rain</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<!-- Action Buttons -->
+<div class="flex items-center justify-end gap-4 pt-4">
+<button class="px-8 py-3 text-on-surface-variant font-bold hover:text-on-surface transition-colors">Reset</button>
+<button class="px-10 py-3 primary-gradient text-on-primary font-headline font-black rounded-lg shadow-[0_8px_20px_rgba(219,144,255,0.3)] hover:scale-[1.02] active:scale-95 transition-all">Save Theme</button>
+</div>
+</div>
+</div>
+<!-- Preview Area -->
+<div class="lg:col-span-5 flex flex-col gap-6">
+<div class="surface-container-high p-8 rounded-lg flex-1 flex flex-col border-l-2 border-tertiary">
+<h3 class="text-sm font-bold uppercase tracking-widest text-on-surface-variant mb-8">Live Preview</h3>
+<!-- Visual Keyboard Snippet -->
+<div class="flex-1 flex items-center justify-center">
+<div class="w-full max-w-xs aspect-square glass-panel rounded-2xl p-6 flex flex-col items-center justify-center relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-br from-primary/5 to-secondary/5 pointer-events-none"></div>
+<div class="w-full space-y-4 relative z-10">
+<!-- Dynamic Note Visualizer -->
+<div class="h-32 flex justify-around items-end gap-1">
+<div class="w-4 bg-gradient-to-t from-primary to-transparent h-[40%] rounded-full opacity-30"></div>
+<div class="w-4 bg-gradient-to-t from-primary to-transparent h-[80%] rounded-full shadow-[0_0_15px_#db90ff]"></div>
+<div class="w-4 bg-gradient-to-t from-secondary to-transparent h-[60%] rounded-full shadow-[0_0_15px_#5f9eff]"></div>
+<div class="w-4 bg-gradient-to-t from-primary to-transparent h-[90%] rounded-full shadow-[0_0_20px_#db90ff]"></div>
+<div class="w-4 bg-gradient-to-t from-secondary to-transparent h-[40%] rounded-full opacity-30"></div>
+</div>
+<!-- Mini Keyboard -->
+<div class="bg-background/80 p-2 rounded-lg border border-outline-variant/20 flex gap-0.5 h-20 items-stretch">
+<div class="flex-1 bg-on-surface rounded-sm relative"></div>
+<div class="flex-1 bg-on-surface rounded-sm"></div>
+<div class="flex-1 bg-primary shadow-[0_0_12px_#db90ff] rounded-sm"></div>
+<div class="flex-1 bg-on-surface rounded-sm"></div>
+<div class="flex-1 bg-secondary shadow-[0_0_12px_#5f9eff] rounded-sm"></div>
+<div class="flex-1 bg-on-surface rounded-sm"></div>
+<div class="flex-1 bg-on-surface rounded-sm"></div>
+</div>
+</div>
+</div>
+</div>
+<div class="mt-8 space-y-4">
+<button class="w-full py-4 bg-surface-container-highest border border-outline-variant/20 text-on-surface font-headline font-bold rounded-lg flex items-center justify-center gap-3 hover:bg-surface-container transition-all group">
+<span class="material-symbols-outlined group-hover:rotate-12 transition-transform">visibility</span>
+                                Full Screen Preview
+                            </button>
+<p class="text-[11px] text-center text-on-surface-variant uppercase tracking-wider">Changes are reflected in real-time</p>
+</div>
+</div>
+<!-- Performance HUD Card -->
+<div class="surface-container p-6 rounded-lg border border-outline-variant/10">
+<div class="flex items-center gap-4">
+<div class="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">auto_awesome</span>
+</div>
+<div>
+<h4 class="font-headline font-bold text-on-surface">AI Aura Generation</h4>
+<p class="text-xs text-on-surface-variant">Match theme colors to your playing mood.</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+</main>
+<!-- Global FAB Suppression (as per instructions for detail/settings screens) -->
+</body></html>

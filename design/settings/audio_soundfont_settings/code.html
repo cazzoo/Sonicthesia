@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sonic Obsidian Piano - Audio Settings</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-error": "#490013",
+              "surface-container-high": "#1f1f26",
+              "on-surface-variant": "#acaab1",
+              "on-error-container": "#ffb2b9",
+              "primary-dim": "#d277ff",
+              "inverse-on-surface": "#55545a",
+              "tertiary-fixed": "#ff909a",
+              "tertiary-dim": "#e21d4d",
+              "primary-container": "#d37bff",
+              "surface": "#0e0e13",
+              "tertiary": "#ff6e80",
+              "outline-variant": "#48474d",
+              "surface-container-lowest": "#000000",
+              "tertiary-fixed-dim": "#ff7987",
+              "surface-container-highest": "#25252c",
+              "on-primary-fixed": "#000000",
+              "on-primary-fixed-variant": "#4a006b",
+              "on-background": "#f8f5fd",
+              "primary-fixed": "#d37bff",
+              "on-tertiary": "#490011",
+              "inverse-primary": "#9027c4",
+              "on-tertiary-fixed-variant": "#780022",
+              "surface-variant": "#25252c",
+              "error-container": "#a70138",
+              "on-secondary-fixed": "#00336b",
+              "secondary": "#5f9eff",
+              "surface-tint": "#db90ff",
+              "secondary-fixed-dim": "#a5c5ff",
+              "surface-container-low": "#131318",
+              "on-tertiary-fixed": "#39000b",
+              "on-secondary-fixed-variant": "#004f9f",
+              "primary": "#db90ff",
+              "on-primary": "#4e0070",
+              "on-primary-container": "#3c0057",
+              "primary-fixed-dim": "#cb66fe",
+              "surface-container": "#19191f",
+              "outline": "#76747b",
+              "tertiary-container": "#fc345d",
+              "inverse-surface": "#fbf8ff",
+              "on-secondary-container": "#f7f7ff",
+              "error-dim": "#d73357",
+              "error": "#ff6e84",
+              "surface-bright": "#2c2b33",
+              "on-tertiary-container": "#000000",
+              "on-surface": "#f8f5fd",
+              "secondary-dim": "#0073e0",
+              "on-secondary": "#001f46",
+              "secondary-fixed": "#bcd2ff",
+              "background": "#0e0e13",
+              "surface-dim": "#0e0e13",
+              "secondary-container": "#005db8"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0e0e13; }
+        ::-webkit-scrollbar-thumb { background: #25252c; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb:hover { background: #48474d; }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<nav class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-16 w-full bg-[#131318] shadow-[0_0_20px_rgba(219,144,255,0.15)] font-['Space_Grotesk'] tracking-tight">
+<div class="text-2xl font-bold tracking-tighter text-[#f8f5fd]">Sonic Obsidian Piano</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors duration-300" href="#">Library</a>
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors duration-300" href="#">Practice</a>
+<a class="text-[#db90ff] border-b-2 border-[#db90ff] pb-1" href="#">Settings</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 text-[#acaab1] hover:bg-[#25252c] transition-colors duration-300 rounded-full active:scale-95 duration-200">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</nav>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#131318] flex flex-col py-6 px-4 gap-4 font-['Inter'] text-sm hidden md:flex">
+<div class="mb-4 px-2">
+<h2 class="text-lg font-bold text-[#f8f5fd]">Library Explorer</h2>
+<p class="text-[10px] uppercase tracking-widest text-[#acaab1]">Manage MIDI Input</p>
+</div>
+<div class="space-y-1">
+<div class="flex items-center gap-3 py-3 px-4 rounded-lg text-[#acaab1] hover:bg-[#19191f] transition-all cursor-pointer">
+<span class="material-symbols-outlined">folder_open</span>
+<span>MIDI Library</span>
+</div>
+<div class="flex items-center gap-3 py-3 px-4 rounded-lg text-[#acaab1] hover:bg-[#19191f] transition-all cursor-pointer">
+<span class="material-symbols-outlined">music_note</span>
+<span>Song Lists</span>
+</div>
+<div class="flex items-center gap-3 py-3 px-4 rounded-lg text-[#acaab1] hover:bg-[#19191f] transition-all cursor-pointer">
+<span class="material-symbols-outlined">mic_external_on</span>
+<span>Recordings</span>
+</div>
+<!-- Active Tab Mapping to User Intent -->
+<div class="flex items-center gap-3 py-3 px-4 rounded-lg bg-[#25252c] text-[#db90ff] border-l-4 border-[#ff6e80] transition-all cursor-pointer">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</div>
+</div>
+<div class="mt-auto p-4 bg-surface-container rounded-xl">
+<div class="flex items-center gap-3">
+<div class="w-10 h-10 rounded-full overflow-hidden bg-primary-container">
+<img alt="User Profile" class="w-full h-full object-cover" data-alt="Abstract minimalist user profile avatar" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCpzPOIlwBT-f381kyNT-BRqTUFaDwnJd2ySJD92VJsS0AjVE_fRgBvnkO69AxGwZWfiH-BJ1TBOOsuB5V_SH24yGbyiPMzjEzv2dyMlwv1jOtcYtjcxJLcrPygHnclxiVAyZTuq9U8-tLkktxt2890F5ftjOijCJJ_rUsEQLOO5i6yhoRzTvlp-2CwDDpi_dhLzagMlhCUWALLMl5o1bwu4Frj9cETe1MsZhmacKizZTskhjfPN793KEm6BuZld77m55HJGNvIO0ya"/>
+</div>
+<div>
+<p class="font-bold text-on-surface">Pro User</p>
+<p class="text-xs text-on-surface-variant">Obsidian Tier</p>
+</div>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="md:ml-64 pt-24 pb-12 px-8 md:px-20 min-h-screen">
+<header class="mb-12">
+<h1 class="font-headline text-5xl font-extrabold text-on-surface tracking-tight mb-2">Audio &amp; Soundfonts</h1>
+<p class="font-body text-on-surface-variant max-w-2xl">Configure your high-performance audio engine and manage virtual instrument samples.</p>
+</header>
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+<!-- Audio Engine Configuration -->
+<div class="lg:col-span-7 space-y-10">
+<!-- Section: Output & Latency -->
+<section class="p-8 bg-surface-container rounded-xl shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] border-l-2 border-primary">
+<h3 class="font-headline text-xl font-bold mb-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-primary">surround_sound</span>
+                        Audio Engine
+                    </h3>
+<div class="space-y-8">
+<!-- Dropdown -->
+<div>
+<label class="block text-sm font-bold text-on-surface-variant mb-3">Output Device</label>
+<div class="relative">
+<select class="w-full bg-surface-container-highest border-none rounded-lg py-4 px-4 text-on-surface focus:ring-2 focus:ring-secondary appearance-none transition-all">
+<option>Universal Audio Apollo Twin (ASIO)</option>
+<option>System Default (DirectSound)</option>
+<option>Built-in Speakers (Realtek High Definition)</option>
+<option>Focusrite Scarlett 2i2 (ASIO)</option>
+</select>
+<span class="material-symbols-outlined absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-on-surface-variant">expand_more</span>
+</div>
+</div>
+<!-- Slider -->
+<div>
+<div class="flex justify-between items-end mb-3">
+<label class="text-sm font-bold text-on-surface-variant">Buffer Size</label>
+<span class="text-primary font-headline text-lg font-bold">128 samples <span class="text-xs font-normal text-on-surface-variant ml-2">(~2.9ms)</span></span>
+</div>
+<input class="w-full h-1.5 bg-surface-container-highest rounded-full appearance-none cursor-pointer accent-primary" max="2048" min="32" step="32" type="range" value="128"/>
+<div class="flex justify-between mt-2 text-[10px] text-on-surface-variant font-mono">
+<span>32 SAMPLES</span>
+<span>2048 SAMPLES</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Section: Soundfont Manager -->
+<section class="p-8 bg-surface-container rounded-xl shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)]">
+<div class="flex justify-between items-center mb-8">
+<h3 class="font-headline text-xl font-bold flex items-center gap-3">
+<span class="material-symbols-outlined text-tertiary">library_music</span>
+                            Soundfont Manager
+                        </h3>
+<button class="flex items-center gap-2 px-5 py-2.5 bg-gradient-to-br from-primary to-primary-container text-on-primary font-bold rounded-lg shadow-lg shadow-primary/20 active:scale-95 transition-all">
+<span class="material-symbols-outlined text-sm">add</span>
+                            Add Soundfont
+                        </button>
+</div>
+<div class="space-y-1">
+<!-- Soundfont Item (Active) -->
+<div class="flex items-center justify-between p-4 bg-surface-container-highest rounded-lg group hover:ring-1 ring-outline-variant/30 transition-all">
+<div class="flex items-center gap-4">
+<div class="w-10 h-10 flex items-center justify-center rounded-lg bg-tertiary/10 text-tertiary">
+<span class="material-symbols-outlined">piano</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">Steinway_Model_D_v3.sf2</p>
+<p class="text-xs text-on-surface-variant">248.5 MB • 24-bit PCM</p>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<span class="text-[10px] font-bold text-tertiary px-2 py-0.5 border border-tertiary rounded uppercase">Default</span>
+<div class="w-10 h-5 bg-tertiary rounded-full relative cursor-pointer">
+<div class="absolute right-1 top-1 w-3 h-3 bg-on-tertiary rounded-full"></div>
+</div>
+</div>
+</div>
+<div class="h-px bg-background w-full"></div>
+<!-- Soundfont Item (Inactive) -->
+<div class="flex items-center justify-between p-4 bg-surface-container-highest/50 rounded-lg group hover:bg-surface-container-highest transition-all">
+<div class="flex items-center gap-4 opacity-50">
+<div class="w-10 h-10 flex items-center justify-center rounded-lg bg-on-surface-variant/10 text-on-surface-variant">
+<span class="material-symbols-outlined">music_video</span>
+</div>
+<div>
+<p class="font-bold text-on-surface">Rhodes_Electric_88.sf3</p>
+<p class="text-xs text-on-surface-variant">84.2 MB • OGG Encoded</p>
+</div>
+</div>
+<div class="flex items-center gap-6">
+<button class="text-xs text-on-surface-variant hover:text-primary transition-colors font-bold uppercase tracking-wider">Set Default</button>
+<div class="w-10 h-5 bg-surface-container-low border border-outline-variant rounded-full relative cursor-pointer">
+<div class="absolute left-1 top-1 w-3 h-3 bg-on-surface-variant rounded-full"></div>
+</div>
+</div>
+</div>
+</div>
+</section>
+</div>
+<!-- Volume and Mixer Controls -->
+<div class="lg:col-span-5">
+<section class="p-8 bg-surface-container rounded-xl shadow-[0_16px_32px_-12px_rgba(0,0,0,0.5)] h-full sticky top-24">
+<h3 class="font-headline text-xl font-bold mb-8 flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary">equalizer</span>
+                        Obsidian Mixer
+                    </h3>
+<div class="space-y-10">
+<!-- Main Volume -->
+<div class="relative p-6 bg-surface-container-highest rounded-xl border-l-4 border-secondary">
+<div class="flex justify-between items-center mb-6">
+<span class="font-headline font-bold text-secondary uppercase tracking-widest text-sm">Main Output</span>
+<span class="font-mono text-xl text-on-surface">0.0 <span class="text-xs text-on-surface-variant">dB</span></span>
+</div>
+<input class="w-full h-2 bg-surface-container rounded-full appearance-none cursor-pointer accent-secondary" type="range"/>
+<div class="flex justify-between mt-3 px-1">
+<div class="flex gap-1">
+<div class="w-1 h-3 bg-secondary rounded-full"></div>
+<div class="w-1 h-3 bg-secondary rounded-full"></div>
+<div class="w-1 h-3 bg-secondary rounded-full"></div>
+<div class="w-1 h-3 bg-secondary/30 rounded-full"></div>
+<div class="w-1 h-3 bg-secondary/30 rounded-full"></div>
+</div>
+<span class="material-symbols-outlined text-secondary-dim text-lg">volume_up</span>
+</div>
+</div>
+<!-- Sub Channels -->
+<div class="space-y-6">
+<!-- Metronome -->
+<div class="flex items-center gap-6">
+<div class="flex-1">
+<div class="flex justify-between items-center mb-2">
+<label class="text-xs font-bold text-on-surface-variant uppercase">Metronome</label>
+<span class="text-xs font-mono text-on-surface">-6.2 dB</span>
+</div>
+<input class="w-full h-1 bg-surface-container-highest rounded-full appearance-none cursor-pointer accent-on-surface-variant" type="range" value="70"/>
+</div>
+<button class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-on-surface-variant hover:text-tertiary transition-colors">
+<span class="material-symbols-outlined">timer</span>
+</button>
+</div>
+<!-- MIDI Input -->
+<div class="flex items-center gap-6">
+<div class="flex-1">
+<div class="flex justify-between items-center mb-2">
+<label class="text-xs font-bold text-on-surface-variant uppercase">MIDI In Gain</label>
+<span class="text-xs font-mono text-on-surface">+2.5 dB</span>
+</div>
+<input class="w-full h-1 bg-surface-container-highest rounded-full appearance-none cursor-pointer accent-primary" type="range" value="85"/>
+</div>
+<button class="w-10 h-10 rounded-lg bg-surface-container-highest flex items-center justify-center text-primary">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">keyboard</span>
+</button>
+</div>
+</div>
+<!-- Visualizer / Spectrum Placeholder -->
+<div class="pt-6 border-t border-outline-variant/20">
+<div class="w-full h-24 bg-surface-container-low rounded-lg flex items-end justify-between p-4 gap-1 overflow-hidden" data-alt="Dynamic audio frequency spectrum visualization">
+<div class="w-full h-[20%] bg-primary-dim/20 rounded-t-sm"></div>
+<div class="w-full h-[40%] bg-primary-dim/30 rounded-t-sm"></div>
+<div class="w-full h-[70%] bg-primary-dim/50 rounded-t-sm"></div>
+<div class="w-full h-[90%] bg-primary rounded-t-sm"></div>
+<div class="w-full h-[60%] bg-primary-dim/40 rounded-t-sm"></div>
+<div class="w-full h-[30%] bg-primary-dim/20 rounded-t-sm"></div>
+<div class="w-full h-[50%] bg-secondary/40 rounded-t-sm"></div>
+<div class="w-full h-[80%] bg-secondary rounded-t-sm"></div>
+<div class="w-full h-[45%] bg-secondary-dim/30 rounded-t-sm"></div>
+<div class="w-full h-[25%] bg-secondary-dim/20 rounded-t-sm"></div>
+</div>
+<p class="text-center text-[10px] text-on-surface-variant mt-2 font-mono uppercase tracking-[0.2em]">Real-time Spectrum Analysis</p>
+</div>
+</div>
+</section>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 w-full h-16 bg-[#131318] flex md:hidden items-center justify-around px-4 z-50">
+<button class="flex flex-col items-center gap-1 text-[#acaab1]">
+<span class="material-symbols-outlined">folder_open</span>
+<span class="text-[10px]">Library</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-[#acaab1]">
+<span class="material-symbols-outlined">music_note</span>
+<span class="text-[10px]">Songs</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-[#db90ff]">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">settings</span>
+<span class="text-[10px]">Settings</span>
+</button>
+<button class="flex flex-col items-center gap-1 text-[#acaab1]">
+<span class="material-symbols-outlined">account_circle</span>
+<span class="text-[10px]">Profile</span>
+</button>
+</nav>
+</body></html>

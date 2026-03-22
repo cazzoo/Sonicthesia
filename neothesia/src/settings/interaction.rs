@@ -1,0 +1,25 @@
+use std::path::PathBuf;
+
+pub enum SettingsInteraction {
+    None,
+    ThemeSelected(String),
+    AddSongDirectory,
+    RemoveSongDirectory(usize),
+    AddSoundFontFolder,
+    RemoveSoundFontFolder(usize),
+    InputDeviceSelected(String),
+    OutputDeviceSelected(String),
+    AudioGainChanged(f32),
+    PlaybackGainChanged(f32),
+    PianoRangeStartChanged(u8),
+    PianoRangeEndChanged(u8),
+    VerticalGuidelinesToggled(bool),
+    HorizontalGuidelinesToggled(bool),
+    GlowToggled(bool),
+    NoteLabelsToggled(bool),
+    SeparateChannelsToggled(bool),
+    ResetToDefaults,
+    SaveChanges,
+    Back,
+    OpenPopup(String),
+}
