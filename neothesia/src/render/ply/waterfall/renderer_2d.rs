@@ -12,8 +12,6 @@ pub struct Waterfall2D {
     pressed_keys: Vec<u8>,
     keyboard_top: f32,
     keyboard_height: f32,
-    rh_colors: Vec<(u8, u8, u8)>,
-    lh_colors: Vec<(u8, u8, u8)>,
 }
 
 impl Waterfall2D {
@@ -31,18 +29,6 @@ impl Waterfall2D {
             pressed_keys: Vec::new(),
             keyboard_top,
             keyboard_height,
-            // Right Hand: Magenta, Purple, Pink
-            rh_colors: vec![
-                (255, 0, 255),   // Magenta
-                (168, 85, 247),  // Purple
-                (244, 114, 182), // Pink
-            ],
-            // Left Hand: Blue, Cyan, Teal
-            lh_colors: vec![
-                (37, 99, 235),  // Blue
-                (34, 211, 238), // Cyan
-                (45, 212, 191), // Teal
-            ],
         }
     }
 
@@ -66,7 +52,6 @@ impl Waterfall2D {
         let y = self.keyboard_top - (time_until_start * pixels_per_second);
         let height = note_duration * pixels_per_second;
 
-        // Clip at keyboard boundary
         let note_bottom = y + height;
         let clipped_bottom = note_bottom.min(self.keyboard_top);
         let clipped_height = (clipped_bottom - y).max(0.0);
@@ -75,22 +60,23 @@ impl Waterfall2D {
             return None;
         }
 
-        // Determine color based on hand (channel)
+        let color_idx = note.track_color_id % self.config.colors.len();
+        let base_color = self.config.colors[color_idx];
+
         let is_right_hand = note.channel == 0;
-        let color_palette = if is_right_hand {
-            &self.rh_colors
-        } else {
-            &self.lh_colors
-        };
-        let color_idx = note.track_color_id % color_palette.len();
-        let color = color_palette[color_idx];
+        let brightness = if is_right_hand { 1.0 } else { 0.5 };
+        let alpha: u8 = if is_right_hand { 255 } else { 180 };
+
+        let r = ((base_color.0 as f32) * brightness) as u8;
+        let g = ((base_color.1 as f32) * brightness) as u8;
+        let b = ((base_color.2 as f32) * brightness) as u8;
 
         Some(NoteVisual {
             x: key.x(),
             y,
             width: key.width() - 1.0,
             height: clipped_height.max(4.0),
-            color: (color.0, color.1, color.2, 255),
+            color: (r, g, b, alpha),
             is_sharp,
             progress: 0.0,
         })

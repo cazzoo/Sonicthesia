@@ -259,34 +259,12 @@ impl PlyWaterfallRenderer {
 
         let range_start = layout.range.start() as usize;
 
-        // Color palettes from design spec
-        // Right Hand (RH): Warm colors - Magenta, Purple, Pink
-        let rh_colors = [
-            Color::from_rgba(255, 0, 255, 255),   // Magenta #ff00ff
-            Color::from_rgba(168, 85, 247, 255),  // Purple #a855f7
-            Color::from_rgba(244, 114, 182, 255), // Pink #f472b6
-        ];
-        // Left Hand (LH): Cool colors - Blue, Cyan, Teal
-        let lh_colors = [
-            Color::from_rgba(37, 99, 235, 255),  // Blue #2563eb
-            Color::from_rgba(34, 211, 238, 255), // Cyan #22d3ee
-            Color::from_rgba(45, 212, 191, 255), // Teal #2dd4bf
-        ];
-
         for note in self.notes.inner().iter() {
             if layout.range.contains(note.note) && note.channel != 9 {
                 let key = &layout.keys[note.note as usize - range_start];
 
-                // Determine left/right hand based on MIDI channel
-                // Channel 0 = Right Hand, Channel 1 = Left Hand
-                let is_right_hand = note.channel == 0;
-                let color_palette = if is_right_hand {
-                    &rh_colors
-                } else {
-                    &lh_colors
-                };
-                let color_idx = note.track_color_id % color_palette.len();
-                let color = color_palette[color_idx];
+                let color_idx = note.track_color_id % self.config.color_scheme.len();
+                let ply_color = &self.config.color_scheme[color_idx];
 
                 let note_start = note.start.as_secs_f32();
                 let note_duration = note.duration.as_secs_f32();
@@ -297,34 +275,34 @@ impl PlyWaterfallRenderer {
                 let x = keyboard_x + key.x() * scale_x;
                 let w = key.width() * scale_x - 1.0;
 
-                // Clip notes at keyboard boundary - don't show below keyboard
                 let note_bottom = y + height;
                 let clipped_bottom = note_bottom.min(keyboard_top);
                 let clipped_height = (clipped_bottom - y).max(0.0);
 
-                // Skip if note is completely off screen
                 if clipped_height <= 0.0 || y > keyboard_top || y + clipped_height < 0.0 {
                     continue;
                 }
 
-                // Draw glow effect (larger, semi-transparent rectangle behind)
-                let glow_color =
-                    Color::from_rgba((color.r as u8), (color.g as u8), (color.b as u8), 60);
-                draw_rectangle(x - 2.0, y - 2.0, w + 4.0, clipped_height + 4.0, glow_color);
+                let is_right_hand = note.channel == 0;
+                let brightness = if is_right_hand { 1.0 } else { 0.5 };
+                let alpha: u8 = if is_right_hand { 255 } else { 180 };
 
-                // Draw main note with rounded appearance (simulated via multiple rects)
-                // Main body
+                let r = ((ply_color.r / 255.0) * brightness * 255.0) as u8;
+                let g = ((ply_color.g / 255.0) * brightness * 255.0) as u8;
+                let b = ((ply_color.b / 255.0) * brightness * 255.0) as u8;
+
+                let color = Color::from_rgba(r, g, b, alpha);
+
+                let glow = Color::from_rgba(r, g, b, 40);
+                draw_rectangle(x - 2.0, y - 2.0, w + 4.0, clipped_height + 4.0, glow);
+
                 draw_rectangle(x, y, w, clipped_height.max(4.0), color);
 
-                // Top highlight for depth
                 let highlight_height = (clipped_height * 0.15).min(8.0);
-                let highlight_color = Color::from_rgba(
-                    ((color.r as f32) * 1.3).min(255.0) as u8,
-                    ((color.g as f32) * 1.3).min(255.0) as u8,
-                    ((color.b as f32) * 1.3).min(255.0) as u8,
-                    180,
-                );
-                draw_rectangle(x, y, w, highlight_height, highlight_color);
+                let hr = ((r as f32) * 1.3).min(255.0) as u8;
+                let hg = ((g as f32) * 1.3).min(255.0) as u8;
+                let hb = ((b as f32) * 1.3).min(255.0) as u8;
+                draw_rectangle(x, y, w, highlight_height, Color::from_rgba(hr, hg, hb, 160));
             }
         }
     }
