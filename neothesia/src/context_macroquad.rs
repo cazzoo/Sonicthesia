@@ -149,8 +149,8 @@ pub struct MacroquadWindowState {
 impl MacroquadWindowState {
     pub fn new() -> Self {
         Self {
-            logical_size: macroquad::math::Vec2::new(800.0, 600.0), // Default size
-            physical_size: macroquad::math::Vec2::new(800.0, 600.0),
+            logical_size: macroquad::math::Vec2::new(1280.0, 720.0),
+            physical_size: macroquad::math::Vec2::new(1280.0, 720.0),
             scale_factor: 1.0,
         }
     }

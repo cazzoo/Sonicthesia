@@ -9,7 +9,9 @@ use std::time::Duration;
 fn create_conf() -> Conf {
     Conf {
         window_title: "Neothesia".to_string(),
-        sample_count: 4, // Enable 4x MSAA anti-aliasing
+        window_width: 1280,
+        window_height: 720,
+        sample_count: 4,
         ..Default::default()
     }
 }
