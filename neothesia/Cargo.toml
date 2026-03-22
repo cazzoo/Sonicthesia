@@ -26,6 +26,7 @@ midi-io.workspace = true
 nuon.workspace = true
 ply-engine.workspace = true
 futures-channel.workspace = true
+futures = "0.3"
 cosmic-text.workspace = true
 
 bytes.workspace = true

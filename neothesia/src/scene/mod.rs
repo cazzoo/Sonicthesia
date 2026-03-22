@@ -3,7 +3,8 @@ pub mod menu_scene;
 pub mod playing_scene;
 pub mod score_scene;
 
-// PLY-specific scene implementations
+// PLY-specific modules
+pub mod ply_fonts;
 pub mod ply_scene;
 pub use ply_scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene, PlySongLibraryScene};
 

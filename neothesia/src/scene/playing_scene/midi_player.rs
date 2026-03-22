@@ -310,6 +310,12 @@ pub struct ScoreData {
     pub stars: u32,
     pub max_streak: u32,
     pub score: u64,
+    /// Number of perfect timing hits
+    pub perfect_count: u32,
+    /// Number of good timing hits
+    pub good_count: u32,
+    /// Number of okay timing hits
+    pub okay_count: u32,
 }
 
 impl PlayerStats {
@@ -563,6 +569,9 @@ impl PlayAlong {
             stars: base_stars,
             max_streak: 0,
             score: 0,
+            perfect_count: on_time as u32,
+            good_count: 0,
+            okay_count: 0,
         }
     }
 

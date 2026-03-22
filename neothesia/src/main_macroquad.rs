@@ -111,6 +111,9 @@ pub async fn main() {
     )
     .init();
 
+    // Initialize custom fonts for Sonic Obsidian design
+    crate::scene::ply_fonts::init_fonts().await;
+
     let mut app = MacroquadNeothesia::new();
     let mut last_frame_time = std::time::Instant::now();
     let mut should_exit = false;

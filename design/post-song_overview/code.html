@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sonic Obsidian - Performance Overview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-container-lowest": "#000000",
+              "inverse-primary": "#9027c4",
+              "error-dim": "#d73357",
+              "outline-variant": "#48474d",
+              "surface-container-high": "#1f1f26",
+              "on-background": "#f8f5fd",
+              "inverse-on-surface": "#55545a",
+              "inverse-surface": "#fbf8ff",
+              "on-tertiary-fixed": "#39000b",
+              "on-primary-fixed": "#000000",
+              "surface-dim": "#0e0e13",
+              "on-primary-container": "#3c0057",
+              "on-tertiary": "#490011",
+              "secondary-fixed-dim": "#a5c5ff",
+              "surface-container-highest": "#25252c",
+              "surface-bright": "#2c2b33",
+              "on-primary": "#4e0070",
+              "on-secondary-fixed": "#00336b",
+              "error": "#ff6e84",
+              "secondary-dim": "#0073e0",
+              "primary": "#db90ff",
+              "on-secondary-fixed-variant": "#004f9f",
+              "surface": "#0e0e13",
+              "tertiary-fixed": "#ff909a",
+              "tertiary-dim": "#e21d4d",
+              "surface-container-low": "#131318",
+              "on-tertiary-fixed-variant": "#780022",
+              "on-secondary-container": "#f7f7ff",
+              "on-surface-variant": "#acaab1",
+              "tertiary-container": "#fc345d",
+              "secondary-container": "#005db8",
+              "on-error-container": "#ffb2b9",
+              "on-error": "#490013",
+              "surface-container": "#19191f",
+              "primary-fixed": "#d37bff",
+              "primary-container": "#d37bff",
+              "on-primary-fixed-variant": "#4a006b",
+              "on-tertiary-container": "#000000",
+              "on-secondary": "#001f46",
+              "background": "#0e0e13",
+              "tertiary-fixed-dim": "#ff7987",
+              "surface-tint": "#db90ff",
+              "error-container": "#a70138",
+              "secondary-fixed": "#bcd2ff",
+              "outline": "#76747b",
+              "tertiary": "#ff6e80",
+              "primary-fixed-dim": "#cb66fe",
+              "surface-variant": "#25252c",
+              "on-surface": "#f8f5fd",
+              "secondary": "#5f9eff",
+              "primary-dim": "#d277ff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .glass-panel {
+            background: rgba(37, 37, 44, 0.6);
+            backdrop-filter: blur(20px);
+            -webkit-backdrop-filter: blur(20px);
+        }
+        .text-glow {
+            text-shadow: 0 0 20px rgba(219, 144, 255, 0.5);
+        }
+        .mask-gradient {
+            mask-image: linear-gradient(to right, transparent, black 20%, black 80%, transparent);
+        }
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary selection:text-on-primary-container overflow-x-hidden">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-8 py-4 bg-[#0e0e13] shadow-[0px_0px_32px_rgba(219,144,255,0.06)]">
+<div class="text-2xl font-black text-[#f8f5fd] tracking-tighter font-headline">Sonic Obsidian</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors font-headline font-bold tracking-tight" href="#">Library</a>
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors font-headline font-bold tracking-tight" href="#">Practice</a>
+<a class="text-[#db90ff] border-b-2 border-[#db90ff] pb-1 font-headline font-bold tracking-tight" href="#">Academy</a>
+</nav>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-[#25252c] transition-all duration-200 text-[#acaab1]">
+<span class="material-symbols-outlined">settings</span>
+</button>
+<div class="w-10 h-10 rounded-full overflow-hidden border border-outline-variant/20">
+<img alt="User profile" data-alt="Portrait of a professional musician" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAuCPIpu-FqlBbJWvYsTXVVAXpCzPkmjpTYVEoZ7BpKEcP86D9wJS-RF5ECjLo1x7dlMRYgZEdlAkdHyZMyfjXSKdYEQ45T203IKVml2qXZITBa8RfIDIBZ6YylTqIGjuqhGfS59II3WWCt35cJ3apbMc31VVq1VWPHDcqr4HnLl-ueq_Jbz8t_F7yL__svVYAuatzgbl_hYJc3tsZXMOn-_eCaWiII0rXuq6ifi1vUPbxF6CsL6GmlecWQMWEXIpS3_TX-tECBPWi8"/>
+</div>
+</div>
+</header>
+<main class="pt-24 pb-12 px-8 min-h-screen relative flex flex-col items-center">
+<!-- Hero Section with Background Glow -->
+<div class="absolute top-0 left-0 w-full h-[614px] -z-10 overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-b from-transparent to-background z-10"></div>
+<img alt="Background Atmosphere" class="w-full h-full object-cover blur-3xl opacity-20 scale-110" data-alt="Blurred classical piano sheet music and dark keys" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCXJ94_l_tRnll9nY6c0VeCw-86PB1JVk0osW-kBzQ_P-CJ8u20RcvL1-JU4drH2RQ_gmgGDiSD1_QtN8UhBdYYvInFwWfFElk70ExRgzZu-2H1ASKJV9WnPro-myZKAJUOgoiCgo7Q3-JMcwfg3ckrVcj0TZR7bwU_5lX1j_T0XFsh0NPodWcT0RBW33LXA8Xvn3gjltYWZVg_TvXhJOzpv70fE-aUqEnJEA1KOIEIT7VLZHQ5BcsZG164wWmU0EPtv_zYKxUnjgc-"/>
+</div>
+<!-- Song Header -->
+<div class="text-center mt-12 mb-16 space-y-2">
+<p class="font-headline text-primary font-semibold tracking-widest text-sm uppercase">Performance Complete</p>
+<h1 class="font-headline text-5xl md:text-7xl font-bold tracking-tighter text-on-surface">Nocturne in Eb Major</h1>
+<p class="text-on-surface-variant text-xl">Frédéric Chopin</p>
+</div>
+<!-- Main Performance Layout -->
+<div class="w-full max-w-7xl grid grid-cols-1 lg:grid-cols-12 gap-8 items-start">
+<!-- Left: Grade & Score -->
+<div class="lg:col-span-4 flex flex-col gap-8">
+<div class="glass-panel p-10 rounded-xl border border-outline-variant/20 relative overflow-hidden group">
+<div class="absolute -top-12 -right-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl group-hover:bg-primary/20 transition-all duration-500"></div>
+<div class="relative z-10 flex flex-col items-center">
+<span class="text-8xl font-black font-headline text-primary italic tracking-tighter text-glow">A+</span>
+<div class="mt-8 flex flex-col items-center">
+<span class="text-4xl font-headline font-bold text-on-surface tracking-tight">942,850</span>
+<span class="text-on-surface-variant font-medium text-sm mt-1">TOTAL SCORE</span>
+</div>
+<div class="mt-6 px-4 py-2 bg-primary/10 rounded-full border border-primary/20 flex items-center gap-2">
+<span class="material-symbols-outlined text-primary text-sm" style="font-variation-settings: 'FILL' 1;">stars</span>
+<span class="text-primary font-headline font-bold text-sm tracking-tight">NEW PERSONAL BEST!</span>
+</div>
+</div>
+</div>
+<!-- Personal Best Comparison -->
+<div class="glass-panel p-6 rounded-xl border border-outline-variant/10">
+<div class="flex justify-between items-center">
+<div>
+<p class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-1">vs Personal Best</p>
+<p class="text-2xl font-headline font-bold text-secondary">+15,000 pts</p>
+</div>
+<div class="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary">
+<span class="material-symbols-outlined">trending_up</span>
+</div>
+</div>
+</div>
+</div>
+<!-- Center: Detailed Stats Bento -->
+<div class="lg:col-span-5 grid grid-cols-2 gap-4">
+<!-- Accuracy Breakdown -->
+<div class="col-span-2 glass-panel p-6 rounded-xl border border-outline-variant/10">
+<h3 class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-6">Accuracy Breakdown</h3>
+<div class="space-y-4">
+<div class="flex items-center gap-4">
+<div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-primary" style="width: 75%"></div>
+</div>
+<span class="text-on-surface font-headline font-bold w-12 text-right">Perfect</span>
+<span class="text-primary font-headline font-bold w-12 text-right">482</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-secondary" style="width: 20%"></div>
+</div>
+<span class="text-on-surface font-headline font-bold w-12 text-right">Great</span>
+<span class="text-secondary font-headline font-bold w-12 text-right">120</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-on-surface-variant" style="width: 5%"></div>
+</div>
+<span class="text-on-surface font-headline font-bold w-12 text-right">Good</span>
+<span class="text-on-surface-variant font-headline font-bold w-12 text-right">45</span>
+</div>
+<div class="flex items-center gap-4">
+<div class="flex-1 h-2 bg-surface-container-highest rounded-full overflow-hidden">
+<div class="h-full bg-error" style="width: 2%"></div>
+</div>
+<span class="text-on-surface font-headline font-bold w-12 text-right">Miss</span>
+<span class="text-error font-headline font-bold w-12 text-right">12</span>
+</div>
+</div>
+</div>
+<!-- Combo & Streak -->
+<div class="glass-panel p-6 rounded-xl border border-outline-variant/10 flex flex-col justify-center items-center text-center">
+<p class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-2">Max Streak</p>
+<p class="text-4xl font-headline font-bold text-primary">x152</p>
+</div>
+<div class="glass-panel p-6 rounded-xl border border-outline-variant/10 flex flex-col justify-center items-center text-center">
+<span class="material-symbols-outlined text-tertiary mb-2" style="font-variation-settings: 'FILL' 1;">military_tech</span>
+<p class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-1">Max Combo</p>
+<p class="text-on-surface font-headline font-bold">UNSTOPPABLE</p>
+</div>
+</div>
+<!-- Right: Performance Graph & Actions -->
+<div class="lg:col-span-3 flex flex-col gap-6">
+<!-- Accuracy Timeline -->
+<div class="glass-panel p-6 rounded-xl border border-outline-variant/10 flex-1">
+<h3 class="text-on-surface-variant text-xs font-bold uppercase tracking-widest mb-8">Accuracy Timeline</h3>
+<div class="relative h-32 w-full flex items-end gap-1">
+<!-- Mock Bars -->
+<div class="flex-1 bg-primary/40 h-[80%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[90%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[85%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/60 h-[95%] rounded-t-sm"></div>
+<div class="flex-1 bg-error/40 h-[20%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[88%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[92%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[75%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[82%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[98%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[90%] rounded-t-sm"></div>
+<div class="flex-1 bg-primary/40 h-[85%] rounded-t-sm"></div>
+</div>
+<div class="flex justify-between mt-4 text-[10px] text-on-surface-variant font-bold">
+<span>START</span>
+<span>04:32</span>
+</div>
+</div>
+<!-- Actions -->
+<div class="space-y-3">
+<button class="w-full py-4 rounded-lg bg-gradient-to-r from-primary to-primary-container text-on-primary-container font-headline font-bold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined">play_arrow</span>
+                        PLAY AGAIN
+                    </button>
+<button class="w-full py-4 rounded-lg bg-surface-container-highest text-on-surface font-headline font-bold flex items-center justify-center gap-2 hover:bg-surface-bright active:scale-[0.98] transition-all border border-outline-variant/20">
+<span class="material-symbols-outlined">skip_next</span>
+                        NEXT SONG
+                    </button>
+<button class="w-full py-4 rounded-lg bg-transparent text-primary-dim font-headline font-bold flex items-center justify-center gap-2 hover:bg-primary/5 active:scale-[0.98] transition-all">
+<span class="material-symbols-outlined">videocam</span>
+                        VIEW REPLAY
+                    </button>
+</div>
+</div>
+</div>
+<!-- Extra Technical Data Footer -->
+<div class="w-full max-w-7xl mt-12 grid grid-cols-2 md:grid-cols-4 gap-4 py-8 border-t border-outline-variant/10">
+<div class="flex flex-col">
+<span class="text-on-surface-variant text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Time Played</span>
+<span class="font-headline font-semibold">04:32</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Average Offset</span>
+<span class="font-headline font-semibold">+12ms</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Difficulty</span>
+<span class="font-headline font-semibold text-tertiary">MAESTRO</span>
+</div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant text-[10px] font-bold uppercase tracking-[0.2em] mb-1">Notes Processed</span>
+<span class="font-headline font-semibold">659 / 671</span>
+</div>
+</div>
+</main>
+<!-- BottomNavBar (Mobile only fallback - Hidden on desktop per logic) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-6 pb-6 pt-3 bg-[#131318] border-t border-[#48474d]/20 shadow-[0_-4px_20px_rgba(0,0,0,0.5)] rounded-t-lg">
+<div class="flex flex-col items-center justify-center text-[#acaab1] opacity-70">
+<span class="material-symbols-outlined">home</span>
+<span class="font-['Inter'] text-[10px] font-medium uppercase tracking-widest mt-1">Home</span>
+</div>
+<div class="flex flex-col items-center justify-center bg-[#db90ff]/10 text-[#db90ff] rounded-xl px-4 py-1 border border-[#db90ff]/20 shadow-[0_0_8px_rgba(219,144,255,0.3)]">
+<span class="material-symbols-outlined">insights</span>
+<span class="font-['Inter'] text-[10px] font-medium uppercase tracking-widest mt-1">Performance</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#acaab1] opacity-70">
+<span class="material-symbols-outlined">group</span>
+<span class="font-['Inter'] text-[10px] font-medium uppercase tracking-widest mt-1">Social</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#acaab1] opacity-70">
+<span class="material-symbols-outlined">person</span>
+<span class="font-['Inter'] text-[10px] font-medium uppercase tracking-widest mt-1">Profile</span>
+</div>
+</nav>
+</body></html>
