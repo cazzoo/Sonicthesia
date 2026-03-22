@@ -11,7 +11,8 @@ pub struct LiveScoreTracker {
     good_count: u32,
     okay_count: u32,
     miss_count: u32,
-    total_notes: u32,
+    attempted_notes: u32,
+    total_song_notes: u32,
 }
 
 impl LiveScoreTracker {
@@ -23,8 +24,15 @@ impl LiveScoreTracker {
             good_count: 0,
             okay_count: 0,
             miss_count: 0,
-            total_notes: 0,
+            attempted_notes: 0,
+            total_song_notes: 0,
         }
+    }
+
+    /// Initialize with total notes in the song
+    pub fn with_total_notes(mut self, total: u32) -> Self {
+        self.total_song_notes = total;
+        self
     }
 
     /// Get current score
@@ -62,24 +70,30 @@ impl LiveScoreTracker {
         self.miss_count
     }
 
-    /// Get total notes processed
-    pub fn total_notes(&self) -> u32 {
-        self.total_notes
+    /// Get attempted notes count
+    pub fn attempted_notes(&self) -> u32 {
+        self.attempted_notes
+    }
+
+    /// Get total notes in the song
+    pub fn total_song_notes(&self) -> u32 {
+        self.total_song_notes
     }
 
     /// Calculate accuracy percentage (0.0 - 100.0)
+    /// Based on correct notes / total notes in song
     pub fn accuracy(&self) -> f64 {
-        if self.total_notes == 0 {
+        if self.total_song_notes == 0 {
             return 0.0;
         }
         let correct = self.perfect_count + self.good_count + self.okay_count;
-        (correct as f64 / self.total_notes as f64) * 100.0
+        (correct as f64 / self.total_song_notes as f64) * 100.0
     }
 
     /// Process a note hit with given timing quality
     /// Returns (points_earned, optional_milestone)
     pub fn on_note_hit(&mut self, quality: TimingQuality) -> (u64, Option<StreakMilestone>) {
-        self.total_notes += 1;
+        self.attempted_notes += 1;
 
         match quality {
             TimingQuality::Perfect => self.perfect_count += 1,
@@ -100,12 +114,12 @@ impl LiveScoreTracker {
     /// Reset all tracking (e.g., when restarting)
     pub fn reset(&mut self) {
         self.current_score = 0;
-        self.streak.reset();
+        self.streak = StreakTracker::new();
         self.perfect_count = 0;
         self.good_count = 0;
         self.okay_count = 0;
         self.miss_count = 0;
-        self.total_notes = 0;
+        self.attempted_notes = 0;
     }
 
     /// Convert to final score data for display
@@ -122,7 +136,7 @@ impl LiveScoreTracker {
             good_count: self.good_count,
             okay_count: self.okay_count,
             miss_count: self.miss_count,
-            total_notes: self.total_notes,
+            total_notes: self.attempted_notes,
         }
     }
 }
@@ -139,7 +153,7 @@ mod tests {
 
     #[test]
     fn test_score_accumulation() {
-        let mut tracker = LiveScoreTracker::new();
+        let mut tracker = LiveScoreTracker::new().with_total_notes(100);
 
         // Perfect with 1x multiplier
         let (points, _) = tracker.on_note_hit(TimingQuality::Perfect);
@@ -154,7 +168,7 @@ mod tests {
 
     #[test]
     fn test_multiplier_effect() {
-        let mut tracker = LiveScoreTracker::new();
+        let mut tracker = LiveScoreTracker::new().with_total_notes(100);
 
         // Build streak to 10 for 2x multiplier
         for _ in 0..9 {
@@ -169,20 +183,20 @@ mod tests {
 
     #[test]
     fn test_accuracy_calculation() {
-        let mut tracker = LiveScoreTracker::new();
+        let mut tracker = LiveScoreTracker::new().with_total_notes(3);
 
         tracker.on_note_hit(TimingQuality::Perfect);
         tracker.on_note_hit(TimingQuality::Good);
         tracker.on_note_hit(TimingQuality::Miss);
 
-        // 2 correct out of 3 = 66.67%
+        // 2 correct out of 3 total = 66.67%
         let accuracy = tracker.accuracy();
         assert!((accuracy - 66.67).abs() < 0.1);
     }
 
     #[test]
     fn test_reset() {
-        let mut tracker = LiveScoreTracker::new();
+        let mut tracker = LiveScoreTracker::new().with_total_notes(100);
 
         tracker.on_note_hit(TimingQuality::Perfect);
         tracker.on_note_hit(TimingQuality::Perfect);
@@ -192,6 +206,6 @@ mod tests {
         tracker.reset();
         assert_eq!(tracker.score(), 0);
         assert_eq!(tracker.streak().current(), 0);
-        assert_eq!(tracker.total_notes(), 0);
+        assert_eq!(tracker.attempted_notes(), 0);
     }
 }

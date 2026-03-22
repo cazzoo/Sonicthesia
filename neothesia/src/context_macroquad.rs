@@ -50,6 +50,9 @@ pub struct MacroquadContext {
     /// Resume playback time when returning to play scene
     pub resume_playback_time: Option<f32>,
 
+    /// Song to resume when returning from settings
+    pub resume_song: Option<crate::Song>,
+
     #[cfg(debug_assertions)]
     pub fps_ticker: MacroquadFpsTicker,
 }
@@ -102,6 +105,7 @@ impl MacroquadContext {
             song_library_db,
             frame_timestamp: std::time::Instant::now(),
             resume_playback_time: None,
+            resume_song: None,
 
             #[cfg(debug_assertions)]
             fps_ticker: MacroquadFpsTicker::new(),

@@ -749,10 +749,12 @@ impl PlyPlayingScene {
 
         let piano_keyboard = PianoKeyboardRenderer::new(layout, &config);
 
-        // Compute song duration from tracks
+        // Compute song duration from tracks and count total notes
         let lead_in = 3.0f32;
         let mut last_note_end = 0.0f32;
+        let mut total_notes_in_song = 0u32;
         for track in song.file.tracks.iter() {
+            total_notes_in_song += track.notes.len() as u32;
             if let Some(note) = track.notes.last() {
                 let end = note.start.as_secs_f32() + note.duration.as_secs_f32();
                 last_note_end = last_note_end.max(end);
@@ -781,7 +783,7 @@ impl PlyPlayingScene {
             song_length,
             lead_in,
             active_waterfall_notes: std::collections::HashSet::new(),
-            live_score: LiveScoreTracker::new(),
+            live_score: LiveScoreTracker::new().with_total_notes(total_notes_in_song),
             effects: EffectsManager::new(),
             last_timing_quality: None,
         }
@@ -1266,7 +1268,7 @@ impl PlyPlayingScene {
 
         // Session config bar (pill-shaped container)
         let bar_y = title_y + 55.0;
-        let bar_w = 320.0;
+        let bar_w = 280.0;
         let bar_h = 50.0;
         let bar_x = center_x - bar_w / 2.0;
 
@@ -1289,54 +1291,66 @@ impl PlyPlayingScene {
             Color::new(0.282, 0.278, 0.302, 0.2),
         );
 
-        // Tempo section
-        let tempo_x = bar_x + 30.0;
+        // Speed section with +/- controls
+        let speed_x = bar_x + 30.0;
         crate::scene::ply_fonts::draw_label(
-            "TEMPO",
-            tempo_x,
+            "SPEED",
+            speed_x,
             bar_y + 12.0,
             8.0,
             Self::COLOR_ON_SURFACE_VARIANT,
         );
-        let speed = self.speed_multiplier();
-        let tempo_text = format!("{} BPM", (120.0 * speed).round() as i32);
+
+        // - button
+        let minus_btn_x = speed_x;
+        let minus_btn_y = bar_y + 22.0;
+        let btn_size = 20.0;
+        draw_rectangle(
+            minus_btn_x,
+            minus_btn_y,
+            btn_size,
+            btn_size,
+            Self::COLOR_SURFACE_VARIANT,
+        );
         crate::scene::ply_fonts::draw_body(
-            &tempo_text,
-            tempo_x,
-            bar_y + 28.0,
-            12.0,
+            "-",
+            minus_btn_x + 7.0,
+            minus_btn_y + 14.0,
+            14.0,
+            Self::COLOR_ON_SURFACE,
+        );
+
+        // Speed percentage
+        let speed = self.speed_multiplier();
+        let speed_pct = (speed * 100.0).round() as i32;
+        crate::scene::ply_fonts::draw_body(
+            &format!("{}%", speed_pct),
+            speed_x + 25.0,
+            bar_y + 38.0,
+            14.0,
             Self::COLOR_PRIMARY,
         );
 
-        // Separator
+        // + button
+        let plus_btn_x = speed_x + 60.0;
         draw_rectangle(
-            bar_x + 100.0,
-            bar_y + 10.0,
-            1.0,
-            30.0,
-            Self::COLOR_OUTLINE_VARIANT,
-        );
-
-        // Key section
-        let key_x = bar_x + 120.0;
-        crate::scene::ply_fonts::draw_label(
-            "KEY",
-            key_x,
-            bar_y + 12.0,
-            8.0,
-            Self::COLOR_ON_SURFACE_VARIANT,
+            plus_btn_x,
+            minus_btn_y,
+            btn_size,
+            btn_size,
+            Self::COLOR_SURFACE_VARIANT,
         );
         crate::scene::ply_fonts::draw_body(
-            "C Maj", // Default - could extract from MIDI
-            key_x,
-            bar_y + 28.0,
-            12.0,
-            Self::COLOR_SECONDARY,
+            "+",
+            plus_btn_x + 5.0,
+            minus_btn_y + 14.0,
+            14.0,
+            Self::COLOR_ON_SURFACE,
         );
 
         // Separator
         draw_rectangle(
-            bar_x + 180.0,
+            bar_x + 130.0,
             bar_y + 10.0,
             1.0,
             30.0,
@@ -1344,7 +1358,7 @@ impl PlyPlayingScene {
         );
 
         // Pause button
-        let btn_x = bar_x + 200.0;
+        let btn_x = bar_x + 160.0;
         let btn_size = 36.0;
         let btn_center_y = bar_y + bar_h / 2.0;
 
@@ -1441,29 +1455,56 @@ impl PlyPlayingScene {
         let center_x = sw / 2.0;
         let title_y = 40.0;
         let bar_y = title_y + 55.0;
-        let bar_w = 320.0;
+        let bar_w = 280.0;
         let bar_h = 50.0;
         let bar_x = center_x - bar_w / 2.0;
-        let btn_x = bar_x + 200.0;
-        let btn_size = 36.0;
-        let btn_center_y = bar_y + bar_h / 2.0;
+
+        // Check speed - button click
+        let speed_x = bar_x + 30.0;
+        let btn_size = 20.0;
+        let minus_btn_x = speed_x;
+        let minus_btn_y = bar_y + 22.0;
+        if mx >= minus_btn_x
+            && mx <= minus_btn_x + btn_size
+            && my >= minus_btn_y
+            && my <= minus_btn_y + btn_size
+        {
+            let current_speed = ctx.config.speed_multiplier();
+            ctx.config.set_speed_multiplier(current_speed - 0.1);
+            return None;
+        }
+
+        // Check speed + button click
+        let plus_btn_x = speed_x + 60.0;
+        if mx >= plus_btn_x
+            && mx <= plus_btn_x + btn_size
+            && my >= minus_btn_y
+            && my <= minus_btn_y + btn_size
+        {
+            let current_speed = ctx.config.speed_multiplier();
+            ctx.config.set_speed_multiplier(current_speed + 0.1);
+            return None;
+        }
 
         // Check pause button click
-        let pause_btn_cx = btn_x + btn_size / 2.0;
-        let pause_btn_cy = btn_center_y;
-        let pause_dist = ((mx - pause_btn_cx).powi(2) + (my - pause_btn_cy).powi(2)).sqrt();
-        if pause_dist <= btn_size / 2.0 {
+        let pause_btn_x = bar_x + 160.0;
+        let pause_btn_size = 36.0;
+        let pause_btn_center_y = bar_y + bar_h / 2.0;
+        let pause_btn_cx = pause_btn_x + pause_btn_size / 2.0;
+        let pause_dist = ((mx - pause_btn_cx).powi(2) + (my - pause_btn_center_y).powi(2)).sqrt();
+        if pause_dist <= pause_btn_size / 2.0 {
             self.paused = !self.paused;
             return None;
         }
 
         // Check settings button click
-        let settings_x = btn_x + btn_size + 10.0;
+        let settings_x = pause_btn_x + pause_btn_size + 10.0;
         let settings_cx = settings_x + 12.0;
-        let settings_dist = ((mx - settings_cx).powi(2) + (my - pause_btn_cy).powi(2)).sqrt();
+        let settings_dist = ((mx - settings_cx).powi(2) + (my - pause_btn_center_y).powi(2)).sqrt();
         if settings_dist <= 15.0 {
             self.paused = true;
             ctx.resume_playback_time = Some(self.playback_time);
+            ctx.resume_song = Some(self.song.clone());
             return Some(NeothesiaEvent::ShowSettings);
         }
 
@@ -2126,7 +2167,6 @@ impl PlyScene for PlyPlayingScene {
         self.render_timing_feedback(); // Top-right timing quality display
         self.render_song_info(mx, my, mouse_down);
         self.render_vertical_timeline(mx, my, mouse_down);
-        self.render_midi_log();
         self.render_close_button(mx, my, mouse_down);
     }
 }

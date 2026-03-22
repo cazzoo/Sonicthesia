@@ -89,18 +89,19 @@ impl MacroquadNeothesia {
                 self.current_scene = Box::new(scene) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::ResumeFromSettings => {
-                // Return to main menu with the song still available for resuming
+                // Return directly to playing scene with resume state
                 let playback_gain = self.context.config.playback_gain();
                 self.context.output_manager.connection().set_gain(playback_gain);
-                // Get the song from context if we have a resume time
-                let song = if self.context.resume_playback_time.is_some() {
-                    // We need to reconstruct the song - for now go back to menu
-                    // The resume time is stored in context
-                    None
+                
+                if let (Some(song), Some(resume_time)) = 
+                    (self.context.resume_song.take(), self.context.resume_playback_time.take()) {
+                    log::info!("🎯 EVENT: ResumeFromSettings to play at {:.1}s", resume_time);
+                    self.current_scene = Box::new(PlyPlayingScene::new_resumed(song, resume_time)) as Box<dyn PlyScene>;
                 } else {
-                    None
-                };
-                self.current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
+                    // Fallback to menu if no resume state
+                    log::warn!("🎯 EVENT: ResumeFromSettings but no resume state, going to menu");
+                    self.current_scene = Box::new(PlyMenuScene::new(None)) as Box<dyn PlyScene>;
+                }
             }
             NeothesiaEvent::ShowSongLibrary(song) => {
                 let mut scene = PlySongLibraryScene::new(song);
