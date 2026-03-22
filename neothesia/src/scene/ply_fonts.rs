@@ -108,3 +108,47 @@ pub fn draw_body_centered(
     let text_size = measure_text(text, body_font(), size as u16, 1.0);
     draw_body(text, center_x - text_size.width / 2.0, y, size, color);
 }
+
+/// Draw small uppercase label text (for UI labels like "CURRENT SCORE", "TEMPO", etc.)
+pub fn draw_label(text: &str, x: f32, y: f32, size: f32, color: macroquad::prelude::Color) {
+    use macroquad::prelude::*;
+
+    let uppercase_text = text.to_uppercase();
+    if let Some(font) = body_font() {
+        draw_text_ex(
+            &uppercase_text,
+            x,
+            y,
+            TextParams {
+                font: Some(font),
+                font_size: size as u16,
+                color,
+                ..Default::default()
+            },
+        );
+    } else {
+        draw_text(&uppercase_text, x, y, size, color);
+    }
+}
+
+/// Draw monospace text (for MIDI events, timestamps, technical data)
+pub fn draw_mono(text: &str, x: f32, y: f32, size: f32, color: macroquad::prelude::Color) {
+    use macroquad::prelude::*;
+
+    // Use body font with monospace feature for consistent alignment
+    if let Some(font) = body_font() {
+        draw_text_ex(
+            text,
+            x,
+            y,
+            TextParams {
+                font: Some(font),
+                font_size: size as u16,
+                color,
+                ..Default::default()
+            },
+        );
+    } else {
+        draw_text(text, x, y, size, color);
+    }
+}

@@ -63,15 +63,20 @@ impl MacroquadNeothesia {
         match event {
             NeothesiaEvent::Play(song) => {
                 log::info!("🎯 EVENT: Play song '{}'", song.file.name);
+                self.context.resume_playback_time = None;
                 self.current_scene = Box::new(PlyPlayingScene::new(song)) as Box<dyn PlyScene>;
+            }
+            NeothesiaEvent::ResumePlay(song, resume_time) => {
+                log::info!("🎯 EVENT: ResumePlay song '{}' at {:.1}s", song.file.name, resume_time);
+                self.current_scene = Box::new(PlyPlayingScene::new_resumed(song, resume_time)) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::FreePlay(song) => {
                 log::info!("🎯 EVENT: FreePlay with song: {:?}", song.as_ref().map(|s| &s.file.name));
+                self.context.resume_playback_time = None;
                 self.current_scene = Box::new(PlyFreeplayScene::new(song, &mut self.context)) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::MainMenu(song) => {
                 log::info!("🎯 EVENT: MainMenu with song: {:?}", song.as_ref().map(|s| &s.file.name));
-                // Reset playback gain to config value when returning to menu
                 let playback_gain = self.context.config.playback_gain();
                 self.context.output_manager.connection().set_gain(playback_gain);
                 self.current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
@@ -81,12 +86,27 @@ impl MacroquadNeothesia {
                 scene.initialize(&mut self.context);
                 self.current_scene = Box::new(scene) as Box<dyn PlyScene>;
             }
+            NeothesiaEvent::ResumeFromSettings => {
+                // Return to main menu with the song still available for resuming
+                let playback_gain = self.context.config.playback_gain();
+                self.context.output_manager.connection().set_gain(playback_gain);
+                // Get the song from context if we have a resume time
+                let song = if self.context.resume_playback_time.is_some() {
+                    // We need to reconstruct the song - for now go back to menu
+                    // The resume time is stored in context
+                    None
+                } else {
+                    None
+                };
+                self.current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
+            }
             NeothesiaEvent::ShowSongLibrary(song) => {
                 let mut scene = PlySongLibraryScene::new(song);
                 scene.load_songs(&mut self.context);
                 self.current_scene = Box::new(scene) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::ShowScore { song, score_data } => {
+                self.context.resume_playback_time = None;
                 self.current_scene = Box::new(PlyScoreScene::new(song, score_data)) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::MidiInput { channel, message } => {

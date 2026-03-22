@@ -111,7 +111,7 @@ impl PlyMenuScene {
     }
 
     /// Activate the currently focused option
-    fn activate_focused(&mut self) -> Option<NeothesiaEvent> {
+    fn activate_focused(&mut self, ctx: &mut MacroquadContext) -> Option<NeothesiaEvent> {
         if let Some(focused) = self.input_manager.focus().focused_element() {
             let has_song = self.song.is_some();
 
@@ -119,14 +119,20 @@ impl PlyMenuScene {
                 "menu_play" => {
                     if has_song {
                         if let Some(song) = self.song.take() {
+                            // Check if we should resume playback
+                            if let Some(resume_time) = ctx.resume_playback_time.take() {
+                                return Some(NeothesiaEvent::ResumePlay(song, resume_time));
+                            }
                             return Some(NeothesiaEvent::Play(song));
                         }
                     }
                 }
                 "menu_freeplay" => {
+                    ctx.resume_playback_time = None;
                     return Some(NeothesiaEvent::FreePlay(self.song.take()));
                 }
                 "menu_library" => {
+                    ctx.resume_playback_time = None;
                     return Some(NeothesiaEvent::ShowSongLibrary(self.song.take()));
                 }
                 "menu_settings" => {
@@ -143,7 +149,7 @@ impl PlyMenuScene {
 }
 
 impl PlyScene for PlyMenuScene {
-    fn update(&mut self, _ctx: &mut MacroquadContext, delta: Duration) -> Option<NeothesiaEvent> {
+    fn update(&mut self, ctx: &mut MacroquadContext, delta: Duration) -> Option<NeothesiaEvent> {
         use macroquad::prelude::*;
 
         // Update unified input manager
@@ -178,7 +184,7 @@ impl PlyScene for PlyMenuScene {
                 .focus()
                 .priority()
                 .set_keyboard_priority();
-            return self.activate_focused();
+            return self.activate_focused(ctx);
         }
 
         if is_key_pressed(KeyCode::S) {
@@ -241,7 +247,7 @@ impl PlyScene for PlyMenuScene {
 
         // Handle mouse click
         if is_mouse_button_pressed(MouseButton::Left) {
-            return self.activate_focused();
+            return self.activate_focused(ctx);
         }
 
         None
@@ -781,6 +787,13 @@ impl PlyPlayingScene {
         }
     }
 
+    pub fn new_resumed(song: Song, resume_time: f32) -> Self {
+        let mut scene = Self::new(song);
+        scene.playback_time = resume_time;
+        scene.paused = true; // Start paused, user can unpause when ready
+        scene
+    }
+
     fn initialize_waterfall(&mut self, ctx: &mut MacroquadContext) {
         use crate::render::ply::waterfall::PlyWaterfallRenderer;
         use neothesia_core::waterfall::TrackChannelConfig;
@@ -826,6 +839,19 @@ impl PlyPlayingScene {
     // ─── Top Bar Layout Constants ───
     const TOP_BAR_H: f32 = 30.0;
     const PROGRESS_BAR_H: f32 = 45.0;
+
+    // ─── Design System Colors (Sonic Obsidian) ───
+    const COLOR_BACKGROUND: Color = Color::new(0.055, 0.055, 0.075, 1.0); // #0e0e13
+    const COLOR_SURFACE_CONTAINER: Color = Color::new(0.098, 0.098, 0.122, 1.0); // #19191f
+    const COLOR_SURFACE_CONTAINER_HIGHEST: Color = Color::new(0.145, 0.145, 0.173, 1.0); // #25252c
+    const COLOR_PRIMARY: Color = Color::new(0.859, 0.565, 1.0, 1.0); // #db90ff
+    const COLOR_PRIMARY_CONTAINER: Color = Color::new(0.827, 0.482, 1.0, 1.0); // #d37bff
+    const COLOR_SECONDARY: Color = Color::new(0.373, 0.620, 1.0, 1.0); // #5f9eff
+    const COLOR_TERTIARY: Color = Color::new(1.0, 0.431, 0.502, 1.0); // #ff6e80
+    const COLOR_ON_SURFACE: Color = Color::new(0.973, 0.961, 0.992, 1.0); // #f8f5fd
+    const COLOR_ON_SURFACE_VARIANT: Color = Color::new(0.667, 0.655, 0.694, 1.0); // #acaab1
+    const COLOR_OUTLINE_VARIANT: Color = Color::new(0.282, 0.278, 0.302, 1.0); // #48474d
+    const COLOR_SURFACE_VARIANT: Color = Color::new(0.145, 0.145, 0.173, 1.0); // #25252c
 
     fn render_top_bar(&self, mx: f32, my: f32, mouse_down: bool) {
         let sw = screen_width();
@@ -1124,98 +1150,600 @@ impl PlyPlayingScene {
         }
     }
 
-    fn render_live_score(&self) {
+    /// Render the score panel in top-left corner with glassmorphism background
+    fn render_score_panel(&self) {
         let score = self.live_score.score();
-        let multiplier = self.live_score.multiplier();
         let streak = self.live_score.streak().current();
+        let accuracy = self.live_score.accuracy();
 
-        let y_start = Self::TOP_BAR_H + Self::PROGRESS_BAR_H + 15.0;
+        // Panel dimensions and position (top-left)
+        let panel_x = 32.0;
+        let panel_y = 32.0;
+        let panel_w = 220.0;
+        let panel_h = 140.0;
 
-        let score_text = format!("{:}", score);
-        draw_text(&score_text, screen_width() - 200.0, y_start, 32.0, WHITE);
-
-        let mult_text = format!("x{}", multiplier);
-        let mult_color = match multiplier {
-            8 => Color::from_rgba(255, 215, 0, 255),
-            4 => Color::from_rgba(0, 136, 255, 255),
-            2 => Color::from_rgba(0, 255, 0, 255),
-            _ => Color::from_rgba(200, 200, 200, 255),
-        };
-        crate::scene::ply_fonts::draw_headline(
-            &mult_text,
-            screen_width() - 80.0,
-            y_start,
-            24.0,
-            mult_color,
+        // Glassmorphism background (surface_container with transparency)
+        draw_rectangle(
+            panel_x,
+            panel_y,
+            panel_w,
+            panel_h,
+            Color::new(0.098, 0.098, 0.122, 0.85), // surface_container at 85% opacity
         );
 
-        if streak > 0 {
-            let (streak_text, streak_color) = if streak >= 200 {
-                (
-                    format!("LEGENDARY: {}", streak),
-                    Color::from_rgba(255, 0, 255, 255),
-                )
-            } else if streak >= 100 {
-                (
-                    format!("ON FIRE: {}", streak),
-                    Color::from_rgba(255, 136, 0, 255),
-                )
-            } else if streak >= 50 {
-                (
-                    format!("Streak: {}", streak),
-                    Color::from_rgba(255, 215, 0, 255),
-                )
-            } else if streak >= 30 {
-                (
-                    format!("Streak: {}", streak),
-                    Color::from_rgba(0, 136, 255, 255),
-                )
-            } else if streak >= 10 {
-                (
-                    format!("Streak: {}", streak),
-                    Color::from_rgba(0, 255, 0, 255),
-                )
-            } else {
-                (
-                    format!("Streak: {}", streak),
-                    Color::from_rgba(170, 170, 170, 255),
-                )
-            };
+        // Left accent border (2px primary color)
+        draw_rectangle(panel_x, panel_y, 3.0, panel_h, Self::COLOR_PRIMARY);
 
-            crate::scene::ply_fonts::draw_headline(
-                &streak_text,
-                screen_width() - 200.0,
-                y_start + 30.0,
-                18.0,
-                streak_color,
+        // "CURRENT SCORE" label (small, uppercase, on_surface_variant)
+        crate::scene::ply_fonts::draw_label(
+            "CURRENT SCORE",
+            panel_x + 16.0,
+            panel_y + 20.0,
+            10.0,
+            Self::COLOR_ON_SURFACE_VARIANT,
+        );
+
+        // Score number (large, primary color)
+        let score_text = format!("{}", score);
+        crate::scene::ply_fonts::draw_headline(
+            &score_text,
+            panel_x + 16.0,
+            panel_y + 55.0,
+            32.0,
+            Self::COLOR_PRIMARY,
+        );
+
+        // Streak and Accuracy row
+        let row_y = panel_y + 90.0;
+
+        // Streak label and value
+        crate::scene::ply_fonts::draw_label(
+            "STREAK",
+            panel_x + 16.0,
+            row_y,
+            8.0,
+            Self::COLOR_ON_SURFACE_VARIANT,
+        );
+        let streak_text = format!("x{}", streak);
+        crate::scene::ply_fonts::draw_body(
+            &streak_text,
+            panel_x + 16.0,
+            row_y + 18.0,
+            16.0,
+            Self::COLOR_SECONDARY,
+        );
+
+        // Separator line
+        draw_rectangle(
+            panel_x + 85.0,
+            row_y - 5.0,
+            1.0,
+            35.0,
+            Self::COLOR_OUTLINE_VARIANT,
+        );
+
+        // Accuracy label and value
+        crate::scene::ply_fonts::draw_label(
+            "ACCURACY",
+            panel_x + 95.0,
+            row_y,
+            8.0,
+            Self::COLOR_ON_SURFACE_VARIANT,
+        );
+        let accuracy_text = format!("{:.1}%", accuracy);
+        crate::scene::ply_fonts::draw_body(
+            &accuracy_text,
+            panel_x + 95.0,
+            row_y + 18.0,
+            16.0,
+            Self::COLOR_TERTIARY,
+        );
+    }
+
+    /// Render song title and session config bar in top-center
+    fn render_song_info(&self, mx: f32, my: f32, mouse_down: bool) {
+        let sw = screen_width();
+        let center_x = sw / 2.0;
+
+        // Song title and artist (top-center)
+        let title_y = 40.0;
+        crate::scene::ply_fonts::draw_headline(
+            &self.song.file.name,
+            center_x - 150.0,
+            title_y,
+            20.0,
+            Self::COLOR_ON_SURFACE,
+        );
+
+        // Artist/subtitle (simplified - could get from MIDI metadata)
+        crate::scene::ply_fonts::draw_body(
+            "MIDI Performance",
+            center_x - 100.0,
+            title_y + 25.0,
+            12.0,
+            Self::COLOR_ON_SURFACE_VARIANT,
+        );
+
+        // Session config bar (pill-shaped container)
+        let bar_y = title_y + 55.0;
+        let bar_w = 320.0;
+        let bar_h = 50.0;
+        let bar_x = center_x - bar_w / 2.0;
+
+        // Bar background (surface_container with rounded corners)
+        draw_rectangle(bar_x, bar_y, bar_w, bar_h, Self::COLOR_SURFACE_CONTAINER);
+
+        // Border (outline_variant at low opacity)
+        draw_rectangle(
+            bar_x,
+            bar_y,
+            bar_w,
+            1.0,
+            Color::new(0.282, 0.278, 0.302, 0.2),
+        );
+        draw_rectangle(
+            bar_x,
+            bar_y + bar_h - 1.0,
+            bar_w,
+            1.0,
+            Color::new(0.282, 0.278, 0.302, 0.2),
+        );
+
+        // Tempo section
+        let tempo_x = bar_x + 30.0;
+        crate::scene::ply_fonts::draw_label(
+            "TEMPO",
+            tempo_x,
+            bar_y + 12.0,
+            8.0,
+            Self::COLOR_ON_SURFACE_VARIANT,
+        );
+        let speed = self.speed_multiplier();
+        let tempo_text = format!("{} BPM", (120.0 * speed).round() as i32);
+        crate::scene::ply_fonts::draw_body(
+            &tempo_text,
+            tempo_x,
+            bar_y + 28.0,
+            12.0,
+            Self::COLOR_PRIMARY,
+        );
+
+        // Separator
+        draw_rectangle(
+            bar_x + 100.0,
+            bar_y + 10.0,
+            1.0,
+            30.0,
+            Self::COLOR_OUTLINE_VARIANT,
+        );
+
+        // Key section
+        let key_x = bar_x + 120.0;
+        crate::scene::ply_fonts::draw_label(
+            "KEY",
+            key_x,
+            bar_y + 12.0,
+            8.0,
+            Self::COLOR_ON_SURFACE_VARIANT,
+        );
+        crate::scene::ply_fonts::draw_body(
+            "C Maj", // Default - could extract from MIDI
+            key_x,
+            bar_y + 28.0,
+            12.0,
+            Self::COLOR_SECONDARY,
+        );
+
+        // Separator
+        draw_rectangle(
+            bar_x + 180.0,
+            bar_y + 10.0,
+            1.0,
+            30.0,
+            Self::COLOR_OUTLINE_VARIANT,
+        );
+
+        // Pause button
+        let btn_x = bar_x + 200.0;
+        let btn_size = 36.0;
+        let btn_center_y = bar_y + bar_h / 2.0;
+
+        // Pause button circle (primary color)
+        draw_circle(
+            btn_x + btn_size / 2.0,
+            btn_center_y,
+            btn_size / 2.0,
+            Self::COLOR_PRIMARY,
+        );
+
+        // Show play or pause icon based on paused state
+        if self.paused {
+            // Play icon (triangle)
+            let tri_size = 10.0;
+            let tri_center_x = btn_x + btn_size / 2.0 + 2.0; // Slightly right of center
+            let tri_center_y = btn_center_y;
+            // Draw triangle using three lines
+            draw_line(
+                tri_center_x - tri_size / 2.0,
+                tri_center_y - tri_size / 2.0,
+                tri_center_x + tri_size / 2.0,
+                tri_center_y,
+                2.0,
+                Self::COLOR_SURFACE_CONTAINER,
+            );
+            draw_line(
+                tri_center_x + tri_size / 2.0,
+                tri_center_y,
+                tri_center_x - tri_size / 2.0,
+                tri_center_y + tri_size / 2.0,
+                2.0,
+                Self::COLOR_SURFACE_CONTAINER,
+            );
+            draw_line(
+                tri_center_x - tri_size / 2.0,
+                tri_center_y + tri_size / 2.0,
+                tri_center_x - tri_size / 2.0,
+                tri_center_y - tri_size / 2.0,
+                2.0,
+                Self::COLOR_SURFACE_CONTAINER,
+            );
+        } else {
+            // Pause icon (two vertical bars)
+            let bar_width = 3.0;
+            let bar_height = 14.0;
+            let bar_gap = 5.0;
+            draw_rectangle(
+                btn_x + btn_size / 2.0 - bar_gap - bar_width,
+                btn_center_y - bar_height / 2.0,
+                bar_width,
+                bar_height,
+                Self::COLOR_SURFACE_CONTAINER,
+            );
+            draw_rectangle(
+                btn_x + btn_size / 2.0 + bar_gap,
+                btn_center_y - bar_height / 2.0,
+                bar_width,
+                bar_height,
+                Self::COLOR_SURFACE_CONTAINER,
             );
         }
 
-        let accuracy = self.live_score.accuracy();
-        if accuracy > 0.0 {
-            crate::scene::ply_fonts::draw_headline(
-                &format!("{:.0}%", accuracy),
-                screen_width() - 200.0,
-                y_start + 55.0,
-                16.0,
-                Color::from_rgba(150, 200, 255, 255),
-            );
+        // Settings button (gear icon placeholder)
+        let settings_x = btn_x + btn_size + 10.0;
+        draw_circle(
+            settings_x + 12.0,
+            btn_center_y,
+            15.0,
+            Self::COLOR_SURFACE_VARIANT,
+        );
+        crate::scene::ply_fonts::draw_body(
+            "⚙",
+            settings_x + 6.0,
+            btn_center_y + 5.0,
+            14.0,
+            Self::COLOR_ON_SURFACE_VARIANT,
+        );
+    }
+
+    /// Handle clicks on pause and settings buttons in the session config bar
+    fn handle_song_info_click(
+        &mut self,
+        mx: f32,
+        my: f32,
+        mouse_just_pressed: bool,
+        ctx: &mut MacroquadContext,
+    ) -> Option<NeothesiaEvent> {
+        if !mouse_just_pressed {
+            return None;
         }
 
+        let sw = screen_width();
+        let center_x = sw / 2.0;
+        let title_y = 40.0;
+        let bar_y = title_y + 55.0;
+        let bar_w = 320.0;
+        let bar_h = 50.0;
+        let bar_x = center_x - bar_w / 2.0;
+        let btn_x = bar_x + 200.0;
+        let btn_size = 36.0;
+        let btn_center_y = bar_y + bar_h / 2.0;
+
+        // Check pause button click
+        let pause_btn_cx = btn_x + btn_size / 2.0;
+        let pause_btn_cy = btn_center_y;
+        let pause_dist = ((mx - pause_btn_cx).powi(2) + (my - pause_btn_cy).powi(2)).sqrt();
+        if pause_dist <= btn_size / 2.0 {
+            self.paused = !self.paused;
+            return None;
+        }
+
+        // Check settings button click
+        let settings_x = btn_x + btn_size + 10.0;
+        let settings_cx = settings_x + 12.0;
+        let settings_dist = ((mx - settings_cx).powi(2) + (my - pause_btn_cy).powi(2)).sqrt();
+        if settings_dist <= 15.0 {
+            self.paused = true;
+            ctx.resume_playback_time = Some(self.playback_time);
+            return Some(NeothesiaEvent::ShowSettings);
+        }
+
+        None
+    }
+
+    /// Render vertical timeline progress bar on left side
+    fn render_vertical_timeline(&self, mx: f32, my: f32, mouse_down: bool) {
+        let screen_h = screen_height();
+        let center_y = screen_h / 2.0;
+
+        // Timeline position (left side)
+        let timeline_x = 40.0;
+        let timeline_top = center_y - 150.0;
+        let timeline_bottom = center_y + 150.0;
+        let timeline_h = timeline_bottom - timeline_top;
+
+        // Time labels
+        let current_time = self.playback_time.max(0.0);
+        let remaining_time = (self.song_length - self.playback_time).max(0.0);
+
+        crate::scene::ply_fonts::draw_mono(
+            &Self::format_time(remaining_time),
+            timeline_x - 5.0,
+            timeline_top - 10.0,
+            10.0,
+            Self::COLOR_ON_SURFACE_VARIANT,
+        );
+
+        crate::scene::ply_fonts::draw_mono(
+            &Self::format_time(current_time),
+            timeline_x - 5.0,
+            timeline_bottom + 15.0,
+            10.0,
+            Self::COLOR_PRIMARY,
+        );
+
+        // Timeline track (surface_container_highest)
+        draw_rectangle(
+            timeline_x - 2.0,
+            timeline_top,
+            4.0,
+            timeline_h,
+            Self::COLOR_SURFACE_CONTAINER_HIGHEST,
+        );
+
+        // Progress fill (gradient from primary to secondary)
+        let progress = self.percentage();
+        let fill_h = timeline_h * progress;
+        draw_rectangle(
+            timeline_x - 2.0,
+            timeline_bottom - fill_h,
+            4.0,
+            fill_h,
+            Self::COLOR_PRIMARY,
+        );
+
+        // Thumb/handle (circle with glow effect)
+        let thumb_y = timeline_bottom - fill_h;
+        draw_circle(timeline_x, thumb_y, 8.0, Self::COLOR_PRIMARY);
+
+        // Glow effect
+        draw_circle(
+            timeline_x,
+            thumb_y,
+            12.0,
+            Color::new(0.859, 0.565, 1.0, 0.3),
+        );
+    }
+
+    /// Handle vertical timeline click/drag for seeking
+    fn handle_vertical_timeline_click(
+        &mut self,
+        mx: f32,
+        my: f32,
+        mouse_down: bool,
+        mouse_just_pressed: bool,
+    ) {
+        let screen_h = screen_height();
+        let center_y = screen_h / 2.0;
+        let timeline_x = 40.0;
+        let timeline_top = center_y - 150.0;
+        let timeline_bottom = center_y + 150.0;
+        let timeline_h = timeline_bottom - timeline_top;
+
+        // Check if mouse is near the timeline area (10px horizontal tolerance)
+        if mx < timeline_x - 15.0 || mx > timeline_x + 15.0 {
+            if !mouse_down {
+                self.is_seeking = false;
+            }
+            return;
+        }
+
+        // Check if mouse is within vertical bounds of timeline
+        if my < timeline_top - 20.0 || my > timeline_bottom + 20.0 {
+            if !mouse_down {
+                self.is_seeking = false;
+            }
+            return;
+        }
+
+        if mouse_just_pressed {
+            self.is_seeking = true;
+        }
+
+        if self.is_seeking && mouse_down {
+            // Calculate percentage (inverted because bottom = 0%, top = 100%)
+            let p = ((timeline_bottom - my) / timeline_h).clamp(0.0, 1.0);
+            self.set_percentage(p);
+            if let Some(waterfall) = &mut self.waterfall {
+                waterfall.update(self.playback_time);
+            }
+        }
+
+        if !mouse_down {
+            self.is_seeking = false;
+        }
+    }
+
+    /// Render latest timing quality feedback on top-right
+    fn render_timing_feedback(&self) {
         if let Some(quality) = &self.last_timing_quality {
             let (text, color) = match quality {
-                TimingQuality::Perfect => ("PERFECT", Color::from_rgba(255, 215, 0, 255)),
-                TimingQuality::Good => ("GOOD", Color::from_rgba(0, 255, 0, 255)),
-                TimingQuality::Okay => ("OKAY", Color::from_rgba(0, 136, 255, 255)),
-                TimingQuality::Miss => ("MISS", Color::from_rgba(255, 0, 0, 255)),
+                TimingQuality::Perfect => ("PERFECT", Color::new(1.0, 0.843, 0.0, 1.0)), // Gold
+                TimingQuality::Good => ("GOOD", Color::new(0.0, 1.0, 0.0, 1.0)),         // Green
+                TimingQuality::Okay => ("OKAY", Color::new(0.0, 0.533, 1.0, 1.0)),       // Blue
+                TimingQuality::Miss => ("MISS", Color::new(1.0, 0.0, 0.0, 1.0)),         // Red
             };
+
+            let screen_w = screen_width();
+            let panel_y = 32.0;
+            let panel_x = screen_w - 200.0;
+            let panel_w = 160.0;
+            let panel_h = 80.0;
+
+            // Background panel
+            draw_rectangle(
+                panel_x,
+                panel_y,
+                panel_w,
+                panel_h,
+                Color::new(0.098, 0.098, 0.122, 0.85), // surface_container at 85% opacity
+            );
+
+            // Right accent border (colored by quality)
+            draw_rectangle(panel_x + panel_w - 3.0, panel_y, 3.0, panel_h, color);
+
+            // "LAST NOTE" label
+            crate::scene::ply_fonts::draw_label(
+                "LAST NOTE",
+                panel_x + 12.0,
+                panel_y + 20.0,
+                10.0,
+                Self::COLOR_ON_SURFACE_VARIANT,
+            );
+
+            // Quality text (large, colored)
             crate::scene::ply_fonts::draw_headline(
                 text,
-                screen_width() / 2.0 - 40.0,
-                screen_height() - 180.0,
-                20.0,
+                panel_x + 12.0,
+                panel_y + 55.0,
+                28.0,
                 color,
             );
+        }
+    }
+
+    /// Render MIDI log overlay on right side
+    fn render_midi_log(&self) {
+        // Only show if there are recent MIDI events (placeholder for now)
+        let screen_w = screen_width();
+        let screen_h = screen_height();
+
+        let log_x = screen_w - 180.0;
+        let log_y = screen_h / 2.0 - 80.0;
+        let log_w = 160.0;
+        let log_h = 160.0;
+
+        // Sample MIDI events (in real implementation, these would come from actual MIDI input)
+        let events = [
+            ("NOTE_ON 64 VEL:98", Self::COLOR_PRIMARY),
+            ("NOTE_ON 67 VEL:102", Self::COLOR_SECONDARY),
+            ("NOTE_OFF 64 VEL:0", Self::COLOR_PRIMARY),
+            ("CC_SUSTAIN 127", Self::COLOR_TERTIARY),
+        ];
+
+        for (i, (text, color)) in events.iter().enumerate() {
+            let event_y = log_y + (i as f32) * 35.0;
+            let opacity = 0.9 - (i as f32) * 0.15;
+
+            // Event background
+            draw_rectangle(
+                log_x,
+                event_y,
+                log_w,
+                28.0,
+                Color::new(0.0, 0.0, 0.0, 0.6 * opacity),
+            );
+
+            // Right accent border
+            draw_rectangle(
+                log_x + log_w - 2.0,
+                event_y,
+                2.0,
+                28.0,
+                Color::new(color.r, color.g, color.b, opacity),
+            );
+
+            // Event text
+            crate::scene::ply_fonts::draw_mono(
+                text,
+                log_x + 8.0,
+                event_y + 18.0,
+                9.0,
+                Color::new(color.r, color.g, color.b, opacity),
+            );
+        }
+    }
+
+    /// Render close button in top-right corner
+    fn render_close_button(&self, mx: f32, my: f32, mouse_down: bool) {
+        let screen_w = screen_width();
+        let btn_x = screen_w - 60.0;
+        let btn_y = 32.0;
+        let btn_size = 40.0;
+
+        // Button background (surface_container_highest)
+        draw_rectangle(
+            btn_x,
+            btn_y,
+            btn_size,
+            btn_size,
+            Self::COLOR_SURFACE_CONTAINER_HIGHEST,
+        );
+
+        // Hover effect
+        if mx >= btn_x && mx <= btn_x + btn_size && my >= btn_y && my <= btn_y + btn_size {
+            draw_rectangle(
+                btn_x,
+                btn_y,
+                btn_size,
+                btn_size,
+                Color::new(1.0, 0.431, 0.502, 0.2),
+            );
+        }
+
+        // X icon
+        let icon_size = 14.0;
+        let icon_x = btn_x + (btn_size - icon_size) / 2.0;
+        let icon_y = btn_y + (btn_size - icon_size) / 2.0;
+
+        draw_line(
+            icon_x,
+            icon_y,
+            icon_x + icon_size,
+            icon_y + icon_size,
+            2.0,
+            Self::COLOR_ON_SURFACE,
+        );
+        draw_line(
+            icon_x + icon_size,
+            icon_y,
+            icon_x,
+            icon_y + icon_size,
+            2.0,
+            Self::COLOR_ON_SURFACE,
+        );
+    }
+
+    /// Handle close button click
+    fn handle_close_button_click(&self, mx: f32, my: f32) -> Option<NeothesiaEvent> {
+        let screen_w = screen_width();
+        let btn_x = screen_w - 60.0;
+        let btn_y = 32.0;
+        let btn_size = 40.0;
+
+        if mx >= btn_x && mx <= btn_x + btn_size && my >= btn_y && my <= btn_y + btn_size {
+            Some(NeothesiaEvent::MainMenu(Some(self.song.clone())))
+        } else {
+            None
         }
     }
 
@@ -1374,6 +1902,8 @@ impl PlyScene for PlyPlayingScene {
 
         // ── Keyboard shortcuts ──
         if is_key_pressed(KeyCode::Escape) {
+            self.paused = true;
+            ctx.resume_playback_time = Some(self.playback_time);
             return Some(NeothesiaEvent::MainMenu(Some(self.song.clone())));
         }
         if is_key_pressed(KeyCode::Space) {
@@ -1390,14 +1920,34 @@ impl PlyScene for PlyPlayingScene {
                 .set_speed_multiplier(ctx.config.speed_multiplier() - 0.1);
         }
 
-        // ── Top bar click handling ──
-        if mouse_just_pressed && mouse_y <= Self::TOP_BAR_H {
-            if let Some(event) = self.handle_top_bar_click(ctx, mouse_x, mouse_y) {
+        // ── Close button click handling ──
+        if mouse_just_pressed {
+            if let Some(event) = self.handle_close_button_click(mouse_x, mouse_y) {
+                self.paused = true;
+                ctx.resume_playback_time = Some(self.playback_time);
                 return Some(event);
             }
         }
 
-        // ── Progress bar interaction ──
+        // ── Song info button click handling (pause, settings) ──
+        if mouse_just_pressed {
+            if let Some(event) =
+                self.handle_song_info_click(mouse_x, mouse_y, mouse_just_pressed, ctx)
+            {
+                return Some(event);
+            }
+        }
+
+        // ── Top bar click handling (kept for backward compatibility) ──
+        if mouse_just_pressed && mouse_y <= Self::TOP_BAR_H {
+            if let Some(event) = self.handle_top_bar_click(ctx, mouse_x, mouse_y) {
+                self.paused = true;
+                ctx.resume_playback_time = Some(self.playback_time);
+                return Some(event);
+            }
+        }
+
+        // ── Progress bar interaction (kept for backward compatibility) ──
         let progress_bar_bottom = Self::TOP_BAR_H + Self::PROGRESS_BAR_H;
         if mouse_y >= Self::TOP_BAR_H && mouse_y <= progress_bar_bottom {
             self.handle_progress_bar_click(mouse_x, mouse_y, mouse_down, mouse_just_pressed);
@@ -1405,6 +1955,11 @@ impl PlyScene for PlyPlayingScene {
             self.is_seeking = false;
             self.is_dragging_looper_start = false;
             self.is_dragging_looper_end = false;
+        }
+
+        // ── Vertical timeline seek interaction ──
+        if mouse_just_pressed || mouse_down {
+            self.handle_vertical_timeline_click(mouse_x, mouse_y, mouse_down, mouse_just_pressed);
         }
 
         // ── Playback advancement ──
@@ -1556,7 +2111,7 @@ impl PlyScene for PlyPlayingScene {
     }
 
     fn render(&mut self, _ctx: &mut MacroquadContext) {
-        clear_background(BLACK);
+        clear_background(Self::COLOR_BACKGROUND);
 
         let (mx, my) = mouse_position();
         let mouse_down = is_mouse_button_down(MouseButton::Left);
@@ -1566,10 +2121,13 @@ impl PlyScene for PlyPlayingScene {
         }
         self.piano_keyboard.render();
 
-        self.render_live_score();
-
-        self.render_top_bar(mx, my, mouse_down);
-        self.render_progress_bar(mx, my, mouse_down);
+        // Render new HUD elements per design spec
+        self.render_score_panel();
+        self.render_timing_feedback(); // Top-right timing quality display
+        self.render_song_info(mx, my, mouse_down);
+        self.render_vertical_timeline(mx, my, mouse_down);
+        self.render_midi_log();
+        self.render_close_button(mx, my, mouse_down);
     }
 }
 
@@ -4761,7 +5319,7 @@ impl PlyScene for PlySettingsScene {
             if self.popup != SettingsPopup::None {
                 self.popup = SettingsPopup::None;
             } else {
-                return Some(NeothesiaEvent::MainMenu(None));
+                return Some(NeothesiaEvent::ResumeFromSettings);
             }
         }
 

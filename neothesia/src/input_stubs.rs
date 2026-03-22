@@ -1,6 +1,8 @@
 pub struct UnifiedInputManager {
     elements: Vec<FocusableElement>,
     focused_id: Option<String>,
+    mouse_priority: bool,
+    keyboard_priority: bool,
 }
 
 impl UnifiedInputManager {
@@ -8,6 +10,8 @@ impl UnifiedInputManager {
         Self {
             elements: Vec::new(),
             focused_id: None,
+            mouse_priority: true,
+            keyboard_priority: false,
         }
     }
 
@@ -49,16 +53,22 @@ impl UnifiedInputManager {
     }
 
     pub fn has_mouse_priority(&self) -> bool {
-        false
+        self.mouse_priority
     }
 
     pub fn has_keyboard_priority(&self) -> bool {
-        false
+        self.keyboard_priority
     }
 
-    pub fn set_keyboard_priority(&mut self) {}
+    pub fn set_keyboard_priority(&mut self) {
+        self.keyboard_priority = true;
+        self.mouse_priority = false;
+    }
 
-    pub fn update_mouse_position(&mut self, _x: f32, _y: f32) {}
+    pub fn update_mouse_position(&mut self, _x: f32, _y: f32) {
+        self.mouse_priority = true;
+        self.keyboard_priority = false;
+    }
 
     pub fn update(&mut self, _delta: f64) {}
 

@@ -8,9 +8,11 @@ use crate::scoring_data::ScoreData;
 #[derive(Debug)]
 pub enum NeothesiaEvent {
     Play(crate::Song),
+    ResumePlay(crate::Song, f32),
     FreePlay(Option<crate::Song>),
     MainMenu(Option<crate::Song>),
     ShowSettings,
+    ResumeFromSettings,
     ShowSongLibrary(Option<crate::Song>),
     ShowScore {
         song: crate::Song,
