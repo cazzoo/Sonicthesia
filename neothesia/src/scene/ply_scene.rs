@@ -5341,12 +5341,10 @@ impl PlyScene for PlySettingsScene {
     fn update(&mut self, ctx: &mut MacroquadContext, delta: Duration) -> Option<NeothesiaEvent> {
         use macroquad::prelude::*;
 
-        // NOTE: Don't clear button_areas here - they are populated by render() and need to persist
-        // to the next frame's update() for mouse click detection to work.
-        // button_areas are cleared at the START of render() instead.
-        // NOTE: Don't clear interactive_settings - they persist across frames to maintain focus
+        if let Some(nav_event) = self.pending_nav_event.take() {
+            return Some(nav_event);
+        }
 
-        // Update the unified input manager
         self.input_manager.update(delta.as_secs_f64());
 
         log::debug!(
