@@ -1,6 +1,8 @@
 pub mod ply_fonts;
 pub mod ply_scene;
-pub use ply_scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene, PlySongLibraryScene};
+pub mod ply_settings;
+pub use ply_scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySongLibraryScene};
+pub use ply_settings::PlySettingsScene;
 
 use midi_file::midly::MidiMessage;
 use crate::NeothesiaEvent;
