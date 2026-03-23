@@ -151,7 +151,13 @@ impl AudioPage {
                 .unwrap_or_else(|| "Unknown".to_string())
         };
 
-        let section_height = 280.0;
+        let folders = config.synth_config.soundfont_folders();
+        let folder_height = if folders.is_empty() {
+            40.0
+        } else {
+            folders.len() as f32 * 36.0 + 10.0
+        };
+        let section_height = 280.0 + folder_height;
         let panel = GlassPanel::new(x, y, width, section_height);
         panel.render();
 
@@ -521,6 +527,102 @@ impl AudioPage {
             interaction = SettingsInteraction::AddSoundFontFolder;
         }
 
+        let folder_label_y = add_btn_y + add_btn_h + spacing::LG;
+        let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
+        draw_text(
+            "SoundFont Folders",
+            x + spacing::XL,
+            folder_label_y,
+            14.0,
+            Color::new(label_r, label_g, label_b, 1.0),
+        );
+
+        let mut item_y = folder_label_y + 8.0;
+        let (text_r, text_g, text_b) = colors::to_normalized(colors::ON_SURFACE);
+
+        if folders.is_empty() {
+            draw_text(
+                "No folders configured",
+                x + spacing::XL,
+                item_y + 14.0,
+                12.0,
+                Color::new(label_r, label_g, label_b, 0.5),
+            );
+        }
+
+        for (idx, folder) in folders.iter().enumerate() {
+            let item_h = 32.0;
+            let folder_hovered = mx >= x + spacing::XL
+                && mx <= x + width - spacing::XL
+                && my >= item_y
+                && my <= item_y + item_h;
+
+            let (item_bg_r, item_bg_g, item_bg_b) =
+                colors::to_normalized(colors::SURFACE_CONTAINER);
+            draw_rectangle(
+                x + spacing::XL,
+                item_y,
+                width - spacing::XL * 2.0,
+                item_h,
+                Color::new(
+                    item_bg_r,
+                    item_bg_g,
+                    item_bg_b,
+                    if folder_hovered { 0.6 } else { 0.3 },
+                ),
+            );
+
+            let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::SECONDARY);
+            draw_text(
+                "📁",
+                x + spacing::XL + spacing::SM,
+                item_y + 21.0,
+                14.0,
+                Color::new(icon_r, icon_g, icon_b, 0.9),
+            );
+
+            let folder_str = folder.to_string_lossy();
+            let max_chars = ((width - spacing::XL * 2.0 - 60.0) / 7.0) as usize;
+            let display = if folder_str.len() > max_chars {
+                format!("...{}", &folder_str[folder_str.len() - max_chars + 3..])
+            } else {
+                folder_str.to_string()
+            };
+
+            draw_text(
+                &display,
+                x + spacing::XL + 28.0,
+                item_y + 20.0,
+                11.0,
+                Color::new(
+                    text_r,
+                    text_g,
+                    text_b,
+                    if folder_hovered { 0.9 } else { 0.7 },
+                ),
+            );
+
+            if folder_hovered {
+                let del_x = x + width - spacing::XL - 24.0;
+                let del_hovered =
+                    mx >= del_x && mx <= del_x + 20.0 && my >= item_y + 6.0 && my <= item_y + 26.0;
+                let (del_r, del_g, del_b) = colors::to_normalized(colors::ERROR);
+                draw_text(
+                    "×",
+                    del_x,
+                    item_y + 21.0,
+                    16.0,
+                    Color::new(del_r, del_g, del_b, if del_hovered { 1.0 } else { 0.5 }),
+                );
+
+                if del_hovered && mouse_pressed {
+                    interaction = SettingsInteraction::RemoveSoundFontFolder(idx);
+                }
+            }
+
+            item_y += item_h + 4.0;
+        }
+
         (y + section_height + spacing::LG, interaction)
     }
 
@@ -690,131 +792,6 @@ impl AudioPage {
         (y + 320.0 + spacing::LG, interaction)
     }
 
-    fn render_folders_section(
-        &self,
-        x: f32,
-        y: f32,
-        width: f32,
-        config: &Config,
-        mx: f32,
-        my: f32,
-        mouse_pressed: bool,
-    ) -> (f32, SettingsInteraction) {
-        let folders = config.synth_config.soundfont_folders();
-        let min_height: f32 = 100.0;
-        let folder_height: f32 = folders.len() as f32 * 36.0;
-        let section_height = min_height.max(60.0 + folder_height);
-
-        let panel = GlassPanel::new(x, y, width, section_height);
-        panel.render();
-
-        let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
-            "SoundFont Folders",
-            x + spacing::XL,
-            y + spacing::XL + 16.0,
-            18.0,
-            Color::new(title_r, title_g, title_b, 1.0),
-        );
-
-        let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            &format!("{} folder(s) configured", folders.len()),
-            x + spacing::XL,
-            y + spacing::XL + 34.0,
-            12.0,
-            Color::new(sub_r, sub_g, sub_b, 1.0),
-        );
-
-        let mut item_y = y + 60.0;
-        let mut interaction = SettingsInteraction::None;
-        let (text_r, text_g, text_b) = colors::to_normalized(colors::ON_SURFACE);
-
-        if folders.is_empty() {
-            draw_text(
-                "No folders configured. Add a folder to scan for .sf2 files.",
-                x + spacing::XL,
-                item_y + 16.0,
-                12.0,
-                Color::new(sub_r, sub_g, sub_b, 0.6),
-            );
-        }
-
-        for (idx, folder) in folders.iter().enumerate() {
-            let item_h = 32.0;
-            let folder_hovered = mx >= x + spacing::XL
-                && mx <= x + width - spacing::XL
-                && my >= item_y
-                && my <= item_y + item_h;
-
-            let (item_bg_r, item_bg_g, item_bg_b) =
-                colors::to_normalized(colors::SURFACE_CONTAINER);
-            draw_rectangle(
-                x + spacing::XL,
-                item_y,
-                width - spacing::XL * 2.0,
-                item_h,
-                Color::new(
-                    item_bg_r,
-                    item_bg_g,
-                    item_bg_b,
-                    if folder_hovered { 0.6 } else { 0.3 },
-                ),
-            );
-
-            let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::SECONDARY);
-            draw_text(
-                "📁",
-                x + spacing::XL + spacing::SM,
-                item_y + 21.0,
-                14.0,
-                Color::new(icon_r, icon_g, icon_b, 0.9),
-            );
-
-            let folder_str = folder.to_string_lossy();
-            let max_chars = ((width - spacing::XL * 2.0 - 60.0) / 7.0) as usize;
-            let display = if folder_str.len() > max_chars {
-                format!("...{}", &folder_str[folder_str.len() - max_chars + 3..])
-            } else {
-                folder_str.to_string()
-            };
-
-            draw_text(
-                &display,
-                x + spacing::XL + 28.0,
-                item_y + 20.0,
-                11.0,
-                Color::new(
-                    text_r,
-                    text_g,
-                    text_b,
-                    if folder_hovered { 0.9 } else { 0.7 },
-                ),
-            );
-
-            if folder_hovered {
-                let del_x = x + width - spacing::XL - 24.0;
-                let del_hovered =
-                    mx >= del_x && mx <= del_x + 20.0 && my >= item_y + 6.0 && my <= item_y + 26.0;
-                let (del_r, del_g, del_b) = colors::to_normalized(colors::ERROR);
-                draw_text(
-                    "×",
-                    del_x,
-                    item_y + 21.0,
-                    16.0,
-                    Color::new(del_r, del_g, del_b, if del_hovered { 1.0 } else { 0.5 }),
-                );
-
-                if del_hovered && mouse_pressed {
-                    interaction = SettingsInteraction::RemoveSoundFontFolder(idx);
-                }
-            }
-
-            item_y += item_h + 4.0;
-        }
-
-        (y + section_height + spacing::LG, interaction)
-    }
 
     fn render_dropdown_row(
         &self,
@@ -1006,7 +983,7 @@ impl SettingsPage for AudioPage {
         }
         current_y = next_y;
 
-        let (next_y, interaction) = self.render_mixer_section(
+        let (_, interaction) = self.render_mixer_section(
             content_x,
             current_y,
             content_width,
@@ -1015,20 +992,6 @@ impl SettingsPage for AudioPage {
             my,
             mouse_pressed,
             mouse_down,
-        );
-        if !matches!(interaction, SettingsInteraction::None) {
-            return interaction;
-        }
-        current_y = next_y;
-
-        let (_, interaction) = self.render_folders_section(
-            content_x,
-            current_y,
-            content_width,
-            config,
-            mx,
-            my,
-            mouse_pressed,
         );
         interaction
     }
