@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sonic Obsidian Piano - Library</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-tint": "#db90ff",
+              "surface-dim": "#0e0e13",
+              "surface-container-lowest": "#000000",
+              "error": "#ff6e84",
+              "surface-container-low": "#131318",
+              "on-primary-fixed-variant": "#4a006b",
+              "on-primary-fixed": "#000000",
+              "on-tertiary-fixed": "#39000b",
+              "secondary": "#5f9eff",
+              "on-primary-container": "#3c0057",
+              "outline-variant": "#48474d",
+              "inverse-on-surface": "#55545a",
+              "on-primary": "#4e0070",
+              "secondary-fixed": "#bcd2ff",
+              "primary-dim": "#d277ff",
+              "primary-fixed-dim": "#cb66fe",
+              "background": "#0e0e13",
+              "primary-container": "#d37bff",
+              "on-secondary-container": "#f7f7ff",
+              "surface-container": "#19191f",
+              "tertiary": "#ff6e80",
+              "error-dim": "#d73357",
+              "on-secondary": "#001f46",
+              "surface-variant": "#25252c",
+              "tertiary-container": "#fc345d",
+              "tertiary-dim": "#e21d4d",
+              "on-tertiary-container": "#000000",
+              "on-error-container": "#ffb2b9",
+              "tertiary-fixed-dim": "#ff7987",
+              "secondary-dim": "#0073e0",
+              "on-secondary-fixed-variant": "#004f9f",
+              "secondary-container": "#005db8",
+              "on-tertiary": "#490011",
+              "on-tertiary-fixed-variant": "#780022",
+              "inverse-primary": "#9027c4",
+              "tertiary-fixed": "#ff909a",
+              "on-surface": "#f8f5fd",
+              "secondary-fixed-dim": "#a5c5ff",
+              "surface-container-high": "#1f1f26",
+              "on-secondary-fixed": "#00336b",
+              "primary": "#db90ff",
+              "surface-bright": "#2c2b33",
+              "on-surface-variant": "#acaab1",
+              "on-error": "#490013",
+              "error-container": "#a70138",
+              "outline": "#76747b",
+              "surface": "#0e0e13",
+              "surface-container-highest": "#25252c",
+              "inverse-surface": "#fbf8ff",
+              "on-background": "#f8f5fd",
+              "primary-fixed": "#d37bff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+      .glass-card {
+        background: rgba(37, 37, 44, 0.6);
+        backdrop-filter: blur(20px);
+        -webkit-backdrop-filter: blur(20px);
+      }
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0e0e13;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #25252c;
+        border-radius: 10px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #db90ff;
+      }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- TopNavBar -->
+<header class="fixed top-0 w-full z-50 bg-[#131318] shadow-[0_0_20px_rgba(219,144,255,0.15)] flex justify-between items-center px-8 h-16 w-full font-['Space_Grotesk'] tracking-tight">
+<div class="flex items-center gap-8">
+<span class="text-2xl font-bold tracking-tighter text-[#f8f5fd]">Sonic Obsidian Piano</span>
+<nav class="hidden md:flex gap-6 items-center">
+<a class="text-[#db90ff] border-b-2 border-[#db90ff] pb-1 transition-colors duration-300" href="#">Library</a>
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors duration-300" href="#">Practice</a>
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors duration-300" href="#">Settings</a>
+</nav>
+</div>
+<div class="flex items-center gap-4">
+<div class="relative group">
+<span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-on-surface-variant pointer-events-none">search</span>
+<input class="bg-surface-container-highest border-none rounded-lg pl-10 pr-4 py-1.5 w-64 text-sm focus:ring-1 focus:ring-secondary transition-all outline-none" placeholder="Search song library..." type="text"/>
+</div>
+<button class="p-2 rounded-full hover:bg-[#25252c] transition-colors duration-300 active:scale-95 duration-200">
+<span class="material-symbols-outlined text-primary" data-icon="account_circle">account_circle</span>
+</button>
+</div>
+</header>
+<!-- SideNavBar -->
+<aside class="fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#131318] flex flex-col py-6 px-4 gap-4 font-['Inter'] text-sm overflow-y-auto">
+<div class="px-2 mb-2">
+<h2 class="text-lg font-bold text-[#f8f5fd] mb-1">Library Explorer</h2>
+<p class="text-xs text-on-surface-variant">Manage MIDI Input</p>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-3 px-3 py-2.5 bg-[#25252c] text-[#db90ff] border-l-4 border-[#ff6e80] cursor-pointer transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="folder_open">folder_open</span>
+<span>MIDI Library</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 text-[#acaab1] hover:bg-[#19191f] cursor-pointer transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="music_note">music_note</span>
+<span>Song Lists</span>
+</div>
+<div class="flex items-center gap-3 px-3 py-2.5 text-[#acaab1] hover:bg-[#19191f] cursor-pointer transition-all">
+<span class="material-symbols-outlined text-xl" data-icon="mic_external_on">mic_external_on</span>
+<span>Recordings</span>
+</div>
+</div>
+<div class="mt-8 px-2">
+<h3 class="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-4 opacity-60">Smart Playlists</h3>
+<div class="flex flex-col gap-1">
+<button class="flex items-center gap-3 px-2 py-1.5 text-on-surface-variant hover:text-on-surface transition-colors w-full text-left">
+<span class="material-symbols-outlined text-sm">schedule</span>
+<span>Recent</span>
+</button>
+<button class="flex items-center gap-3 px-2 py-1.5 text-on-surface-variant hover:text-on-surface transition-colors w-full text-left">
+<span class="material-symbols-outlined text-sm">favorite</span>
+<span>Favorites</span>
+</button>
+<button class="flex items-center gap-3 px-2 py-1.5 text-on-surface-variant hover:text-on-surface transition-colors w-full text-left">
+<span class="material-symbols-outlined text-sm">bolt</span>
+<span>Difficult Songs</span>
+</button>
+</div>
+</div>
+</aside>
+<!-- Main Content Canvas -->
+<main class="ml-64 pt-24 px-12 pb-12 min-h-screen">
+<header class="flex justify-between items-end mb-10">
+<div>
+<h1 class="font-headline text-5xl font-bold tracking-tight text-on-surface">Piano Repertoire</h1>
+<p class="text-on-surface-variant mt-2 max-w-lg">Master your performance through deliberate practice. 128 songs available in your local obsidian library.</p>
+</div>
+<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary-container px-8 py-3 rounded font-bold shadow-[0_4px_20px_rgba(219,144,255,0.4)] hover:shadow-[0_4px_30px_rgba(219,144,255,0.6)] transition-all active:scale-95 flex items-center gap-2">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">play_arrow</span>
+                Practice Now
+            </button>
+</header>
+<!-- Bento Filter Grid / Stats -->
+<div class="grid grid-cols-12 gap-6 mb-12">
+<div class="col-span-12 lg:col-span-8 glass-card rounded-xl p-6 relative overflow-hidden">
+<div class="absolute -right-12 -top-12 w-48 h-48 bg-primary/10 blur-[80px]"></div>
+<div class="flex justify-between items-center relative z-10">
+<div>
+<span class="text-[10px] font-bold text-primary tracking-widest uppercase mb-1 block">Current Progress</span>
+<h3 class="text-2xl font-headline font-bold">Moonlight Sonata 1st Mvt.</h3>
+<p class="text-sm text-on-surface-variant">Last practiced 2 hours ago • Accuracy 84%</p>
+</div>
+<div class="flex items-center gap-4">
+<div class="w-16 h-16 rounded-full border-4 border-surface-container-highest flex items-center justify-center relative">
+<svg class="absolute inset-0 w-full h-full -rotate-90">
+<circle class="text-primary" cx="32" cy="32" fill="transparent" r="28" stroke="currentColor" stroke-dasharray="175" stroke-dashoffset="35" stroke-width="4"></circle>
+</svg>
+<span class="text-xs font-bold">80%</span>
+</div>
+<button class="bg-surface-container-highest hover:bg-surface-variant p-3 rounded-lg transition-colors">
+<span class="material-symbols-outlined text-secondary">resume</span>
+</button>
+</div>
+</div>
+</div>
+<div class="col-span-12 lg:col-span-4 glass-card rounded-xl p-6 border-l-4 border-tertiary">
+<span class="text-[10px] font-bold text-tertiary tracking-widest uppercase mb-1 block">Quick Start</span>
+<h3 class="text-xl font-headline font-bold mb-3">Daily Drill</h3>
+<div class="flex gap-2">
+<span class="bg-tertiary/10 text-tertiary text-[10px] px-2 py-0.5 rounded-full border border-tertiary/20">Scales</span>
+<span class="bg-tertiary/10 text-tertiary text-[10px] px-2 py-0.5 rounded-full border border-tertiary/20">Arpeggios</span>
+</div>
+<p class="text-xs text-on-surface-variant mt-4">15-minute technical warmup generated for your current skill level.</p>
+</div>
+</div>
+<!-- Song Grid -->
+<div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+<!-- Song Item 1 -->
+<div class="glass-card group hover:bg-[#25252c]/80 rounded-xl transition-all duration-300 relative border border-transparent hover:border-primary/20">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-surface-container-high rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary-dim" style="font-variation-settings: 'FILL' 1;">music_note</span>
+</div>
+<div class="flex gap-0.5">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+</div>
+</div>
+<h4 class="font-headline text-lg font-bold group-hover:text-primary transition-colors">Chopin - Nocturne Op. 9 No. 2</h4>
+<p class="text-xs text-on-surface-variant mb-6">Classical • 4:32 • MIDI Standard</p>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#5f9eff]"></div>
+<span class="text-[10px] font-bold uppercase tracking-wider text-secondary">Learning</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant">72% Mastered</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+<div class="w-[72%] h-full bg-secondary"></div>
+</div>
+</div>
+</div>
+<!-- Song Item 2 -->
+<div class="glass-card group hover:bg-[#25252c]/80 rounded-xl transition-all duration-300 relative border border-primary shadow-[0_0_15px_rgba(219,144,255,0.1)]">
+<div class="absolute top-3 right-3">
+<span class="bg-primary text-on-primary text-[10px] px-2 py-0.5 rounded-full font-bold">PLAYING</span>
+</div>
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-primary/20 rounded flex items-center justify-center">
+<span class="material-symbols-outlined text-primary" style="font-variation-settings: 'FILL' 1;">piano</span>
+</div>
+<div class="flex gap-0.5">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+</div>
+</div>
+<h4 class="font-headline text-lg font-bold text-primary">Beethoven - Moonlight Sonata</h4>
+<p class="text-xs text-on-surface-variant mb-6">Classical • 6:15 • MIDI High-Res</p>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-primary shadow-[0_0_8px_#db90ff]"></div>
+<span class="text-[10px] font-bold uppercase tracking-wider text-primary">Active</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant">84% Mastered</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+<div class="w-[84%] h-full bg-primary"></div>
+</div>
+</div>
+</div>
+<!-- Song Item 3 -->
+<div class="glass-card group hover:bg-[#25252c]/80 rounded-xl transition-all duration-300 relative border border-transparent hover:border-primary/20">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-surface-container-high rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary-dim" style="font-variation-settings: 'FILL' 1;">library_music</span>
+</div>
+<div class="flex gap-0.5">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+</div>
+</div>
+<h4 class="font-headline text-lg font-bold group-hover:text-primary transition-colors">Satie - Gymnopédie No. 1</h4>
+<p class="text-xs text-on-surface-variant mb-6">Ambient • 3:20 • MIDI Standard</p>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-tertiary shadow-[0_0_8px_#ff6e80]"></div>
+<span class="text-[10px] font-bold uppercase tracking-wider text-tertiary">New</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant">0% Mastered</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+<div class="w-[0%] h-full bg-tertiary"></div>
+</div>
+</div>
+</div>
+<!-- Song Item 4 -->
+<div class="glass-card group hover:bg-[#25252c]/80 rounded-xl transition-all duration-300 relative border border-transparent hover:border-primary/20">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-surface-container-high rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary-dim" style="font-variation-settings: 'FILL' 1;">queue_music</span>
+</div>
+<div class="flex gap-0.5">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+</div>
+</div>
+<h4 class="font-headline text-lg font-bold group-hover:text-primary transition-colors">Debussy - Clair de Lune</h4>
+<p class="text-xs text-on-surface-variant mb-6">Impressionism • 5:10 • MIDI Standard</p>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-outline shadow-[0_0_8px_#76747b]"></div>
+<span class="text-[10px] font-bold uppercase tracking-wider text-on-surface-variant">Not Started</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant">12% Mastered</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+<div class="w-[12%] h-full bg-outline"></div>
+</div>
+</div>
+</div>
+<!-- Song Item 5 -->
+<div class="glass-card group hover:bg-[#25252c]/80 rounded-xl transition-all duration-300 relative border border-transparent hover:border-primary/20">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-surface-container-high rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary-dim" style="font-variation-settings: 'FILL' 1;">album</span>
+</div>
+<div class="flex gap-0.5">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+</div>
+</div>
+<h4 class="font-headline text-lg font-bold group-hover:text-primary transition-colors">Liszt - La Campanella</h4>
+<p class="text-xs text-on-surface-variant mb-6">Etude • 4:45 • MIDI Performance</p>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-error shadow-[0_0_8px_#ff6e84]"></div>
+<span class="text-[10px] font-bold uppercase tracking-wider text-error">Critical Practice</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant">41% Mastered</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+<div class="w-[41%] h-full bg-error"></div>
+</div>
+</div>
+</div>
+<!-- Song Item 6 -->
+<div class="glass-card group hover:bg-[#25252c]/80 rounded-xl transition-all duration-300 relative border border-transparent hover:border-primary/20">
+<div class="p-5">
+<div class="flex justify-between items-start mb-4">
+<div class="w-12 h-12 bg-surface-container-high rounded flex items-center justify-center group-hover:bg-primary/20 transition-colors">
+<span class="material-symbols-outlined text-primary-dim" style="font-variation-settings: 'FILL' 1;">interpreter_mode</span>
+</div>
+<div class="flex gap-0.5">
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-primary" style="font-variation-settings: 'FILL' 1;">star</span>
+<span class="material-symbols-outlined text-[16px] text-on-surface-variant">star</span>
+</div>
+</div>
+<h4 class="font-headline text-lg font-bold group-hover:text-primary transition-colors">Mozart - Rondo Alla Turca</h4>
+<p class="text-xs text-on-surface-variant mb-6">Sonata • 3:30 • MIDI Standard</p>
+<div class="flex items-center justify-between">
+<div class="flex items-center gap-2">
+<div class="w-2 h-2 rounded-full bg-secondary shadow-[0_0_8px_#5f9eff]"></div>
+<span class="text-[10px] font-bold uppercase tracking-wider text-secondary">Learning</span>
+</div>
+<span class="text-[10px] font-mono text-on-surface-variant">92% Mastered</span>
+</div>
+<div class="w-full h-1 bg-surface-container-highest rounded-full mt-2 overflow-hidden">
+<div class="w-[92%] h-full bg-secondary"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Footer / Technical Readout -->
+<footer class="mt-16 flex items-center justify-between py-6 border-t border-outline-variant/20">
+<div class="flex gap-8">
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">Connected Device</span>
+<span class="text-sm font-medium text-secondary">Yamaha P-125 [Channel 1]</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-on-surface-variant uppercase font-bold tracking-widest">SOUNDFONT</span>
+<span class="text-sm font-medium text-on-surface">Obsidian Grand Piano v1.2</span>
+</div>
+</div>
+</footer>
+</main>
+<!-- Contextual Performance HUD (Glassmorphism Overlay) -->
+</body></html>

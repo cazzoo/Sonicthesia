@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Sonic Obsidian Piano - Song Preview</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "surface-tint": "#db90ff",
+              "surface-dim": "#0e0e13",
+              "surface-container-lowest": "#000000",
+              "error": "#ff6e84",
+              "surface-container-low": "#131318",
+              "on-primary-fixed-variant": "#4a006b",
+              "on-primary-fixed": "#000000",
+              "on-tertiary-fixed": "#39000b",
+              "secondary": "#5f9eff",
+              "on-primary-container": "#3c0057",
+              "outline-variant": "#48474d",
+              "inverse-on-surface": "#55545a",
+              "on-primary": "#4e0070",
+              "secondary-fixed": "#bcd2ff",
+              "primary-dim": "#d277ff",
+              "primary-fixed-dim": "#cb66fe",
+              "background": "#0e0e13",
+              "primary-container": "#d37bff",
+              "on-secondary-container": "#f7f7ff",
+              "surface-container": "#19191f",
+              "tertiary": "#ff6e80",
+              "error-dim": "#d73357",
+              "on-secondary": "#001f46",
+              "surface-variant": "#25252c",
+              "tertiary-container": "#fc345d",
+              "tertiary-dim": "#e21d4d",
+              "on-tertiary-container": "#000000",
+              "on-error-container": "#ffb2b9",
+              "tertiary-fixed-dim": "#ff7987",
+              "secondary-dim": "#0073e0",
+              "on-secondary-fixed-variant": "#004f9f",
+              "secondary-container": "#005db8",
+              "on-tertiary": "#490011",
+              "on-tertiary-fixed-variant": "#780022",
+              "inverse-primary": "#9027c4",
+              "tertiary-fixed": "#ff909a",
+              "on-surface": "#f8f5fd",
+              "secondary-fixed-dim": "#a5c5ff",
+              "surface-container-high": "#1f1f26",
+              "on-secondary-fixed": "#00336b",
+              "primary": "#db90ff",
+              "surface-bright": "#2c2b33",
+              "on-surface-variant": "#acaab1",
+              "on-error": "#490013",
+              "error-container": "#a70138",
+              "outline": "#76747b",
+              "surface": "#0e0e13",
+              "surface-container-highest": "#25252c",
+              "inverse-surface": "#fbf8ff",
+              "on-background": "#f8f5fd",
+              "primary-fixed": "#d37bff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Inter"]
+            },
+            borderRadius: {"DEFAULT": "0.25rem", "lg": "0.5rem", "xl": "0.75rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+        }
+        .glass-panel {
+            background: rgba(37, 37, 44, 0.6);
+            backdrop-filter: blur(20px);
+        }
+        .neon-glow-primary {
+            box-shadow: 0 0 20px rgba(219, 144, 255, 0.15);
+        }
+        .active-mode-glow {
+            box-shadow: 0 0 15px rgba(219, 144, 255, 0.3);
+            border: 1px solid #db90ff;
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary-container selection:text-on-primary-container">
+<!-- Top Navigation Bar -->
+<nav class="fixed top-0 w-full z-50 flex justify-between items-center px-8 h-16 bg-[#131318] shadow-[0_0_20px_rgba(219,144,255,0.15)] font-['Space_Grotesk'] tracking-tight">
+<div class="text-2xl font-bold tracking-tighter text-[#f8f5fd]">Sonic Obsidian Piano</div>
+<div class="hidden md:flex items-center gap-8">
+<a class="text-[#db90ff] border-b-2 border-[#db90ff] pb-1" href="#">Library</a>
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors duration-300" href="#">Practice</a>
+<a class="text-[#acaab1] hover:text-[#f8f5fd] transition-colors duration-300" href="#">Settings</a>
+</div>
+<div class="flex items-center gap-4">
+<button class="p-2 rounded-full hover:bg-[#25252c] transition-colors duration-300 active:scale-95 text-[#acaab1]">
+<span class="material-symbols-outlined">search</span>
+</button>
+<button class="p-2 rounded-full hover:bg-[#25252c] transition-colors duration-300 active:scale-95 text-[#acaab1]">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</nav>
+<main class="pt-16 min-h-screen flex">
+<!-- Side Navigation -->
+<aside class="hidden md:flex flex-col py-6 px-4 gap-4 fixed left-0 top-16 h-[calc(100vh-64px)] w-64 bg-[#131318] font-['Inter'] text-sm">
+<div class="mb-6 px-2">
+<h3 class="text-lg font-bold text-[#f8f5fd]">Library Explorer</h3>
+<p class="text-[#acaab1] text-xs">Manage MIDI Input</p>
+</div>
+<div class="flex flex-col gap-1">
+<div class="flex items-center gap-3 py-3 px-4 rounded bg-[#25252c] text-[#db90ff] border-l-4 border-[#ff6e80] cursor-pointer">
+<span class="material-symbols-outlined">folder_open</span>
+<span>MIDI Library</span>
+</div>
+<div class="flex items-center gap-3 py-3 px-4 rounded text-[#acaab1] hover:bg-[#19191f] transition-all cursor-pointer">
+<span class="material-symbols-outlined">music_note</span>
+<span>Song Lists</span>
+</div>
+<div class="flex items-center gap-3 py-3 px-4 rounded text-[#acaab1] hover:bg-[#19191f] transition-all cursor-pointer">
+<span class="material-symbols-outlined">mic_external_on</span>
+<span>Recordings</span>
+</div>
+<div class="flex items-center gap-3 py-3 px-4 rounded text-[#acaab1] hover:bg-[#19191f] transition-all cursor-pointer">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</div>
+</div>
+</aside>
+<!-- Content Canvas -->
+<div class="flex-1 md:ml-64 p-8 lg:p-12 overflow-y-auto">
+<!-- Hero Section -->
+<section class="relative w-full aspect-[21/9] rounded-xl overflow-hidden mb-12 group">
+<img class="w-full h-full object-cover brightness-50 group-hover:scale-105 transition-transform duration-700" data-alt="Abstract dark piano keys with glowing neon light trails" src="https://lh3.googleusercontent.com/aida-public/AB6AXuAzhuIC6QSoRzZ-e_WK_2pEez2Jf38cUz76586eVbg2RpTXfI0bfqi8lRAXrUT60UqtBVoEiD8LSwGicmRnmKT0vwWE-lBB-laSC9u-fSEuZHn-spnPsLUjq8yvaMnUnXORyrkbmrP1qJggOPCxG-sA00Ngnp0RY5Ww13EqbAeEF05zUtkBNencXktJaZabr3mEvmDtbriVVazbLdiQeJJu9uRnzYvxVxo1Y2vHRqDhI2aNxKfbISIWhGuMnk3PVC9EUjqHAUQXyhhF"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute bottom-0 left-0 p-10 w-full flex flex-col md:flex-row md:items-end justify-between gap-6">
+<div>
+<button class="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors mb-6 group/back">
+<span class="material-symbols-outlined text-sm group-hover/back:-translate-x-1 transition-transform">arrow_back_ios</span>
+<span class="text-[10px] font-bold uppercase tracking-widest">Back to Library</span>
+</button><div class="flex items-center gap-3 mb-4">
+<span class="bg-tertiary-container text-on-tertiary-container text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-widest">Masterpiece</span>
+<span class="text-on-surface-variant text-sm font-medium tracking-tight">Classical • Solo Piano</span>
+</div>
+<h1 class="font-headline text-5xl md:text-7xl font-bold tracking-tighter mb-2">Moonlight Sonata</h1>
+<p class="font-headline text-xl text-primary opacity-80">Ludwig van Beethoven</p>
+</div>
+<div class="flex gap-8 border-l border-outline-variant/20 pl-8">
+<div class="flex flex-col"><span class="text-on-surface-variant text-[10px] uppercase tracking-widest mb-1">Total Notes</span>
+<span class="text-2xl font-bold font-headline tracking-tight">450 <span class="text-sm font-normal text-on-surface-variant uppercase">pts</span></span></div>
+<div class="flex flex-col"><span class="text-on-surface-variant text-[10px] uppercase tracking-widest mb-1">Hand Breakdown</span>
+<div class="flex gap-4">
+<div class="flex flex-col">
+<span class="text-[10px] text-primary font-bold">LH</span>
+<span class="text-xl font-bold font-headline">180</span>
+</div>
+<div class="flex flex-col">
+<span class="text-[10px] text-secondary font-bold">RH</span>
+<span class="text-xl font-bold font-headline">270</span>
+</div>
+</div></div>
+<div class="flex flex-col">
+<span class="text-on-surface-variant text-[10px] uppercase tracking-widest mb-1">Duration</span>
+<span class="text-2xl font-bold font-headline tracking-tight">05:42</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Mode Selection Title -->
+<div class="mb-8">
+<h2 class="font-headline text-2xl font-bold tracking-tight mb-1">Select Performance Mode</h2>
+<p class="text-on-surface-variant text-sm">Choose how you want to interact with this composition.</p>
+</div>
+<!-- Bento Mode Selection Grid -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-16">
+<!-- Mode: Listen -->
+<div class="group relative bg-surface-container rounded-xl p-8 flex flex-col justify-between hover:bg-surface-container-high transition-all duration-300 cursor-pointer overflow-hidden active-mode-glow">
+<div class="relative z-10">
+<div class="w-12 h-12 rounded-lg bg-secondary/10 flex items-center justify-center text-secondary mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl" style="font-variation-settings: 'FILL' 1;">play_circle</span>
+</div>
+<h3 class="font-headline text-2xl font-bold mb-3">Listen</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-8">Experience a cinematic 3D visualizer. Perfect for analysis or background immersion.</p>
+</div>
+<div class="relative z-10 flex flex-wrap gap-2">
+<span class="bg-surface-container-highest px-3 py-1 rounded-full text-[10px] text-on-surface-variant font-medium border border-outline-variant/20">4K Visuals</span>
+<span class="bg-surface-container-highest px-3 py-1 rounded-full text-[10px] text-on-surface-variant font-medium border border-outline-variant/20">Spatial Audio</span>
+</div>
+<!-- Decorative Element -->
+<div class="absolute -right-10 -bottom-10 w-40 h-40 bg-secondary/5 rounded-full blur-3xl group-hover:bg-secondary/10 transition-colors"></div>
+</div>
+<!-- Mode: Learn -->
+<div class="group relative bg-surface-container rounded-xl p-8 flex flex-col justify-between hover:bg-surface-container-high transition-all duration-300 cursor-pointer overflow-hidden">
+<div class="relative z-10">
+<div class="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center text-primary mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">school</span>
+</div>
+<h3 class="font-headline text-2xl font-bold mb-3">Learn</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-6">Interactive pedagogy tools. Adjust speed, set loops, and toggle fingering guides.</p>
+<div class="space-y-4 mb-6">
+<div class="flex items-center justify-between">
+<span class="text-xs text-on-surface-variant uppercase tracking-wider">Difficulty</span>
+<div class="flex gap-1">
+<div class="w-4 h-1 rounded-full bg-primary"></div>
+<div class="w-4 h-1 rounded-full bg-primary"></div>
+<div class="w-4 h-1 rounded-full bg-outline-variant"></div>
+</div>
+</div>
+<div class="flex items-center justify-between">
+<span class="text-xs text-on-surface-variant uppercase tracking-wider">Speed</span>
+<span class="text-xs font-bold text-primary">0.75x</span>
+</div>
+</div>
+</div>
+<div class="relative z-10 flex flex-wrap gap-2">
+<span class="bg-surface-container-highest px-3 py-1 rounded-full text-[10px] text-on-surface-variant font-medium border border-outline-variant/20">Falling Notes</span>
+<span class="bg-surface-container-highest px-3 py-1 rounded-full text-[10px] text-on-surface-variant font-medium border border-outline-variant/20">Looping</span>
+</div>
+</div>
+<!-- Mode: Play -->
+<div class="group relative bg-surface-container rounded-xl p-8 flex flex-col justify-between hover:bg-surface-container-high transition-all duration-300 cursor-pointer overflow-hidden">
+<div class="relative z-10">
+<div class="w-12 h-12 rounded-lg bg-tertiary/10 flex items-center justify-center text-tertiary mb-6 group-hover:scale-110 transition-transform">
+<span class="material-symbols-outlined text-3xl">sports_esports</span>
+</div>
+<h3 class="font-headline text-2xl font-bold mb-3">Play</h3>
+<p class="text-on-surface-variant text-sm leading-relaxed mb-8">Full performance tracking. Record your session, track accuracy, and build streaks.</p>
+</div>
+<div class="relative z-10 flex flex-wrap gap-2">
+<span class="bg-surface-container-highest px-3 py-1 rounded-full text-[10px] text-on-surface-variant font-medium border border-outline-variant/20">Score HUD</span>
+<span class="bg-surface-container-highest px-3 py-1 rounded-full text-[10px] text-on-surface-variant font-medium border border-outline-variant/20">Game Mode</span>
+</div>
+<!-- Decorative Gradient -->
+<div class="absolute inset-0 bg-gradient-to-br from-tertiary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</div>
+</div>
+<!-- Learning Customization HUD (Contextual for Learn Mode) -->
+<section class="glass-panel rounded-xl p-8 mb-16 border border-outline-variant/10">
+<div class="flex items-center gap-3 mb-8">
+<span class="material-symbols-outlined text-primary">tune</span>
+<h4 class="font-headline font-bold text-lg">Session Configuration</h4>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10 lg:grid-cols-3">
+<!-- Difficulty -->
+<div class="space-y-4">
+<label class="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Difficulty Level</label>
+<div class="flex gap-2">
+<button class="flex-1 py-2 text-xs font-bold rounded border border-outline-variant/30 hover:border-primary/50 transition-colors">EASY</button>
+<button class="flex-1 py-2 text-xs font-bold rounded bg-primary text-on-primary shadow-lg shadow-primary/20">MED</button>
+<button class="flex-1 py-2 text-xs font-bold rounded border border-outline-variant/30 hover:border-primary/50 transition-colors">HARD</button>
+</div>
+</div>
+<!-- Speed -->
+<div class="space-y-4"><label class="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Playback Speed</label>
+<div class="relative py-2">
+<input class="w-full h-1 bg-surface-container-highest rounded-lg appearance-none cursor-pointer accent-primary" max="150" min="50" step="25" type="range" value="75"/>
+<div class="absolute w-full flex justify-between px-0.5 top-1/2 -translate-y-1/2 pointer-events-none">
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+<div class="w-1 h-1 rounded-full bg-outline-variant"></div>
+</div>
+</div>
+<div class="flex justify-between text-[10px] font-medium text-on-surface-variant">
+<span>0.5x</span>
+<span class="text-primary font-bold">0.75x</span>
+<span>1.0x</span>
+<span>1.5x</span>
+</div></div>
+<!-- Visual Hints -->
+<div class="space-y-4">
+<label class="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Visual Assistance</label>
+<div class="flex items-center justify-between px-4 py-2 bg-surface-container-highest rounded">
+<span class="text-xs font-medium">Fingering Numbers</span>
+<div class="w-8 h-4 bg-primary rounded-full relative">
+<div class="absolute right-1 top-1 w-2 h-2 bg-on-primary rounded-full"></div>
+</div>
+</div>
+</div>
+<!-- MIDI Input Status -->
+<div class="space-y-4">
+<label class="text-[10px] font-bold uppercase tracking-[0.2em] text-on-surface-variant">Input Device</label>
+<div class="flex items-center gap-3 text-secondary">
+<span class="material-symbols-outlined text-sm">keyboard_alt</span>
+<span class="text-xs font-bold">Obsidian-88 MKII Connected</span>
+</div>
+</div>
+</div>
+</section>
+<!-- Final CTA Section -->
+<div class="flex flex-col items-center gap-6">
+<button class="group relative px-12 py-5 bg-gradient-to-r from-primary to-primary-container rounded-lg font-headline text-lg font-extrabold tracking-tight text-on-primary-fixed overflow-hidden transition-all hover:scale-105 active:scale-95 shadow-[0_0_40px_rgba(219,144,255,0.4)]">
+<span class="relative z-10 flex items-center gap-3">
+                        START SESSION
+                        <span class="material-symbols-outlined">double_arrow</span>
+</span>
+<!-- Neon Pulse Animation simulation -->
+<div class="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+</button>
+<button class="text-on-surface-variant text-sm font-medium hover:text-on-surface transition-colors flex items-center gap-2">
+<span class="material-symbols-outlined text-sm">favorite</span>
+                    Add to Favorites
+                </button>
+</div>
+</div>
+</main>
+<!-- Performance HUD Footer (Sticky subtle indicator) -->
+<footer class="fixed bottom-0 w-full h-1 bg-surface-container-low flex items-center justify-center">
+<div class="w-full h-full bg-gradient-to-r from-transparent via-primary/30 to-transparent"></div>
+</footer>
+</body></html>
