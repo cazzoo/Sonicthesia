@@ -4,6 +4,7 @@ pub use dpi;
 pub use piano_layout;
 
 pub mod config;
+pub mod design;
 pub mod utils;
 pub mod waterfall;
 

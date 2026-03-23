@@ -19,6 +19,8 @@ mod achievements;
 mod challenges;
 mod learning;
 mod effects;
+mod settings;
+mod ui;
 
 pub use common::NeothesiaEvent;
 pub use song::Song;

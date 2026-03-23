@@ -7,6 +7,7 @@ use crate::{
     context_macroquad::MacroquadContext,
     effects::{EffectsManager, ScreenFlash, ScreenShake},
     scoring::{LiveScoreTracker, StreakMilestone, TimingQuality},
+    settings::SettingsPage,
     song::Song,
     song_library::SongRepository,
     NeothesiaEvent,
@@ -3305,36 +3306,28 @@ pub struct PlySettingsScene {
     popup: SettingsPopup,
     popup_opened_this_frame: bool,
     soundfont_files: Vec<crate::output_manager::SoundFontEntry>,
-    /// Current SoundFont index
     current_soundfont_index: Option<usize>,
-    /// Song library directories
     song_directories: Vec<std::path::PathBuf>,
-    /// SoundFont folders
     soundfont_folders: Vec<std::path::PathBuf>,
-    /// Button areas for click detection
     button_areas: Vec<ButtonArea>,
-    /// Toggle areas for click detection
     toggle_areas: Vec<ToggleArea>,
-    /// Spin button areas for click detection
     spin_areas: Vec<SpinArea>,
-    /// Slider areas for click detection and dragging
     slider_areas: Vec<SliderArea>,
-    /// Stepper areas for click detection
     stepper_areas: Vec<StepperArea>,
-    /// All interactive settings for keyboard navigation
     interactive_settings: Vec<InteractiveSetting>,
-    /// Currently focused setting index
     focused_setting_index: Option<usize>,
-    /// Keys that were pressed last frame (to prevent repeat)
     keys_pressed_last_frame: std::collections::HashSet<String>,
-    /// Folder picker request state
     folder_picker_request: Option<FolderPickerRequest>,
-    /// Currently dragged slider (if any)
     dragged_slider: Option<String>,
-    /// Selected item index in the popup (for keyboard navigation)
     popup_selected_index: usize,
-    /// Unified input manager for focus and priority management
     input_manager: UnifiedInputManager,
+    pending_nav_event: Option<NeothesiaEvent>,
+    settings_nav: crate::settings::SettingsNav,
+    general_page: crate::settings::pages::GeneralPage,
+    midi_page: crate::settings::pages::MidiPage,
+    audio_page: crate::settings::pages::AudioPage,
+    themes_page: crate::settings::pages::ThemesPage,
+    folders_page: crate::settings::pages::FoldersPage,
 }
 
 /// Folder picker request type
@@ -3449,6 +3442,13 @@ impl PlySettingsScene {
             dragged_slider: None,
             popup_selected_index: 0,
             input_manager,
+            pending_nav_event: None,
+            settings_nav: crate::settings::SettingsNav::new(),
+            general_page: crate::settings::pages::GeneralPage::new(),
+            midi_page: crate::settings::pages::MidiPage::new(),
+            audio_page: crate::settings::pages::AudioPage::new(),
+            themes_page: crate::settings::pages::ThemesPage::new(),
+            folders_page: crate::settings::pages::FoldersPage::new(),
         }
     }
 
@@ -5555,839 +5555,274 @@ impl PlyScene for PlySettingsScene {
 
         None
     }
-
     fn render(&mut self, ctx: &mut MacroquadContext) {
         use macroquad::prelude::*;
 
-        // Clear interactive areas at the START of render() before populating them
-        // This ensures button_areas from the previous frame are available in update()
         self.clear_areas();
-
-        clear_background(Color::from_rgba(30, 30, 35, 255));
+        clear_background(Color::from_rgba(14, 14, 19, 255));
 
         let screen_w = screen_width();
         let screen_h = screen_height();
 
-        // Draw PLY rendering indicator
-        draw_text(
-            "🎨 PLY RENDERING ACTIVE - SETTINGS",
-            10.0,
-            10.0,
-            18.0,
-            Color::from_rgba(0, 255, 0, 255),
-        );
-
-        // DEBUG: Log mouse position and focus state
         let (mouse_x, mouse_y) = mouse_position();
-        log::debug!(
-            "Mouse position: ({}, {}), Focused setting: {:?}",
-            mouse_x,
-            mouse_y,
-            self.focused_setting_index
-        );
+        let mouse_pressed = is_mouse_button_pressed(MouseButton::Left);
+        let mouse_down = is_mouse_button_down(MouseButton::Left);
 
-        draw_text(
-            &format!("FPS: {}", get_fps()),
-            10.0,
-            35.0,
-            14.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
+        if let Some(nav_event) =
+            self.render_top_nav(0.0, 0.0, screen_w, 64.0, mouse_x, mouse_y, mouse_pressed)
+        {
+            self.pending_nav_event = Some(nav_event);
+        }
 
-        // Calculate layout
-        let margin_x = (screen_w - 650.0).max(0.0) / 2.0;
-        let start_y = 60.0;
-        let row_height = 55.0;
-        let section_gap = 30.0;
-        let mut current_y = start_y - self.scroll_offset;
+        let sidebar_w = 256.0;
+        let sidebar_h = screen_h - 64.0;
+        self.settings_nav
+            .render(0.0, 64.0, sidebar_w, mouse_x, mouse_y, mouse_pressed);
 
-        let (mouse_x, mouse_y) = mouse_position();
+        let content_x = sidebar_w;
+        let content_y = 64.0;
+        let content_w = screen_w - sidebar_w;
+        let content_h = sidebar_h;
 
-        // Check for mouse hover focus - update focused_setting_index when hovering over a setting
-        // Note: y_position is updated each frame by register_setting() to reflect the current rendered position
-        let mut found_hover = false;
-        for (idx, setting) in self.interactive_settings.iter().enumerate() {
-            // Check if mouse is over this setting (using approximate height)
-            let setting_height = 55.0;
-            if mouse_y >= setting.y_position && mouse_y <= setting.y_position + setting_height {
-                if self.focused_setting_index != Some(idx) {
-                    self.focused_setting_index = Some(idx);
-                    log::debug!(
-                        "Focus changed on hover to: {} (index {})",
-                        setting.label,
-                        idx
-                    );
+        let interaction = match self.settings_nav.current_tab {
+            crate::settings::SettingsTab::General => self.general_page.render(
+                content_x,
+                content_y,
+                content_w,
+                content_h,
+                &ctx.config,
+                mouse_x,
+                mouse_y,
+                mouse_pressed,
+                mouse_down,
+            ),
+            crate::settings::SettingsTab::Midi => self.midi_page.render(
+                content_x,
+                content_y,
+                content_w,
+                content_h,
+                &ctx.config,
+                mouse_x,
+                mouse_y,
+                mouse_pressed,
+                mouse_down,
+            ),
+            crate::settings::SettingsTab::Audio => self.audio_page.render(
+                content_x,
+                content_y,
+                content_w,
+                content_h,
+                &ctx.config,
+                mouse_x,
+                mouse_y,
+                mouse_pressed,
+                mouse_down,
+            ),
+            crate::settings::SettingsTab::Themes => self.themes_page.render(
+                content_x,
+                content_y,
+                content_w,
+                content_h,
+                &ctx.config,
+                mouse_x,
+                mouse_y,
+                mouse_pressed,
+                mouse_down,
+            ),
+            crate::settings::SettingsTab::Folders => self.folders_page.render(
+                content_x,
+                content_y,
+                content_w,
+                content_h,
+                &ctx.config,
+                mouse_x,
+                mouse_y,
+                mouse_pressed,
+                mouse_down,
+            ),
+        };
+
+        self.handle_settings_interaction(ctx, interaction);
+
+        let mouse_wheel = mouse_wheel();
+        if mouse_wheel.1 != 0.0 {
+            match self.settings_nav.current_tab {
+                crate::settings::SettingsTab::General => {
+                    self.general_page.handle_scroll(mouse_wheel.1)
                 }
-                found_hover = true;
-                break;
+                crate::settings::SettingsTab::Midi => self.midi_page.handle_scroll(mouse_wheel.1),
+                crate::settings::SettingsTab::Audio => self.audio_page.handle_scroll(mouse_wheel.1),
+                crate::settings::SettingsTab::Themes => {
+                    self.themes_page.handle_scroll(mouse_wheel.1)
+                }
+                crate::settings::SettingsTab::Folders => {
+                    self.folders_page.handle_scroll(mouse_wheel.1)
+                }
             }
         }
 
-        // OUTPUT SECTION
-        draw_text(
-            "OUTPUT",
-            margin_x,
-            current_y,
-            22.0,
-            Color::from_rgba(160, 81, 255, 255),
-        );
-        current_y += 30.0;
-
-        let output_binding = ctx.config.output();
-        let output = output_binding.as_deref().unwrap_or("None");
-        let output_str = output.to_string();
-        let output_hovered = self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Output",
-            &output_str,
-            false,
-            Some("output"),
-            SettingType::Picker,
-        );
-
-        // Register Output button area for click detection
-        self.button_areas.push(ButtonArea {
-            id: "output".to_string(),
-            x: margin_x,
-            y: current_y,
-            width: 650.0,
-            height: row_height,
-        });
-        current_y += row_height + 10.0;
-
-        // Check if synth output is selected
-        let output_str = output.to_string();
-        let is_synth = output_str.eq_ignore_ascii_case("Synth") || output_str.contains("Synth");
-
-        log::debug!(
-            "🔍 DEBUG: Output is '{}', is_synth={}",
-            output_str,
-            is_synth
-        );
-
-        if is_synth {
-            log::debug!("🔍 DEBUG: Rendering SoundFont folder button (synth output selected)");
-            // SoundFont selection - now with stepper control
-            let current_soundfont_name = if let Some(index) = self.current_soundfont_index {
-                if let Some(sf) = self.soundfont_files.get(index) {
-                    // Extract filename from path for display
-                    sf.path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("Unknown")
-                        .to_string()
-                } else {
-                    "No SoundFont".to_string()
-                }
-            } else {
-                "No SoundFont".to_string()
-            };
-
-            // Get the list of SoundFont names for the stepper
-            let soundfont_options: Vec<String> = self
-                .soundfont_files
-                .iter()
-                .map(|sf| {
-                    sf.path
-                        .file_stem()
-                        .and_then(|s| s.to_str())
-                        .unwrap_or("Unknown")
-                        .to_string()
-                })
-                .collect();
-
-            let current_index = self.current_soundfont_index.unwrap_or(0);
-
-            // Register the SoundFont selector as a picker type for keyboard navigation
-            self.register_setting(
-                "soundfont".to_string(),
-                "SoundFont".to_string(),
-                SettingType::Picker,
-                current_y,
-            );
-
-            // Check if this stepper is focused
-            let soundfont_focused = self
-                .focused_setting()
-                .map(|focused| focused.id == "soundfont")
-                .unwrap_or(false);
-
-            // Draw settings row background
-            self.draw_settings_row(
-                margin_x,
-                current_y,
-                650.0,
-                row_height,
-                "SoundFont",
-                &current_soundfont_name,
-                false,
-                Some("soundfont"),
-                SettingType::Picker,
-            );
-
-            // Draw stepper control on the right side
-            let stepper_x = margin_x + 650.0 - 200.0;
-            let stepper_y = current_y + (row_height - 24.0) / 2.0;
-            let button_size = 24.0;
-
-            self.draw_stepper(
-                stepper_x,
-                stepper_y,
-                button_size,
-                &current_soundfont_name,
-                &soundfont_options,
-                current_index,
-                "soundfont",
-                true, // is_cyclic - wrap around
-                soundfont_focused,
-            );
-
-            current_y += row_height + 10.0;
-
-            // SoundFont Folders - Add button
-            let add_folder_btn_x = margin_x + 650.0 - 115.0;
-            let add_folder_btn_y = current_y;
-            let add_folder_btn_w = 115.0;
-            let add_folder_btn_h = 31.0;
-
-            // Register add folder button
-            self.register_setting(
-                "add_soundfont_folder".to_string(),
-                "Add SoundFont Folder".to_string(),
-                SettingType::Button,
-                add_folder_btn_y,
-            );
-
-            // Check if this button is focused
-            let add_folder_focused = self
-                .focused_setting()
-                .map(|focused| focused.id == "add_soundfont_folder")
-                .unwrap_or(false);
-
-            let add_folder_hovered = self.draw_button(
-                add_folder_btn_x,
-                add_folder_btn_y,
-                add_folder_btn_w,
-                add_folder_btn_h,
-                "+ Add Folder",
-                mouse_x >= add_folder_btn_x
-                    && mouse_x <= add_folder_btn_x + add_folder_btn_w
-                    && mouse_y >= add_folder_btn_y
-                    && mouse_y <= add_folder_btn_y + add_folder_btn_h,
-                add_folder_focused,
-            );
-
-            // Register button area for click detection
-            log::debug!(
-                "🔍 DEBUG: Adding SoundFont folder button to button_areas at ({}, {})",
-                add_folder_btn_x,
-                add_folder_btn_y
-            );
-            self.button_areas.push(ButtonArea {
-                id: "add_soundfont_folder".to_string(),
-                x: add_folder_btn_x,
-                y: add_folder_btn_y,
-                width: add_folder_btn_w,
-                height: add_folder_btn_h,
-            });
-
-            // Draw label
-            draw_text(
-                "SoundFont Folders",
-                margin_x + 15.0,
-                add_folder_btn_y + 12.0,
-                16.0,
-                Color::from_rgba(255, 255, 255, 255),
-            );
-            draw_text(
-                &format!("{} folders", self.soundfont_folders.len()),
-                margin_x + 15.0,
-                add_folder_btn_y + 32.0,
-                12.0,
-                Color::from_rgba(150, 150, 150, 255),
-            );
-
-            current_y += row_height + 10.0;
-
-            // Audio Gain - Using slider instead of spin buttons
-            let gain = ctx.config.audio_gain();
-            let gain_min = 0.0;
-            let gain_max = 1.0;
-            let gain_step = 0.05;
-
-            // Register the slider for keyboard navigation
-            self.register_setting(
-                "audio_gain_slider".to_string(),
-                "Audio Gain".to_string(),
-                SettingType::Slider,
-                current_y,
-            );
-
-            // Check if this slider is focused
-            let gain_focused = self
-                .focused_setting()
-                .map(|focused| focused.id == "audio_gain_slider")
-                .unwrap_or(false);
-
-            // Draw settings row background
-            self.draw_settings_row(
-                margin_x,
-                current_y,
-                650.0,
-                row_height,
-                "Audio Gain",
-                &format!("{:.2}", gain),
-                false,
-                Some("audio_gain_slider"),
-                SettingType::Slider,
-            );
-
-            // Draw slider on the right side
-            let slider_x = margin_x + 650.0 - 200.0;
-            let slider_y = current_y + (row_height - 30.0) / 2.0;
-            let slider_w = 180.0;
-            let slider_h = 30.0;
-
-            self.draw_slider(
-                slider_x,
-                slider_y,
-                slider_w,
-                slider_h,
-                gain,
-                gain_min,
-                gain_max,
-                gain_step,
-                "audio_gain_slider",
-                gain_focused,
-            );
-
-            current_y += row_height + 10.0;
-        }
-
-        current_y += section_gap;
-
-        // INPUT SECTION
-        draw_text(
-            "INPUT",
-            margin_x,
-            current_y,
-            22.0,
-            Color::from_rgba(160, 81, 255, 255),
-        );
-        current_y += 30.0;
-
-        let input_binding = ctx.config.input();
-        let input = input_binding.as_deref().unwrap_or("None");
-        let input_str = input.to_string();
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Input",
-            &input_str,
-            false,
-            Some("input"),
-            SettingType::Picker,
-        );
-
-        // Register Input button area for click detection
-        self.button_areas.push(ButtonArea {
-            id: "input".to_string(),
-            x: margin_x,
-            y: current_y,
-            width: 650.0,
-            height: row_height,
-        });
-        current_y += row_height + section_gap;
-
-        // NOTE RANGE SECTION
-        draw_text(
-            "NOTE RANGE",
-            margin_x,
-            current_y,
-            22.0,
-            Color::from_rgba(160, 81, 255, 255),
-        );
-        current_y += 30.0;
-
-        let range = ctx.config.piano_range();
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Start",
-            &range.start().to_string(),
-            false,
-            Some("range_start"),
-            SettingType::Spinner,
-        );
-        current_y += row_height + 10.0;
-
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "End",
-            &range.end().to_string(),
-            false,
-            Some("range_end"),
-            SettingType::Spinner,
-        );
-        current_y += row_height + section_gap;
-
-        // THEME SECTION
-        draw_text(
-            "PIANO THEME",
-            margin_x,
-            current_y,
-            22.0,
-            Color::from_rgba(160, 81, 255, 255),
-        );
-        current_y += 30.0;
-
-        let current_theme = ctx.config.piano_theme_name();
-        self.register_setting(
-            "piano_theme".to_string(),
-            "Theme".to_string(),
-            SettingType::Picker,
-            current_y,
-        );
-
-        let theme_focused = self
-            .focused_setting()
-            .map(|focused| focused.id == "piano_theme")
-            .unwrap_or(false);
-
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Theme",
-            current_theme,
-            theme_focused,
-            Some("piano_theme"),
-            SettingType::Picker,
-        );
-
-        self.button_areas.push(ButtonArea {
-            id: "piano_theme".to_string(),
-            x: margin_x,
-            y: current_y,
-            width: 650.0,
-            height: row_height,
-        });
-        current_y += row_height + 10.0;
-
-        self.draw_mini_keyboard_preview(ctx, margin_x, current_y, 650.0, 50.0);
-        current_y += 50.0 + section_gap;
-
-        // RENDER SECTION
-        draw_text(
-            "RENDER",
-            margin_x,
-            current_y,
-            22.0,
-            Color::from_rgba(160, 81, 255, 255),
-        );
-        current_y += 30.0;
-
-        // Draw Vertical Guidelines toggle
-        let toggle_x = margin_x + 650.0 - 50.0;
-        let toggle_y = current_y + (row_height - 20.0) / 2.0;
-        let toggle_w = 40.0;
-        let toggle_h = 20.0;
-
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Vertical Guidelines",
-            if ctx.config.vertical_guidelines() {
-                "On"
-            } else {
-                "Off"
-            },
-            false,
-            Some("vertical_guidelines"),
-            SettingType::Toggle,
-        );
-
-        // Draw toggle widget on the right side
-        let is_hovered = mouse_x >= toggle_x
-            && mouse_x <= toggle_x + toggle_w
-            && mouse_y >= toggle_y
-            && mouse_y <= toggle_y + toggle_h;
-        self.draw_toggle(
-            toggle_x,
-            toggle_y,
-            toggle_w,
-            toggle_h,
-            ctx.config.vertical_guidelines(),
-            is_hovered,
-        );
-
-        // Register toggle area for click detection
-        self.toggle_areas.push(ToggleArea {
-            id: "vertical_guidelines".to_string(),
-            x: toggle_x,
-            y: toggle_y,
-            width: toggle_w,
-            height: toggle_h,
-            value: ctx.config.vertical_guidelines(),
-        });
-
-        current_y += row_height + 10.0;
-
-        // Draw Horizontal Guidelines toggle
-        let toggle_x = margin_x + 650.0 - 50.0;
-        let toggle_y = current_y + (row_height - 20.0) / 2.0;
-        let toggle_w = 40.0;
-        let toggle_h = 20.0;
-
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Horizontal Guidelines",
-            if ctx.config.horizontal_guidelines() {
-                "On"
-            } else {
-                "Off"
-            },
-            false,
-            Some("horizontal_guidelines"),
-            SettingType::Toggle,
-        );
-
-        // Draw toggle widget on the right side
-        let is_hovered = mouse_x >= toggle_x
-            && mouse_x <= toggle_x + toggle_w
-            && mouse_y >= toggle_y
-            && mouse_y <= toggle_y + toggle_h;
-        self.draw_toggle(
-            toggle_x,
-            toggle_y,
-            toggle_w,
-            toggle_h,
-            ctx.config.horizontal_guidelines(),
-            is_hovered,
-        );
-
-        // Register toggle area for click detection
-        self.toggle_areas.push(ToggleArea {
-            id: "horizontal_guidelines".to_string(),
-            x: toggle_x,
-            y: toggle_y,
-            width: toggle_w,
-            height: toggle_h,
-            value: ctx.config.horizontal_guidelines(),
-        });
-
-        current_y += row_height + 10.0;
-
-        // Draw Glow toggle
-        let toggle_x = margin_x + 650.0 - 50.0;
-        let toggle_y = current_y + (row_height - 20.0) / 2.0;
-        let toggle_w = 40.0;
-        let toggle_h = 20.0;
-
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Glow",
-            if ctx.config.glow() { "On" } else { "Off" },
-            false,
-            Some("glow"),
-            SettingType::Toggle,
-        );
-
-        // Draw toggle widget on the right side
-        let is_hovered = mouse_x >= toggle_x
-            && mouse_x <= toggle_x + toggle_w
-            && mouse_y >= toggle_y
-            && mouse_y <= toggle_y + toggle_h;
-        self.draw_toggle(
-            toggle_x,
-            toggle_y,
-            toggle_w,
-            toggle_h,
-            ctx.config.glow(),
-            is_hovered,
-        );
-
-        // Register toggle area for click detection
-        self.toggle_areas.push(ToggleArea {
-            id: "glow".to_string(),
-            x: toggle_x,
-            y: toggle_y,
-            width: toggle_w,
-            height: toggle_h,
-            value: ctx.config.glow(),
-        });
-
-        current_y += row_height + 10.0;
-
-        // Draw Note Labels toggle
-        let toggle_x = margin_x + 650.0 - 50.0;
-        let toggle_y = current_y + (row_height - 20.0) / 2.0;
-        let toggle_w = 40.0;
-        let toggle_h = 20.0;
-
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Note Labels",
-            if ctx.config.note_labels() {
-                "On"
-            } else {
-                "Off"
-            },
-            false,
-            Some("note_labels"),
-            SettingType::Toggle,
-        );
-
-        // Draw toggle widget on the right side
-        let is_hovered = mouse_x >= toggle_x
-            && mouse_x <= toggle_x + toggle_w
-            && mouse_y >= toggle_y
-            && mouse_y <= toggle_y + toggle_h;
-        self.draw_toggle(
-            toggle_x,
-            toggle_y,
-            toggle_w,
-            toggle_h,
-            ctx.config.note_labels(),
-            is_hovered,
-        );
-
-        // Register toggle area for click detection
-        self.toggle_areas.push(ToggleArea {
-            id: "note_labels".to_string(),
-            x: toggle_x,
-            y: toggle_y,
-            width: toggle_w,
-            height: toggle_h,
-            value: ctx.config.note_labels(),
-        });
-
-        current_y += row_height + section_gap;
-
-        // SONG LIBRARY SECTION
-        draw_text(
-            "SONG LIBRARY",
-            margin_x,
-            current_y,
-            22.0,
-            Color::from_rgba(160, 81, 255, 255),
-        );
-        current_y += 30.0;
-
-        let song_count = ctx.song_library_db.song_count().unwrap_or(0);
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Total Songs",
-            &song_count.to_string(),
-            false,
-            None, // Not interactive
-            SettingType::Button,
-        );
-        current_y += row_height + 10.0;
-
-        self.draw_settings_row(
-            margin_x,
-            current_y,
-            650.0,
-            row_height,
-            "Song Directories",
-            &format!("{} directories", ctx.config.song_directories().len()),
-            false,
-            None, // Not interactive
-            SettingType::Button,
-        );
-        current_y += row_height + 10.0;
-
-        // Add Song Directory button
-        let add_dir_btn_x = margin_x + 650.0 - 137.0;
-        let add_dir_btn_y = current_y;
-        let add_dir_btn_w = 137.0;
-        let add_dir_btn_h = 31.0;
-
-        // Register add directory button
-        self.register_setting(
-            "add_song_directory".to_string(),
-            "Add Song Directory".to_string(),
-            SettingType::Button,
-            add_dir_btn_y,
-        );
-
-        // Check if this button is focused
-        let add_dir_focused = self
-            .focused_setting()
-            .map(|focused| focused.id == "add_song_directory")
-            .unwrap_or(false);
-
-        let add_dir_hovered = self.draw_button(
-            add_dir_btn_x,
-            add_dir_btn_y,
-            add_dir_btn_w,
-            add_dir_btn_h,
-            "+ Add Directory",
-            mouse_x >= add_dir_btn_x
-                && mouse_x <= add_dir_btn_x + add_dir_btn_w
-                && mouse_y >= add_dir_btn_y
-                && mouse_y <= add_dir_btn_y + add_dir_btn_h,
-            add_dir_focused,
-        );
-
-        // Register button area for click detection
-        log::debug!(
-            "🔍 DEBUG: Adding song directory button to button_areas at ({}, {})",
-            add_dir_btn_x,
-            add_dir_btn_y
-        );
-        self.button_areas.push(ButtonArea {
-            id: "add_song_directory".to_string(),
-            x: add_dir_btn_x,
-            y: add_dir_btn_y,
-            width: add_dir_btn_w,
-            height: add_dir_btn_h,
-        });
-
-        // Draw label
-        draw_text(
-            "Add new song directory",
-            margin_x + 15.0,
-            add_dir_btn_y + 12.0,
-            16.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
-        draw_text(
-            "Browse to add MIDI files",
-            margin_x + 15.0,
-            add_dir_btn_y + 32.0,
-            12.0,
-            Color::from_rgba(150, 150, 150, 255),
-        );
-
-        // Draw bottom bar
-        let bar_y = screen_h - 60.0;
-        draw_rectangle(
-            0.0,
-            bar_y,
-            screen_w,
-            60.0,
-            Color::from_rgba(37, 35, 42, 255),
-        );
-
-        // Draw back button
-        let back_btn_x = 10.0;
-        let back_btn_y = bar_y + 10.0;
-        let back_btn_w = 80.0;
-        let back_btn_h = 40.0;
-
-        // Register back button for keyboard navigation
-        self.register_setting(
-            "back".to_string(),
-            "Back".to_string(),
-            SettingType::Button,
-            bar_y + 10.0,
-        );
-
-        // IMPORTANT: Register back button in button_areas for click detection
-        self.button_areas.push(ButtonArea {
-            id: "back".to_string(),
-            x: back_btn_x,
-            y: back_btn_y,
-            width: back_btn_w,
-            height: back_btn_h,
-        });
-
-        let (back_mouse_x, back_mouse_y) = mouse_position();
-        let back_hovered = back_mouse_x >= back_btn_x
-            && back_mouse_x <= back_btn_x + back_btn_w
-            && back_mouse_y >= back_btn_y
-            && back_mouse_y <= back_btn_y + back_btn_h;
-
-        // Check if back button is focused
-        let back_focused = self
-            .focused_setting()
-            .map(|focused| focused.id == "back")
-            .unwrap_or(false);
-
-        // Draw back button with focus indicator
-        let back_bg_color = if back_focused {
-            Color::from_rgba(160, 81, 255, 255)
-        } else if back_hovered {
-            Color::from_rgba(100, 80, 120, 255)
-        } else {
-            Color::from_rgba(74, 68, 88, 255)
-        };
-
-        draw_rectangle(
-            back_btn_x,
-            back_btn_y,
-            back_btn_w,
-            back_btn_h,
-            back_bg_color,
-        );
-        draw_rectangle_lines(
-            back_btn_x,
-            back_btn_y,
-            back_btn_w,
-            back_btn_h,
-            1.0,
-            Color::from_rgba(100, 100, 100, 255),
-        );
-
-        // Center text
-        let back_text = "← Back";
-        let back_text_width = measure_text(back_text, None, 14, 1.0).width;
-        draw_text(
-            back_text,
-            back_btn_x + (back_btn_w - back_text_width) / 2.0,
-            back_btn_y + (back_btn_h - 14.0) / 2.0 + 10.0,
-            14.0,
-            Color::from_rgba(255, 255, 255, 255),
-        );
-
-        // Draw instructions with keyboard controls
-        draw_text(
-            "↑↓: Navigate • Enter/Space: Activate • ←→: Adjust • ESC: Back",
-            screen_w / 2.0 - 220.0,
-            bar_y + 25.0,
-            14.0,
-            Color::from_rgba(150, 150, 150, 255),
-        );
-
-        // Draw focus indicator
-        if let Some(focused) = self.focused_setting() {
-            draw_text(
-                &format!("Focused: {}", focused.label),
-                screen_w - 200.0,
-                bar_y + 25.0,
-                14.0,
-                Color::from_rgba(160, 81, 255, 255),
-            );
-        }
-
-        // Draw popup overlay if active
         self.draw_popup(ctx);
+    }
+}
+
+impl PlySettingsScene {
+    fn render_top_nav(
+        &self,
+        x: f32,
+        y: f32,
+        width: f32,
+        height: f32,
+        mx: f32,
+        my: f32,
+        mouse_pressed: bool,
+    ) -> Option<NeothesiaEvent> {
+        use macroquad::prelude::*;
+        use neothesia_core::design::{colors, spacing};
+
+        let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER);
+        draw_rectangle(x, y, width, height, Color::new(bg_r, bg_g, bg_b, 0.95));
+
+        let logo_x = x + spacing::XL;
+        let logo_y = y + height / 2.0 + 8.0;
+        let (logo_r, logo_g, logo_b) = colors::to_normalized(colors::PRIMARY);
+        draw_text(
+            "Sonicthesia",
+            logo_x,
+            logo_y,
+            24.0,
+            Color::new(logo_r, logo_g, logo_b, 1.0),
+        );
+
+        let nav_items = ["Library", "Practice", "Settings"];
+        let mut nav_x = width - 400.0;
+        let mut clicked_event = None;
+
+        for item in nav_items.iter() {
+            let is_hovered = mx >= nav_x && mx <= nav_x + 80.0 && my >= y && my <= y + height;
+            let is_active = *item == "Settings";
+
+            let text_color = if is_active {
+                colors::PRIMARY
+            } else if is_hovered {
+                colors::ON_SURFACE
+            } else {
+                colors::ON_SURFACE_VARIANT
+            };
+            let (text_r, text_g, text_b) = colors::to_normalized(text_color);
+            draw_text(
+                item,
+                nav_x,
+                logo_y,
+                16.0,
+                Color::new(text_r, text_g, text_b, 1.0),
+            );
+
+            if is_active {
+                draw_rectangle(
+                    nav_x,
+                    y + height - 3.0,
+                    60.0,
+                    3.0,
+                    Color::new(text_r, text_g, text_b, 1.0),
+                );
+            }
+
+            if is_hovered && mouse_pressed {
+                clicked_event = match *item {
+                    "Library" => Some(NeothesiaEvent::ShowSongLibrary(None)),
+                    "Practice" => Some(NeothesiaEvent::ResumeFromSettings),
+                    _ => None,
+                };
+            }
+            nav_x += 100.0;
+        }
+        clicked_event
+    }
+
+    fn handle_settings_interaction(
+        &mut self,
+        ctx: &mut MacroquadContext,
+        interaction: crate::settings::SettingsInteraction,
+    ) {
+        use crate::settings::SettingsInteraction;
+
+        match interaction {
+            SettingsInteraction::None => {}
+            SettingsInteraction::ThemeSelected(theme_id) => {
+                ctx.config.set_piano_theme_name(theme_id);
+                ctx.config.save();
+            }
+            SettingsInteraction::AddSongDirectory => {
+                self.pick_song_directory(ctx);
+            }
+            SettingsInteraction::RemoveSongDirectory(idx) => {
+                ctx.config.remove_song_directory(idx);
+                ctx.config.save();
+            }
+            SettingsInteraction::AddSoundFontFolder => {
+                self.pick_soundfont_folder(ctx);
+            }
+            SettingsInteraction::RemoveSoundFontFolder(idx) => {
+                ctx.config.synth_config.remove_soundfont_folder(idx);
+                ctx.config.save();
+            }
+            SettingsInteraction::InputDeviceSelected(device) => {
+                ctx.config.set_input(Some(device));
+                ctx.config.save();
+            }
+            SettingsInteraction::OutputDeviceSelected(device) => {
+                ctx.config.set_output(Some(device));
+                ctx.config.save();
+            }
+            SettingsInteraction::AudioGainChanged(gain) => {
+                ctx.config.set_audio_gain(gain);
+                ctx.config.save();
+            }
+            SettingsInteraction::PlaybackGainChanged(gain) => {
+                ctx.config.set_playback_gain(gain);
+                ctx.config.save();
+            }
+            SettingsInteraction::PianoRangeStartChanged(start) => {
+                ctx.config.set_piano_range_start(start);
+                ctx.config.save();
+            }
+            SettingsInteraction::PianoRangeEndChanged(end) => {
+                ctx.config.set_piano_range_end(end);
+                ctx.config.save();
+            }
+            SettingsInteraction::VerticalGuidelinesToggled(enabled) => {
+                ctx.config.set_vertical_guidelines(enabled);
+                ctx.config.save();
+            }
+            SettingsInteraction::HorizontalGuidelinesToggled(enabled) => {
+                ctx.config.set_horizontal_guidelines(enabled);
+                ctx.config.save();
+            }
+            SettingsInteraction::GlowToggled(enabled) => {
+                ctx.config.set_glow(enabled);
+                ctx.config.save();
+            }
+            SettingsInteraction::NoteLabelsToggled(enabled) => {
+                ctx.config.set_note_labels(enabled);
+                ctx.config.save();
+            }
+            SettingsInteraction::SeparateChannelsToggled(enabled) => {
+                ctx.config.set_separate_channels(enabled);
+                ctx.config.save();
+            }
+            SettingsInteraction::SaveChanges => {
+                ctx.config.save();
+            }
+            SettingsInteraction::OpenPopup(popup_type) => match popup_type.as_str() {
+                "input" => {
+                    self.popup = SettingsPopup::InputSelector;
+                }
+                "output" => {
+                    self.popup = SettingsPopup::OutputSelector;
+                }
+                _ => {}
+            },
+            _ => {}
+        }
     }
 }

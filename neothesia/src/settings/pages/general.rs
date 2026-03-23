@@ -75,21 +75,17 @@ impl GeneralPage {
             Color::new(sub_r, sub_g, sub_b, 1.0),
         );
 
-        let items = vec![
+        let audio_gain_str = format!("{:.0}%", config.audio_gain() * 100.0);
+        let glow_str = if config.glow() { "On" } else { "Off" };
+        let note_labels_str = if config.note_labels() { "On" } else { "Off" };
+
+        let items: Vec<(&str, &str, &str)> = vec![
             ("MIDI Input", config.input().unwrap_or("None"), "MIDI"),
             ("MIDI Output", config.output().unwrap_or("None"), "MIDI"),
             ("Theme", config.piano_theme_name(), "Themes"),
-            (
-                "Audio Gain",
-                &format!("{:.0}%", config.audio_gain() * 100.0),
-                "Audio",
-            ),
-            ("Glow", if config.glow() { "On" } else { "Off" }, "MIDI"),
-            (
-                "Note Labels",
-                if config.note_labels() { "On" } else { "Off" },
-                "MIDI",
-            ),
+            ("Audio Gain", &audio_gain_str, "Audio"),
+            ("Glow", &glow_str, "MIDI"),
+            ("Note Labels", &note_labels_str, "MIDI"),
         ];
 
         let mut item_y = section_y + 70.0;
