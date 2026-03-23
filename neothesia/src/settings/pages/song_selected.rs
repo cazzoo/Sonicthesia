@@ -27,7 +27,7 @@ impl SongSelectedPage {
         }
     }
 
-    fn render_hero_section(&self) {
+    fn render_hero_section(&self, mx: f32, my: f32, mouse_pressed: bool) -> bool {
         let content_x = self.sidebar.width;
         let hero_y = self.header.height;
         let hero_w = screen_width() - content_x;
@@ -80,6 +80,10 @@ impl SongSelectedPage {
             Color::new(back_r, back_g, back_b, 1.0),
         );
 
+        if is_back_hovered && mouse_pressed {
+            return true;
+        }
+
         let badge_y = back_y + 30.0;
 
         let (tert_r, tert_g, tert_b) = colors::to_normalized(colors::TERTIARY_CONTAINER);
@@ -124,7 +128,7 @@ impl SongSelectedPage {
             song_name,
             back_x,
             title_y + 50.0,
-            64.0,
+            48.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
@@ -222,6 +226,8 @@ impl SongSelectedPage {
             24.0,
             Color::new(value_r, value_g, value_b, 1.0),
         );
+
+        false
     }
 
     fn render_mode_title(&self) {
@@ -248,19 +254,16 @@ impl SongSelectedPage {
     }
 
     fn render_cta_section(&self, mx: f32, my: f32, mouse_pressed: bool) -> bool {
-        let content_x = self.sidebar.width + spacing::XL;
         let cta_y = 1060.0;
         let btn_w = 280.0;
         let btn_h = 60.0;
-        let btn_x =
-            content_x + (screen_width() - self.sidebar.width - spacing::XL * 2.0 - btn_w) / 2.0;
+        let btn_x = self.sidebar.width
+            + spacing::XL
+            + (screen_width() - self.sidebar.width - spacing::XL * 2.0 - btn_w) / 2.0;
 
         let (primary_r, primary_g, primary_b) = colors::to_normalized(colors::PRIMARY);
-        let (primary_c_r, primary_c_g, primary_c_b) =
-            colors::to_normalized(colors::PRIMARY_CONTAINER);
 
         let is_hovered = mx >= btn_x && mx <= btn_x + btn_w && my >= cta_y && my <= cta_y + btn_h;
-        let scale = if is_hovered { 1.02 } else { 1.0 };
 
         draw_rectangle(
             btn_x,
@@ -335,7 +338,10 @@ impl SongSelectedPage {
             }
         }
 
-        self.render_hero_section();
+        if self.render_hero_section(mx, my, mouse_pressed) {
+            return SongSelectedInteraction::NavigateBack;
+        }
+
         self.render_mode_title();
 
         if let Some(mode) = self.mode_selector.render(mx, my, mouse_pressed) {
