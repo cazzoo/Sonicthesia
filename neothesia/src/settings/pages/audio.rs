@@ -146,7 +146,8 @@ impl AudioPage {
                 .unwrap_or_else(|| "Unknown".to_string())
         };
 
-        let panel = GlassPanel::new(x, y, width, 260.0);
+        let section_height = 340.0;
+        let panel = GlassPanel::new(x, y, width, section_height);
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
@@ -167,283 +168,416 @@ impl AudioPage {
             Color::new(sub_r, sub_g, sub_b, 1.0),
         );
 
-        let item_y = y + 70.0;
-        let item_width = width - spacing::XL * 2.0;
+        let selector_y = y + 70.0;
+        let selector_width = width - spacing::XL * 2.0;
+        let selector_height = 70.0;
 
         let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER_HIGH);
         draw_rectangle(
             x + spacing::XL,
-            item_y,
-            item_width,
-            80.0,
-            Color::new(bg_r, bg_g, bg_b, 0.6),
+            selector_y,
+            selector_width,
+            selector_height,
+            Color::new(bg_r, bg_g, bg_b, 0.7),
+        );
+
+        let border_color = if !self.soundfont_names.is_empty() {
+            colors::to_normalized(colors::SECONDARY)
+        } else {
+            colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST)
+        };
+        draw_rectangle_lines(
+            x + spacing::XL,
+            selector_y,
+            selector_width,
+            selector_height,
+            1.0,
+            Color::new(border_color.0, border_color.1, border_color.2, 0.5),
         );
 
         let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::SECONDARY);
         draw_text(
             "🎵",
             x + spacing::XL + spacing::MD,
-            item_y + 44.0,
-            28.0,
+            selector_y + 40.0,
+            32.0,
             Color::new(icon_r, icon_g, icon_b, 1.0),
         );
 
         let (text_r, text_g, text_b) = colors::to_normalized(colors::ON_SURFACE);
         draw_text(
             &current_name,
-            x + spacing::XL + 50.0,
-            item_y + 34.0,
-            16.0,
+            x + spacing::XL + 56.0,
+            selector_y + 30.0,
+            18.0,
             Color::new(text_r, text_g, text_b, 1.0),
         );
 
         let index_text = if self.soundfont_names.is_empty() {
-            "0 / 0".to_string()
+            "Add a folder to get started".to_string()
         } else {
             format!(
-                "{} / {}",
+                "SoundFont {} of {}",
                 self.current_soundfont_index + 1,
                 self.soundfont_names.len()
             )
         };
         draw_text(
             &index_text,
-            x + spacing::XL + 50.0,
-            item_y + 54.0,
+            x + spacing::XL + 56.0,
+            selector_y + 50.0,
             12.0,
             Color::new(sub_r, sub_g, sub_b, 1.0),
         );
 
-        let arrow_size = 32.0;
-        let left_arrow_x = x + width - spacing::XL - arrow_size * 2.0 - spacing::SM;
-        let right_arrow_x = x + width - spacing::XL - arrow_size;
-        let arrow_y = item_y + 24.0;
+        let arrow_btn_size = 40.0;
+        let arrow_y = selector_y + (selector_height - arrow_btn_size) / 2.0;
+        let left_arrow_x = x + width - spacing::XL - arrow_btn_size * 2.0 - spacing::SM;
+        let right_arrow_x = x + width - spacing::XL - arrow_btn_size;
 
-        let left_hovered = mx >= left_arrow_x
-            && mx <= left_arrow_x + arrow_size
-            && my >= arrow_y
-            && my <= arrow_y + arrow_size;
-        let right_hovered = mx >= right_arrow_x
-            && mx <= right_arrow_x + arrow_size
-            && my >= arrow_y
-            && my <= arrow_y + arrow_size;
+        let left_disabled = self.soundfont_names.is_empty() || self.current_soundfont_index == 0;
+        let right_disabled = self.soundfont_names.is_empty()
+            || self.current_soundfont_index >= self.soundfont_names.len().saturating_sub(1);
 
+        let left_hovered = !left_disabled
+            && mx >= left_arrow_x
+            && mx <= left_arrow_x + arrow_btn_size
+            && my >= arrow_y
+            && my <= arrow_y + arrow_btn_size;
+        let right_hovered = !right_disabled
+            && mx >= right_arrow_x
+            && mx <= right_arrow_x + arrow_btn_size
+            && my >= arrow_y
+            && my <= arrow_y + arrow_btn_size;
+
+        let left_bg = if left_disabled {
+            colors::SURFACE_CONTAINER_LOW
+        } else if left_hovered {
+            colors::PRIMARY
+        } else {
+            colors::SURFACE_CONTAINER_HIGHEST
+        };
+        let (lbg_r, lbg_g, lbg_b) = colors::to_normalized(left_bg);
         draw_rectangle(
             left_arrow_x,
             arrow_y,
-            arrow_size,
-            arrow_size,
-            Color::new(bg_r, bg_g, bg_b, if left_hovered { 1.0 } else { 0.6 }),
+            arrow_btn_size,
+            arrow_btn_size,
+            Color::new(lbg_r, lbg_g, lbg_b, if left_disabled { 0.3 } else { 0.8 }),
         );
+        let left_text_color = if left_disabled {
+            colors::ON_SURFACE_VARIANT
+        } else if left_hovered {
+            colors::BLACK
+        } else {
+            colors::ON_SURFACE
+        };
+        let (lt_r, lt_g, lt_b) = colors::to_normalized(left_text_color);
         draw_text(
             "◀",
-            left_arrow_x + 10.0,
-            arrow_y + 22.0,
-            16.0,
-            Color::new(text_r, text_g, text_b, 1.0),
+            left_arrow_x + 14.0,
+            arrow_y + 27.0,
+            18.0,
+            Color::new(lt_r, lt_g, lt_b, if left_disabled { 0.3 } else { 1.0 }),
         );
 
+        let right_bg = if right_disabled {
+            colors::SURFACE_CONTAINER_LOW
+        } else if right_hovered {
+            colors::PRIMARY
+        } else {
+            colors::SURFACE_CONTAINER_HIGHEST
+        };
+        let (rbg_r, rbg_g, rbg_b) = colors::to_normalized(right_bg);
         draw_rectangle(
             right_arrow_x,
             arrow_y,
-            arrow_size,
-            arrow_size,
-            Color::new(bg_r, bg_g, bg_b, if right_hovered { 1.0 } else { 0.6 }),
+            arrow_btn_size,
+            arrow_btn_size,
+            Color::new(rbg_r, rbg_g, rbg_b, if right_disabled { 0.3 } else { 0.8 }),
         );
+        let right_text_color = if right_disabled {
+            colors::ON_SURFACE_VARIANT
+        } else if right_hovered {
+            colors::BLACK
+        } else {
+            colors::ON_SURFACE
+        };
+        let (rt_r, rt_g, rt_b) = colors::to_normalized(right_text_color);
         draw_text(
             "▶",
-            right_arrow_x + 10.0,
-            arrow_y + 22.0,
-            16.0,
-            Color::new(text_r, text_g, text_b, 1.0),
+            right_arrow_x + 14.0,
+            arrow_y + 27.0,
+            18.0,
+            Color::new(rt_r, rt_g, rt_b, if right_disabled { 0.3 } else { 1.0 }),
         );
 
         let mut interaction = SettingsInteraction::None;
 
-        if left_hovered && mouse_pressed && self.current_soundfont_index > 0 {
+        if left_hovered && mouse_pressed {
             self.current_soundfont_index -= 1;
             interaction = SettingsInteraction::SoundFontSelected(self.current_soundfont_index);
         }
-        if right_hovered
-            && mouse_pressed
-            && self.current_soundfont_index < self.soundfont_names.len().saturating_sub(1)
-        {
+        if right_hovered && mouse_pressed {
             self.current_soundfont_index += 1;
             interaction = SettingsInteraction::SoundFontSelected(self.current_soundfont_index);
         }
 
-        let btn_y = item_y + 90.0;
-        let btn_w = 120.0;
-        let btn_h = 36.0;
+        let kb_label_y = selector_y + selector_height + spacing::LG;
+        draw_text(
+            "Test SoundFont",
+            x + spacing::XL,
+            kb_label_y,
+            14.0,
+            Color::new(sub_r, sub_g, sub_b, 1.0),
+        );
 
+        let kb_x = x + spacing::XL;
+        let kb_y = kb_label_y + 8.0;
+        let kb_w = width - spacing::XL * 2.0;
+        let kb_h = 80.0;
+
+        let (kb_bg_r, kb_bg_g, kb_bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER_LOW);
+        draw_rectangle(
+            kb_x,
+            kb_y,
+            kb_w,
+            kb_h,
+            Color::new(kb_bg_r, kb_bg_g, kb_bg_b, 0.8),
+        );
+
+        let white_key_count = 7;
+        let white_key_w = kb_w / white_key_count as f32;
+        let black_key_positions = [0, 1, 3, 4, 5];
+        let black_key_w = white_key_w * 0.6;
+        let black_key_h = kb_h * 0.6;
+
+        for i in 0..white_key_count {
+            let kx = kb_x + i as f32 * white_key_w;
+            let is_hovered =
+                mx >= kx && mx <= kx + white_key_w - 1.0 && my >= kb_y && my <= kb_y + kb_h;
+
+            let key_white = colors::to_normalized(colors::ON_SURFACE);
+            let key_bg = colors::to_normalized(colors::SURFACE_CONTAINER);
+
+            draw_rectangle(
+                kx + 1.0,
+                kb_y + 1.0,
+                white_key_w - 2.0,
+                kb_h - 2.0,
+                Color::new(key_bg.0, key_bg.1, key_bg.2, 0.3),
+            );
+
+            if is_hovered {
+                let (h_r, h_g, h_b) = colors::to_normalized(colors::SECONDARY);
+                draw_rectangle(
+                    kx + 1.0,
+                    kb_y + 1.0,
+                    white_key_w - 2.0,
+                    kb_h - 2.0,
+                    Color::new(h_r, h_g, h_b, 0.3),
+                );
+            }
+
+            draw_rectangle_lines(
+                kx + 1.0,
+                kb_y + 1.0,
+                white_key_w - 2.0,
+                kb_h - 2.0,
+                1.0,
+                Color::new(key_white.0, key_white.1, key_white.2, 0.2),
+            );
+
+            let note_names = ["C", "D", "E", "F", "G", "A", "B"];
+            let (nr, ng, nb) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
+            draw_text(
+                note_names[i],
+                kx + white_key_w / 2.0 - 4.0,
+                kb_y + kb_h - 12.0,
+                12.0,
+                Color::new(nr, ng, nb, 0.5),
+            );
+
+            if is_hovered && mouse_pressed {
+                interaction = SettingsInteraction::SoundFontSelected(self.current_soundfont_index);
+            }
+        }
+
+        for &pos in &black_key_positions {
+            let kx = kb_x + pos as f32 * white_key_w + white_key_w - black_key_w / 2.0;
+            let is_hovered =
+                mx >= kx && mx <= kx + black_key_w && my >= kb_y && my <= kb_y + black_key_h;
+
+            let (bk_r, bk_g, bk_b) = if is_hovered {
+                colors::to_normalized(colors::SECONDARY)
+            } else {
+                colors::to_normalized(colors::SURFACE_CONTAINER_LOWEST)
+            };
+
+            draw_rectangle(
+                kx,
+                kb_y,
+                black_key_w,
+                black_key_h,
+                Color::new(bk_r, bk_g, bk_b, if is_hovered { 0.9 } else { 0.95 }),
+            );
+
+            let (border_r, border_g, border_b) =
+                colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
+            draw_rectangle_lines(
+                kx,
+                kb_y,
+                black_key_w,
+                black_key_h,
+                1.0,
+                Color::new(border_r, border_g, border_b, 0.3),
+            );
+
+            if is_hovered && mouse_pressed {
+                interaction = SettingsInteraction::SoundFontSelected(self.current_soundfont_index);
+            }
+        }
+
+        let add_btn_y = kb_y + kb_h + spacing::LG;
+        let add_btn_w = 140.0;
+        let add_btn_h = 36.0;
         let add_btn_x = x + spacing::XL;
-        let add_hovered =
-            mx >= add_btn_x && mx <= add_btn_x + btn_w && my >= btn_y && my <= btn_y + btn_h;
-        let (add_r, add_g, add_b) = colors::to_normalized(if add_hovered {
-            colors::PRIMARY
+
+        let add_hovered = mx >= add_btn_x
+            && mx <= add_btn_x + add_btn_w
+            && my >= add_btn_y
+            && my <= add_btn_y + add_btn_h;
+
+        let (add_bg_r, add_bg_g, add_bg_b) = if add_hovered {
+            colors::to_normalized(colors::PRIMARY)
         } else {
-            colors::ON_SURFACE_VARIANT
-        });
+            colors::to_normalized(colors::SURFACE_CONTAINER_HIGH)
+        };
+        draw_rectangle(
+            add_btn_x,
+            add_btn_y,
+            add_btn_w,
+            add_btn_h,
+            Color::new(
+                add_bg_r,
+                add_bg_g,
+                add_bg_b,
+                if add_hovered { 0.8 } else { 0.5 },
+            ),
+        );
         draw_rectangle_lines(
             add_btn_x,
-            btn_y,
-            btn_w,
-            btn_h,
+            add_btn_y,
+            add_btn_w,
+            add_btn_h,
             1.0,
-            Color::new(add_r, add_g, add_b, 0.4),
+            Color::new(add_bg_r, add_bg_g, add_bg_b, 0.6),
         );
+
+        let (add_text_r, add_text_g, add_text_b) = if add_hovered {
+            colors::to_normalized(colors::BLACK)
+        } else {
+            colors::to_normalized(colors::ON_SURFACE)
+        };
         draw_text(
             "+ Add Folder",
-            add_btn_x + spacing::SM,
-            btn_y + 24.0,
+            add_btn_x + spacing::MD,
+            add_btn_y + 24.0,
             14.0,
-            Color::new(add_r, add_g, add_b, 1.0),
+            Color::new(add_text_r, add_text_g, add_text_b, 1.0),
         );
 
         if add_hovered && mouse_pressed {
             interaction = SettingsInteraction::AddSoundFontFolder;
         }
 
-        let kb_x = x + spacing::XL + btn_w + spacing::LG;
-        let kb_y = btn_y;
-        let kb_w = width - spacing::XL * 2.0 - btn_w - spacing::LG;
-        let kb_h = 36.0;
-        let white_key_count = 7;
-        let white_key_w = kb_w / white_key_count as f32;
-        let black_key_pattern = [true, true, false, true, true, true, false];
+        let folders = config.synth_config.soundfont_folders();
+        let folder_label_x = add_btn_x + add_btn_w + spacing::LG;
+        let folder_label_y = add_btn_y + 12.0;
 
-        draw_rectangle(kb_x, kb_y, kb_w, kb_h, Color::new(bg_r, bg_g, bg_b, 0.4));
-
-        for i in 0..white_key_count {
-            let kx = kb_x + i as f32 * white_key_w;
-            let is_hovered =
-                mx >= kx && mx <= kx + white_key_w - 1.0 && my >= kb_y && my <= kb_y + kb_h;
-            let is_pressed = self.pressed_keys.get(i * 2).copied().unwrap_or(false);
-
-            let key_color = if is_pressed {
-                colors::SECONDARY
-            } else if is_hovered {
-                colors::SURFACE_CONTAINER_HIGHEST
-            } else {
-                colors::ON_SURFACE
-            };
-            let (kr, kg, kb) = colors::to_normalized(key_color);
-
-            draw_rectangle(
-                kx + 0.5,
-                kb_y + 0.5,
-                white_key_w - 1.0,
-                kb_h - 1.0,
-                Color::new(kr, kg, kb, if is_pressed { 0.6 } else { 0.2 }),
-            );
-
-            if is_hovered && mouse_pressed {
-                if let Some(key) = self.pressed_keys.get_mut(i * 2) {
-                    *key = true;
-                }
-            }
-        }
-
-        let note_names = ["C", "D", "E", "F", "G", "A", "B"];
-        for i in 0..white_key_count {
-            let kx = kb_x + i as f32 * white_key_w;
-            let (nr, ng, nb) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-            draw_text(
-                note_names[i],
-                kx + white_key_w / 2.0 - 3.0,
-                kb_y + kb_h - 8.0,
-                10.0,
-                Color::new(nr, ng, nb, 0.6),
-            );
-        }
-
-        let folder_y = kb_y + kb_h + spacing::MD;
-        let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
         draw_text(
-            "SoundFont Folders:",
-            x + spacing::XL,
-            folder_y,
+            &format!("{} folder(s) configured", folders.len()),
+            folder_label_x,
+            folder_label_y,
             12.0,
-            Color::new(label_r, label_g, label_b, 1.0),
+            Color::new(sub_r, sub_g, sub_b, 1.0),
         );
 
-        let folders = config.synth_config.soundfont_folders();
-        let mut folder_item_y = folder_y + 16.0;
-
-        if folders.is_empty() {
+        if !folders.is_empty() {
             draw_text(
-                "No folders configured",
-                x + spacing::XL + 8.0,
-                folder_item_y + 12.0,
+                "Folders will be scanned for .sf2 files",
+                folder_label_x,
+                folder_label_y + 16.0,
                 11.0,
-                Color::new(label_r, label_g, label_b, 0.5),
+                Color::new(sub_r, sub_g, sub_b, 0.7),
             );
-            folder_item_y += 24.0;
         }
 
+        let list_y = add_btn_y + add_btn_h + spacing::MD;
+        let mut item_y = list_y;
+
         for (idx, folder) in folders.iter().enumerate() {
+            let item_h = 32.0;
             let folder_hovered = mx >= x + spacing::XL
                 && mx <= x + width - spacing::XL
-                && my >= folder_item_y
-                && my <= folder_item_y + 28.0;
+                && my >= item_y
+                && my <= item_y + item_h;
 
-            let (bg_folder_r, bg_folder_g, bg_folder_b) =
-                colors::to_normalized(colors::SURFACE_CONTAINER_HIGH);
+            let (item_bg_r, item_bg_g, item_bg_b) =
+                colors::to_normalized(colors::SURFACE_CONTAINER);
             draw_rectangle(
                 x + spacing::XL,
-                folder_item_y,
+                item_y,
                 width - spacing::XL * 2.0,
-                28.0,
+                item_h,
                 Color::new(
-                    bg_folder_r,
-                    bg_folder_g,
-                    bg_folder_b,
-                    if folder_hovered { 0.6 } else { 0.3 },
+                    item_bg_r,
+                    item_bg_g,
+                    item_bg_b,
+                    if folder_hovered { 0.7 } else { 0.4 },
                 ),
             );
 
+            let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::SECONDARY);
+            draw_text(
+                "📁",
+                x + spacing::XL + spacing::SM,
+                item_y + 22.0,
+                14.0,
+                Color::new(icon_r, icon_g, icon_b, 0.9),
+            );
+
             let folder_str = folder.to_string_lossy();
-            let max_chars = ((width - spacing::XL * 2.0 - 40.0) / 7.0) as usize;
+            let max_chars = ((width - spacing::XL * 2.0 - 60.0) / 7.0) as usize;
             let display = if folder_str.len() > max_chars {
                 format!("...{}", &folder_str[folder_str.len() - max_chars + 3..])
             } else {
                 folder_str.to_string()
             };
 
-            let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::SECONDARY);
-            draw_text(
-                "📁",
-                x + spacing::XL + 4.0,
-                folder_item_y + 19.0,
-                12.0,
-                Color::new(icon_r, icon_g, icon_b, 0.8),
-            );
-
             draw_text(
                 &display,
-                x + spacing::XL + 22.0,
-                folder_item_y + 18.0,
-                11.0,
+                x + spacing::XL + 28.0,
+                item_y + 21.0,
+                12.0,
                 Color::new(
                     text_r,
                     text_g,
                     text_b,
-                    if folder_hovered { 0.9 } else { 0.6 },
+                    if folder_hovered { 0.9 } else { 0.7 },
                 ),
             );
 
             if folder_hovered {
-                let del_x = x + width - spacing::XL - 20.0;
-                let del_hovered = mx >= del_x
-                    && mx <= del_x + 16.0
-                    && my >= folder_item_y + 4.0
-                    && my <= folder_item_y + 24.0;
+                let del_x = x + width - spacing::XL - 24.0;
+                let del_hovered =
+                    mx >= del_x && mx <= del_x + 20.0 && my >= item_y + 6.0 && my <= item_y + 26.0;
                 let (del_r, del_g, del_b) = colors::to_normalized(colors::ERROR);
                 draw_text(
                     "×",
                     del_x,
-                    folder_item_y + 18.0,
-                    14.0,
+                    item_y + 22.0,
+                    16.0,
                     Color::new(del_r, del_g, del_b, if del_hovered { 1.0 } else { 0.5 }),
                 );
 
@@ -452,13 +586,10 @@ impl AudioPage {
                 }
             }
 
-            folder_item_y += 32.0;
+            item_y += item_h + 4.0;
         }
 
-        (
-            y + 260.0 + spacing::LG + folder_item_y - folder_y,
-            interaction,
-        )
+        (y + section_height + spacing::LG, interaction)
     }
 
     fn render_mixer_section(
