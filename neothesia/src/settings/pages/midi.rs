@@ -1,6 +1,6 @@
 use crate::settings::interaction::SettingsInteraction;
 use crate::settings::page::SettingsPage;
-use crate::ui::components::GlassPanel;
+use crate::ui::components::{Dropdown, GlassPanel, SectionHeader, Slider, ToggleSwitch};
 use macroquad::prelude::*;
 use neothesia_core::config::Config;
 use neothesia_core::design::{colors, effects, radius, sizes, spacing};
@@ -19,20 +19,23 @@ impl MidiPage {
         draw_text(
             "MIDI Setup",
             x,
-            y + 32.0,
-            32.0,
+            y + 28.0,
+            24.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
-        let (desc_r, desc_g, desc_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            "Configure MIDI input/output devices and latency settings",
-            x,
-            y + 56.0,
-            16.0,
-            Color::new(desc_r, desc_g, desc_b, 1.0),
+        let line_x = x + 120.0;
+        let line_w = width - 120.0;
+        let (line_r, line_g, line_b) = colors::to_normalized(colors::OUTLINE_VARIANT);
+        draw_rectangle(
+            line_x,
+            y + 22.0,
+            line_w,
+            1.0,
+            Color::new(line_r, line_g, line_b, 0.2),
         );
-        y + 80.0
+
+        y + 56.0
     }
 
     fn render_device_section(

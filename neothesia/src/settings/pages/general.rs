@@ -1,7 +1,9 @@
 use crate::settings::interaction::SettingsInteraction;
 use crate::settings::page::SettingsPage;
 use crate::ui::components::status_chip::ChipVariant;
-use crate::ui::components::{GlassPanel, StatusChip, StorageIndicator, ThemeCard};
+use crate::ui::components::{
+    GlassPanel, SectionHeader, SettingCard, StatusChip, StorageIndicator, ThemeCard,
+};
 use macroquad::prelude::*;
 use neothesia_core::config::Config;
 use neothesia_core::design::{colors, effects, radius, sizes, spacing, themes};
@@ -26,21 +28,23 @@ impl GeneralPage {
         draw_text(
             "General Settings",
             x,
-            y + 32.0,
-            32.0,
+            y + 28.0,
+            24.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
-        let (desc_r, desc_g, desc_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            "Configure MIDI devices, audio output, and application preferences",
-            x,
-            y + 56.0,
-            16.0,
-            Color::new(desc_r, desc_g, desc_b, 1.0),
+        let line_x = x + 180.0;
+        let line_w = width - 180.0;
+        let (line_r, line_g, line_b) = colors::to_normalized(colors::OUTLINE_VARIANT);
+        draw_rectangle(
+            line_x,
+            y + 22.0,
+            line_w,
+            1.0,
+            Color::new(line_r, line_g, line_b, 0.2),
         );
 
-        y + 80.0
+        y + 56.0
     }
 
     fn render_status_section(
@@ -54,26 +58,9 @@ impl GeneralPage {
         mouse_pressed: bool,
     ) -> (f32, SettingsInteraction) {
         let section_y = y;
-        let panel = GlassPanel::new(x, section_y, width, 280.0);
-        panel.render();
 
-        let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
-            "Quick Settings",
-            x + spacing::XL,
-            section_y + spacing::XL + 16.0,
-            20.0,
-            Color::new(title_r, title_g, title_b, 1.0),
-        );
-
-        let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            "Click any setting to configure",
-            x + spacing::XL,
-            section_y + spacing::XL + 36.0,
-            14.0,
-            Color::new(sub_r, sub_g, sub_b, 1.0),
-        );
+        let header = SectionHeader::new(x, section_y, width, "Quick Settings");
+        let content_y = header.render();
 
         let audio_gain_str = format!("{:.0}%", config.audio_gain() * 100.0);
         let glow_str = if config.glow() { "On" } else { "Off" };
