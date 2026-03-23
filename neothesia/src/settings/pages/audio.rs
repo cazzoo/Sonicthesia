@@ -136,6 +136,7 @@ impl AudioPage {
         mx: f32,
         my: f32,
         mouse_pressed: bool,
+        mouse_down: bool,
     ) -> (f32, SettingsInteraction) {
         let current_name = if self.soundfont_names.is_empty() {
             "No SoundFont loaded".to_string()
@@ -405,11 +406,20 @@ impl AudioPage {
                 Color::new(nr, ng, nb, 0.5),
             );
 
-            if is_hovered && mouse_pressed && !is_pressed {
+            if is_hovered && mouse_pressed {
                 if let Some(key) = self.pressed_keys.get_mut(i) {
                     *key = true;
                 }
                 interaction = SettingsInteraction::PlayNote(white_notes[i], 100);
+            }
+
+            if !mouse_down {
+                if let Some(key) = self.pressed_keys.get_mut(i) {
+                    if *key {
+                        interaction = SettingsInteraction::StopNote(white_notes[i]);
+                    }
+                    *key = false;
+                }
             }
         }
 
@@ -681,7 +691,9 @@ impl AudioPage {
         mouse_pressed: bool,
     ) -> (f32, SettingsInteraction) {
         let folders = config.synth_config.soundfont_folders();
-        let section_height = 60.0 + folders.len() as f32 * 36.0 + 20.0;
+        let min_height: f32 = 100.0;
+        let folder_height: f32 = folders.len() as f32 * 36.0;
+        let section_height = min_height.max(60.0 + folder_height);
 
         let panel = GlassPanel::new(x, y, width, section_height);
         panel.render();
@@ -977,6 +989,7 @@ impl SettingsPage for AudioPage {
             mx,
             my,
             mouse_pressed,
+            mouse_down,
         );
         if !matches!(interaction, SettingsInteraction::None) {
             return interaction;
