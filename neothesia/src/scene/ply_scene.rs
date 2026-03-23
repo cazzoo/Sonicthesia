@@ -5822,6 +5822,26 @@ impl PlySettingsScene {
             SettingsInteraction::SaveChanges => {
                 ctx.config.save();
             }
+            SettingsInteraction::PlayNote(key, vel) => {
+                use midi_file::midly::{num::u7, MidiMessage};
+                let message = MidiMessage::NoteOn {
+                    key: u7::new(key),
+                    vel: u7::new(vel),
+                };
+                ctx.output_manager
+                    .connection()
+                    .midi_event(0u8.into(), message);
+            }
+            SettingsInteraction::StopNote(key) => {
+                use midi_file::midly::{num::u7, MidiMessage};
+                let message = MidiMessage::NoteOff {
+                    key: u7::new(key),
+                    vel: u7::new(0),
+                };
+                ctx.output_manager
+                    .connection()
+                    .midi_event(0u8.into(), message);
+            }
             SettingsInteraction::OpenPopup(popup_type) => match popup_type.as_str() {
                 "input" => {
                     self.popup = SettingsPopup::InputSelector;

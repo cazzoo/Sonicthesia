@@ -19,6 +19,8 @@ pub enum SettingsInteraction {
     GlowToggled(bool),
     NoteLabelsToggled(bool),
     SeparateChannelsToggled(bool),
+    PlayNote(u8, u8),
+    StopNote(u8),
     ResetToDefaults,
     SaveChanges,
     Back,

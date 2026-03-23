@@ -348,44 +348,51 @@ impl AudioPage {
 
         let white_key_count = 7;
         let white_key_w = kb_w / white_key_count as f32;
-        let black_key_positions = [0, 1, 3, 4, 5];
+        let black_key_positions = [(0, 1), (1, 3), (3, 4), (4, 5), (5, 6)];
         let black_key_w = white_key_w * 0.6;
         let black_key_h = kb_h * 0.6;
+        let white_notes: [u8; 7] = [60, 62, 64, 65, 67, 69, 71];
+        let black_notes: [u8; 5] = [61, 63, 66, 68, 70];
 
         for i in 0..white_key_count {
             let kx = kb_x + i as f32 * white_key_w;
             let is_hovered =
                 mx >= kx && mx <= kx + white_key_w - 1.0 && my >= kb_y && my <= kb_y + kb_h;
+            let is_pressed = self.pressed_keys.get(i).copied().unwrap_or(false);
 
-            let key_white = colors::to_normalized(colors::ON_SURFACE);
-            let key_bg = colors::to_normalized(colors::SURFACE_CONTAINER);
+            let (key_r, key_g, key_b) = if is_pressed {
+                colors::to_normalized(colors::SECONDARY)
+            } else {
+                colors::to_normalized(colors::SURFACE_CONTAINER)
+            };
 
             draw_rectangle(
                 kx + 1.0,
                 kb_y + 1.0,
                 white_key_w - 2.0,
                 kb_h - 2.0,
-                Color::new(key_bg.0, key_bg.1, key_bg.2, 0.3),
+                Color::new(key_r, key_g, key_b, if is_pressed { 0.7 } else { 0.3 }),
             );
 
-            if is_hovered {
+            if is_hovered && !is_pressed {
                 let (h_r, h_g, h_b) = colors::to_normalized(colors::SECONDARY);
                 draw_rectangle(
                     kx + 1.0,
                     kb_y + 1.0,
                     white_key_w - 2.0,
                     kb_h - 2.0,
-                    Color::new(h_r, h_g, h_b, 0.3),
+                    Color::new(h_r, h_g, h_b, 0.2),
                 );
             }
 
+            let (border_r, border_g, border_b) = colors::to_normalized(colors::ON_SURFACE);
             draw_rectangle_lines(
                 kx + 1.0,
                 kb_y + 1.0,
                 white_key_w - 2.0,
                 kb_h - 2.0,
                 1.0,
-                Color::new(key_white.0, key_white.1, key_white.2, 0.2),
+                Color::new(border_r, border_g, border_b, 0.2),
             );
 
             let note_names = ["C", "D", "E", "F", "G", "A", "B"];
@@ -393,17 +400,20 @@ impl AudioPage {
             draw_text(
                 note_names[i],
                 kx + white_key_w / 2.0 - 4.0,
-                kb_y + kb_h - 12.0,
-                12.0,
+                kb_y + kb_h - 10.0,
+                10.0,
                 Color::new(nr, ng, nb, 0.5),
             );
 
-            if is_hovered && mouse_pressed {
-                interaction = SettingsInteraction::SoundFontSelected(self.current_soundfont_index);
+            if is_hovered && mouse_pressed && !is_pressed {
+                if let Some(key) = self.pressed_keys.get_mut(i) {
+                    *key = true;
+                }
+                interaction = SettingsInteraction::PlayNote(white_notes[i], 100);
             }
         }
 
-        for &pos in &black_key_positions {
+        for (idx, &(pos, _)) in black_key_positions.iter().enumerate() {
             let kx = kb_x + pos as f32 * white_key_w + white_key_w - black_key_w / 2.0;
             let is_hovered =
                 mx >= kx && mx <= kx + black_key_w && my >= kb_y && my <= kb_y + black_key_h;
@@ -434,7 +444,7 @@ impl AudioPage {
             );
 
             if is_hovered && mouse_pressed {
-                interaction = SettingsInteraction::SoundFontSelected(self.current_soundfont_index);
+                interaction = SettingsInteraction::PlayNote(black_notes[idx], 100);
             }
         }
 
