@@ -9,6 +9,8 @@ pub struct AudioPage {
     scroll_offset: f32,
     current_soundfont_index: usize,
     soundfont_names: Vec<String>,
+    soundfont_paths: Vec<std::path::PathBuf>,
+    needs_refresh: bool,
     main_volume: f32,
     metronome_volume: f32,
     midi_gain: f32,
@@ -22,12 +24,45 @@ impl AudioPage {
             scroll_offset: 0.0,
             current_soundfont_index: 0,
             soundfont_names: Vec::new(),
+            soundfont_paths: Vec::new(),
+            needs_refresh: true,
             main_volume: 0.75,
             metronome_volume: 0.5,
             midi_gain: 0.8,
             synth_volume: 0.7,
             pressed_keys: vec![false; 12],
         }
+    }
+
+    pub fn refresh_soundfonts(&mut self, config: &Config) {
+        let folders = config.synth_config.soundfont_folders();
+        let soundfonts = crate::output_manager::discover_soundfonts(folders);
+
+        self.soundfont_names.clear();
+        self.soundfont_paths.clear();
+
+        for sf in &soundfonts {
+            let name = sf
+                .path
+                .file_stem()
+                .and_then(|s| s.to_str())
+                .unwrap_or("Unknown")
+                .to_string();
+            self.soundfont_names.push(name);
+            self.soundfont_paths.push(sf.path.clone());
+        }
+
+        self.current_soundfont_index = config.synth_config.soundfont_index().unwrap_or(0);
+        if self.current_soundfont_index >= self.soundfont_names.len()
+            && !self.soundfont_names.is_empty()
+        {
+            self.current_soundfont_index = 0;
+        }
+        self.needs_refresh = false;
+    }
+
+    pub fn mark_needs_refresh(&mut self) {
+        self.needs_refresh = true;
     }
 
     fn render_header(&self, x: f32, y: f32, width: f32) -> f32 {
@@ -227,14 +262,14 @@ impl AudioPage {
 
         if left_hovered && mouse_pressed && self.current_soundfont_index > 0 {
             self.current_soundfont_index -= 1;
-            interaction = SettingsInteraction::AudioGainChanged(self.midi_gain);
+            interaction = SettingsInteraction::SoundFontSelected(self.current_soundfont_index);
         }
         if right_hovered
             && mouse_pressed
             && self.current_soundfont_index < self.soundfont_names.len().saturating_sub(1)
         {
             self.current_soundfont_index += 1;
-            interaction = SettingsInteraction::AudioGainChanged(self.midi_gain);
+            interaction = SettingsInteraction::SoundFontSelected(self.current_soundfont_index);
         }
 
         let btn_y = item_y + 90.0;
@@ -745,6 +780,10 @@ impl SettingsPage for AudioPage {
         mouse_pressed: bool,
         mouse_down: bool,
     ) -> SettingsInteraction {
+        if self.needs_refresh {
+            self.refresh_soundfonts(config);
+        }
+
         let content_x = x + spacing::XL;
         let content_width = width - spacing::XL * 2.0;
         let mut current_y = self.render_header(content_x, y - self.scroll_offset, content_width);

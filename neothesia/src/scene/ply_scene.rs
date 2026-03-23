@@ -5761,9 +5761,20 @@ impl PlySettingsScene {
             }
             SettingsInteraction::AddSoundFontFolder => {
                 self.pick_soundfont_folder(ctx);
+                self.audio_page.mark_needs_refresh();
             }
             SettingsInteraction::RemoveSoundFontFolder(idx) => {
                 ctx.config.synth_config.remove_soundfont_folder(idx);
+                ctx.config.save();
+                self.audio_page.mark_needs_refresh();
+            }
+            SettingsInteraction::SoundFontSelected(idx) => {
+                ctx.config.synth_config.set_soundfont_index(Some(idx));
+                if let Some(sf_entry) = self.soundfont_files.get(idx) {
+                    ctx.config
+                        .synth_config
+                        .set_soundfont_path(Some(sf_entry.path.clone()));
+                }
                 ctx.config.save();
             }
             SettingsInteraction::InputDeviceSelected(device) => {

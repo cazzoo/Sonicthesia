@@ -7,6 +7,7 @@ pub enum SettingsInteraction {
     RemoveSongDirectory(usize),
     AddSoundFontFolder,
     RemoveSoundFontFolder(usize),
+    SoundFontSelected(usize),
     InputDeviceSelected(String),
     OutputDeviceSelected(String),
     AudioGainChanged(f32),
