@@ -65,6 +65,10 @@ impl AudioPage {
         self.needs_refresh = true;
     }
 
+    pub fn get_soundfont_path(&self, index: usize) -> Option<std::path::PathBuf> {
+        self.soundfont_paths.get(index).cloned()
+    }
+
     fn render_header(&self, x: f32, y: f32, width: f32) -> f32 {
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
         draw_text(
@@ -355,10 +359,51 @@ impl AudioPage {
         let white_notes: [u8; 7] = [60, 62, 64, 65, 67, 69, 71];
         let black_notes: [u8; 5] = [61, 63, 66, 68, 70];
 
+        let mut clicked_black_key = false;
+
+        for (idx, &(pos, _)) in black_key_positions.iter().enumerate() {
+            let kx = kb_x + pos as f32 * white_key_w + white_key_w - black_key_w / 2.0;
+            let is_hovered =
+                mx >= kx && mx <= kx + black_key_w && my >= kb_y && my <= kb_y + black_key_h;
+
+            let (bk_r, bk_g, bk_b) = if is_hovered {
+                colors::to_normalized(colors::SECONDARY)
+            } else {
+                colors::to_normalized(colors::SURFACE_CONTAINER_LOWEST)
+            };
+
+            draw_rectangle(
+                kx,
+                kb_y,
+                black_key_w,
+                black_key_h,
+                Color::new(bk_r, bk_g, bk_b, if is_hovered { 0.9 } else { 0.95 }),
+            );
+
+            let (border_r, border_g, border_b) =
+                colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
+            draw_rectangle_lines(
+                kx,
+                kb_y,
+                black_key_w,
+                black_key_h,
+                1.0,
+                Color::new(border_r, border_g, border_b, 0.3),
+            );
+
+            if is_hovered {
+                clicked_black_key = true;
+                if mouse_pressed {
+                    interaction = SettingsInteraction::PlayNote(black_notes[idx], 100);
+                }
+            }
+        }
+
         for i in 0..white_key_count {
             let kx = kb_x + i as f32 * white_key_w;
-            let is_hovered =
+            let in_white_region =
                 mx >= kx && mx <= kx + white_key_w - 1.0 && my >= kb_y && my <= kb_y + kb_h;
+            let is_hovered = in_white_region && !clicked_black_key;
             let is_pressed = self.pressed_keys.get(i).copied().unwrap_or(false);
 
             let (key_r, key_g, key_b) = if is_pressed {
@@ -420,41 +465,6 @@ impl AudioPage {
                     }
                     *key = false;
                 }
-            }
-        }
-
-        for (idx, &(pos, _)) in black_key_positions.iter().enumerate() {
-            let kx = kb_x + pos as f32 * white_key_w + white_key_w - black_key_w / 2.0;
-            let is_hovered =
-                mx >= kx && mx <= kx + black_key_w && my >= kb_y && my <= kb_y + black_key_h;
-
-            let (bk_r, bk_g, bk_b) = if is_hovered {
-                colors::to_normalized(colors::SECONDARY)
-            } else {
-                colors::to_normalized(colors::SURFACE_CONTAINER_LOWEST)
-            };
-
-            draw_rectangle(
-                kx,
-                kb_y,
-                black_key_w,
-                black_key_h,
-                Color::new(bk_r, bk_g, bk_b, if is_hovered { 0.9 } else { 0.95 }),
-            );
-
-            let (border_r, border_g, border_b) =
-                colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
-            draw_rectangle_lines(
-                kx,
-                kb_y,
-                black_key_w,
-                black_key_h,
-                1.0,
-                Color::new(border_r, border_g, border_b, 0.3),
-            );
-
-            if is_hovered && mouse_pressed {
-                interaction = SettingsInteraction::PlayNote(black_notes[idx], 100);
             }
         }
 

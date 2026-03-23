@@ -5768,10 +5768,14 @@ impl PlySettingsScene {
             }
             SettingsInteraction::SoundFontSelected(idx) => {
                 ctx.config.synth_config.set_soundfont_index(Some(idx));
-                if let Some(sf_entry) = self.soundfont_files.get(idx) {
+                let sf_path = self.audio_page.get_soundfont_path(idx);
+                if let Some(path) = sf_path {
                     ctx.config
                         .synth_config
-                        .set_soundfont_path(Some(sf_entry.path.clone()));
+                        .set_soundfont_path(Some(path.clone()));
+                    if let Err(e) = ctx.output_manager.switch_soundfont(&path) {
+                        log::warn!("Failed to switch soundfont: {}", e);
+                    }
                 }
                 ctx.config.save();
             }
