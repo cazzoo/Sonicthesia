@@ -77,29 +77,29 @@ impl SettingsNav {
             Color::new(border_r, border_g, border_b, 0.1),
         );
 
-        let title_y = y + spacing::XL;
+        let title_y = y + 32.0;
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
         draw_text(
-            "Settings",
+            "Library Explorer",
             x + spacing::LG,
             title_y,
-            24.0,
+            18.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
-        let subtitle_y = title_y + spacing::LG;
+        let subtitle_y = title_y + 20.0;
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
         draw_text(
-            "Configure your experience",
+            "Configure MIDI Input",
             x + spacing::LG,
             subtitle_y,
-            14.0,
+            12.0,
             Color::new(sub_r, sub_g, sub_b, 1.0),
         );
 
-        let mut tab_y = subtitle_y + spacing::XL;
-        let tab_height = 48.0;
-        let tab_gap = spacing::XS;
+        let mut tab_y = subtitle_y + 32.0;
+        let tab_height = 44.0;
+        let tab_gap = 4.0;
 
         self.hovered_tab = None;
 
@@ -127,7 +127,7 @@ impl SettingsNav {
                 draw_rectangle(
                     x + spacing::SM,
                     tab_y,
-                    3.0,
+                    4.0,
                     tab_height,
                     Color::new(accent_r, accent_g, accent_b, 1.0),
                 );
@@ -164,7 +164,7 @@ impl SettingsNav {
                 tab.label(),
                 label_x,
                 label_y,
-                16.0,
+                14.0,
                 Color::new(text_r, text_g, text_b, 1.0),
             );
 
