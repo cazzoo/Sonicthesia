@@ -1,9 +1,11 @@
+use macroquad::prelude::*;
+use neothesia_core::design::{colors, spacing};
+
+use crate::scene::ply_fonts;
 use crate::song_library::{FilterState, SongEntry, SortPreference};
 use crate::ui::components::{
     GlassPanel, Header, NavItem, ProgressBar, Sidebar, SidebarSection, SongCard,
 };
-use macroquad::prelude::*;
-use neothesia_core::design::{colors, effects, radius, sizes, spacing};
 
 pub struct SongLibraryPage {
     pub header: Header,
@@ -13,7 +15,7 @@ pub struct SongLibraryPage {
     pub song_cards: Vec<SongCard>,
     pub selected_song_index: Option<usize>,
     pub hovered_song_index: Option<usize>,
-    pub search_query: String,
+    pub last_practiced_song: Option<SongEntry>,
 }
 
 impl SongLibraryPage {
@@ -26,12 +28,22 @@ impl SongLibraryPage {
             song_cards: Vec::new(),
             selected_song_index: None,
             hovered_song_index: None,
-            search_query: String::new(),
+            last_practiced_song: None,
         }
     }
 
     pub fn load_songs(&mut self, songs: Vec<SongEntry>) {
         self.songs = songs;
+
+        if let Some(most_recent) = self
+            .songs
+            .iter()
+            .filter(|s| s.last_played_at.is_some())
+            .max_by_key(|s| s.last_played_at)
+        {
+            self.last_practiced_song = Some(most_recent.clone());
+        }
+
         self.rebuild_cards();
     }
 
@@ -41,7 +53,7 @@ impl SongLibraryPage {
         let card_h = 200.0;
         let gap = 24.0;
         let content_x = self.sidebar.width + spacing::XL;
-        let start_y = 280.0;
+        let start_y = 300.0;
 
         let columns = ((screen_width() - content_x - spacing::XL) / (card_w + gap))
             .floor()
@@ -61,41 +73,38 @@ impl SongLibraryPage {
         }
     }
 
-    fn render_header(&self) {
-        let panel = GlassPanel::new(
-            self.sidebar.width + spacing::XL,
-            spacing::XL,
-            screen_width() - self.sidebar.width - spacing::XL * 2.0,
-            160.0,
-        );
+    fn render_header_section(&self) {
+        let content_x = self.sidebar.width + spacing::XL;
+        let content_y = self.header.height + spacing::XL;
+        let content_width = screen_width() - self.sidebar.width - spacing::XL * 2.0;
+
+        let panel = GlassPanel::new(content_x, content_y, content_width, 140.0);
         panel.render();
 
-        let content_x = self.sidebar.width + spacing::XL * 2.0;
-        let content_y = spacing::XL + spacing::XL;
-
+        let text_x = content_x + spacing::XL;
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_headline(
             "Piano Repertoire",
-            content_x,
+            text_x,
             content_y + 40.0,
-            48.0,
+            36.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
         let (desc_r, desc_g, desc_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             &format!(
-                "Master your performance through deliberate practice. {} songs available in your library.",
+                "Master your performance through deliberate practice. {} songs available.",
                 self.songs.len()
             ),
-            content_x,
-            content_y + 72.0,
+            text_x,
+            content_y + 64.0,
             14.0,
             Color::new(desc_r, desc_g, desc_b, 1.0),
         );
 
-        let btn_x = screen_width() - spacing::XL * 2.0 - 180.0;
-        let btn_y = content_y + 20.0;
+        let btn_x = content_x + content_width - 180.0;
+        let btn_y = content_y + 40.0;
         let btn_w = 160.0;
         let btn_h = 48.0;
 
@@ -111,34 +120,27 @@ impl SongLibraryPage {
             Color::new(primary_r, primary_g, primary_b, 1.0),
         );
 
-        draw_text(
-            "▶",
+        ply_fonts::draw_body(
+            "▶ Practice Now",
             btn_x + 16.0,
-            btn_y + 32.0,
-            20.0,
-            Color::new(primary_c_r, primary_c_g, primary_c_b, 1.0),
-        );
-
-        draw_text(
-            "Practice Now",
-            btn_x + 44.0,
-            btn_y + 32.0,
+            btn_y + 30.0,
             14.0,
             Color::new(0.0, 0.0, 0.0, 1.0),
         );
     }
 
-    fn render_bento_section(&self, songs: &[SongEntry]) {
+    fn render_bento_section(&self) {
         let content_x = self.sidebar.width + spacing::XL;
-        let bento_y = 200.0;
-        let panel_w = (screen_width() - content_x - spacing::XL * 2.0 - 24.0) * 0.7;
-        let quick_w = (screen_width() - content_x - spacing::XL * 2.0 - 24.0) * 0.3;
+        let bento_y = self.header.height + spacing::XL + 160.0;
+        let total_width = screen_width() - content_x - spacing::XL * 2.0;
+        let panel_w = total_width * 0.7;
+        let quick_w = total_width * 0.3 - 24.0;
 
-        let current_progress_panel = GlassPanel::new(content_x, bento_y, panel_w, 180.0);
-        current_progress_panel.render();
+        let current_panel = GlassPanel::new(content_x, bento_y, panel_w, 180.0);
+        current_panel.render();
 
         let (primary_r, primary_g, primary_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_label(
             "CURRENT PROGRESS",
             content_x + spacing::XL,
             bento_y + spacing::XL + 10.0,
@@ -147,41 +149,91 @@ impl SongLibraryPage {
         );
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
-            "Moonlight Sonata 1st Mvt.",
-            content_x + spacing::XL,
-            bento_y + spacing::XL + 36.0,
-            24.0,
-            Color::new(title_r, title_g, title_b, 1.0),
-        );
-
         let (desc_r, desc_g, desc_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            "Last practiced 2 hours ago • Accuracy 84%",
-            content_x + spacing::XL,
-            bento_y + spacing::XL + 58.0,
-            12.0,
-            Color::new(desc_r, desc_g, desc_b, 1.0),
-        );
 
-        let ring_x = content_x + panel_w - 80.0;
-        let ring_y = bento_y + 90.0;
-        draw_circle(ring_x, ring_y, 40.0, Color::new(0.145, 0.145, 0.173, 1.0));
+        if let Some(song) = &self.last_practiced_song {
+            ply_fonts::draw_headline(
+                &song.name,
+                content_x + spacing::XL,
+                bento_y + spacing::XL + 36.0,
+                20.0,
+                Color::new(title_r, title_g, title_b, 1.0),
+            );
 
-        draw_text(
-            "80%",
-            ring_x - 16.0,
-            ring_y + 6.0,
-            16.0,
-            Color::new(primary_r, primary_g, primary_b, 1.0),
-        );
+            let progress = song.best_score.unwrap_or(0.0);
+            let last_practiced = song
+                .last_played_at
+                .map(|dt| format!("Last practiced {}", format_relative_time(dt)))
+                .unwrap_or_else(|| "Never practiced".to_string());
+
+            ply_fonts::draw_body(
+                &format!("{} • Accuracy {:.0}%", last_practiced, progress),
+                content_x + spacing::XL,
+                bento_y + spacing::XL + 56.0,
+                12.0,
+                Color::new(desc_r, desc_g, desc_b, 1.0),
+            );
+
+            let ring_x = content_x + panel_w - 80.0;
+            let ring_y = bento_y + 90.0;
+
+            let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
+            draw_circle(ring_x, ring_y, 40.0, Color::new(bg_r, bg_g, bg_b, 1.0));
+
+            let pct = (progress / 100.0).min(1.0);
+            let (arc_r, arc_g, arc_b) = colors::to_normalized(colors::PRIMARY);
+            draw_circle_lines(
+                ring_x,
+                ring_y,
+                36.0,
+                4.0,
+                Color::new(arc_r, arc_g, arc_b, 0.3),
+            );
+
+            let angle = -std::f32::consts::FRAC_PI_2 + (std::f32::consts::PI * 2.0 * pct);
+            let end_x = ring_x + 36.0 * angle.cos();
+            let end_y = ring_y + 36.0 * angle.sin();
+            draw_line(
+                ring_x,
+                ring_y,
+                end_x,
+                end_y,
+                3.0,
+                Color::new(arc_r, arc_g, arc_b, 1.0),
+            );
+
+            let pct_text = format!("{:.0}%", progress);
+            let text_w = measure_text(&pct_text, ply_fonts::body_font(), 14, 1.0).width;
+            ply_fonts::draw_body(
+                &pct_text,
+                ring_x - text_w / 2.0,
+                ring_y + 5.0,
+                14.0,
+                Color::new(primary_r, primary_g, primary_b, 1.0),
+            );
+        } else {
+            ply_fonts::draw_headline(
+                "No songs practiced yet",
+                content_x + spacing::XL,
+                bento_y + spacing::XL + 36.0,
+                20.0,
+                Color::new(title_r, title_g, title_b, 1.0),
+            );
+            ply_fonts::draw_body(
+                "Select a song to start practicing",
+                content_x + spacing::XL,
+                bento_y + spacing::XL + 56.0,
+                12.0,
+                Color::new(desc_r, desc_g, desc_b, 1.0),
+            );
+        }
 
         let quick_x = content_x + panel_w + 24.0;
         let quick_panel = GlassPanel::new(quick_x, bento_y, quick_w, 180.0);
         quick_panel.render();
 
         let (tert_r, tert_g, tert_b) = colors::to_normalized(colors::TERTIARY);
-        draw_text(
+        ply_fonts::draw_label(
             "QUICK START",
             quick_x + spacing::XL,
             bento_y + spacing::XL + 10.0,
@@ -189,11 +241,11 @@ impl SongLibraryPage {
             Color::new(tert_r, tert_g, tert_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_headline(
             "Daily Drill",
             quick_x + spacing::XL,
             bento_y + spacing::XL + 36.0,
-            20.0,
+            18.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
@@ -217,7 +269,7 @@ impl SongLibraryPage {
                 1.0,
                 Color::new(tert_r, tert_g, tert_b, 0.2),
             );
-            draw_text(
+            ply_fonts::draw_body(
                 badge,
                 bx + 8.0,
                 badge_y + 16.0,
@@ -226,8 +278,8 @@ impl SongLibraryPage {
             );
         }
 
-        draw_text(
-            "15-minute technical warmup generated for your current skill level.",
+        ply_fonts::draw_body(
+            "15-minute technical warmup generated for your skill level.",
             quick_x + spacing::XL,
             badge_y + 50.0,
             10.0,
@@ -251,32 +303,32 @@ impl SongLibraryPage {
         let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
         let (value_r, value_g, value_b) = colors::to_normalized(colors::SECONDARY);
 
-        draw_text(
+        ply_fonts::draw_label(
             "CONNECTED DEVICE",
             content_x + spacing::XL,
-            footer_y + 20.0,
+            footer_y + 18.0,
             10.0,
             Color::new(label_r, label_g, label_b, 1.0),
         );
-        draw_text(
+        ply_fonts::draw_body(
             "Yamaha P-125 [Channel 1]",
             content_x + spacing::XL,
-            footer_y + 38.0,
+            footer_y + 36.0,
             12.0,
             Color::new(value_r, value_g, value_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_label(
             "SOUNDFONT",
             content_x + 250.0,
-            footer_y + 20.0,
+            footer_y + 18.0,
             10.0,
             Color::new(label_r, label_g, label_b, 1.0),
         );
-        draw_text(
+        ply_fonts::draw_body(
             "Obsidian Grand Piano v1.2",
             content_x + 250.0,
-            footer_y + 38.0,
+            footer_y + 36.0,
             12.0,
             Color::new(0.973, 0.961, 0.992, 1.0),
         );
@@ -287,7 +339,7 @@ impl SongLibraryPage {
         mx: f32,
         my: f32,
         mouse_pressed: bool,
-        mouse_down: bool,
+        _mouse_down: bool,
     ) -> SongLibraryInteraction {
         clear_background(Color::new(0.055, 0.055, 0.075, 1.0));
 
@@ -303,14 +355,14 @@ impl SongLibraryPage {
         let sidebar_section = self.sidebar.render(mx, my, mouse_pressed);
         if let Some(section) = sidebar_section {
             match section {
-                SidebarSection::MidiLibrary => {}
-                SidebarSection::SongLists => {}
-                SidebarSection::Recordings => {}
+                SidebarSection::MidiLibrary => self.sidebar.set_active_section(section),
+                SidebarSection::SongLists => self.sidebar.set_active_section(section),
+                SidebarSection::Recordings => self.sidebar.set_active_section(section),
             }
         }
 
-        self.render_header();
-        self.render_bento_section(&self.songs);
+        self.render_header_section();
+        self.render_bento_section();
 
         let mut clicked_song = None;
         self.hovered_song_index = None;
@@ -318,29 +370,16 @@ impl SongLibraryPage {
         for (idx, card) in self.song_cards.iter_mut().enumerate() {
             let adjusted_y = card.y - self.scroll_offset;
 
-            if adjusted_y + card.height < self.sidebar.height as f32
+            if adjusted_y + card.height < self.header.height + 64.0
                 || adjusted_y > screen_height() - 60.0
             {
                 continue;
             }
 
-            let display_card = SongCard {
-                x: card.x,
-                y: adjusted_y,
-                width: card.width,
-                height: card.height,
-                song: card.song.clone(),
-                status: card.status,
-                progress: card.progress,
-                stars: card.stars,
-                is_selected: card.is_selected,
-                is_hovered: false,
-            };
-
-            let orig_card = card;
-            orig_card.y = adjusted_y;
-            let is_hovered = orig_card.render(mx, my);
-            orig_card.y = card.y;
+            let original_y = card.y;
+            card.y = adjusted_y;
+            let is_hovered = card.render(mx, my);
+            card.y = original_y;
 
             if is_hovered {
                 self.hovered_song_index = Some(idx);
@@ -359,6 +398,7 @@ impl SongLibraryPage {
             && !self.header.contains_point(mx, my)
         {
             self.scroll_offset = (self.scroll_offset - mouse_wheel.1 * 30.0).max(0.0);
+            self.rebuild_cards();
         }
 
         if let Some(idx) = clicked_song {
@@ -373,6 +413,21 @@ impl SongLibraryPage {
     pub fn handle_scroll(&mut self, delta: f32) {
         self.scroll_offset = (self.scroll_offset - delta * 30.0).max(0.0);
         self.rebuild_cards();
+    }
+}
+
+fn format_relative_time(dt: chrono::DateTime<chrono::Utc>) -> String {
+    let now = chrono::Utc::now();
+    let duration = now.signed_duration_since(dt);
+
+    if duration.num_minutes() < 60 {
+        format!("{} minutes ago", duration.num_minutes())
+    } else if duration.num_hours() < 24 {
+        format!("{} hours ago", duration.num_hours())
+    } else if duration.num_days() < 7 {
+        format!("{} days ago", duration.num_days())
+    } else {
+        format!("{} weeks ago", duration.num_weeks())
     }
 }
 
