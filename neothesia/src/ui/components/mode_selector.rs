@@ -1,5 +1,7 @@
 use macroquad::prelude::*;
-use neothesia_core::design::{colors, effects, radius, sizes, spacing};
+use neothesia_core::design::{colors, spacing};
+
+use crate::scene::ply_fonts;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PlayMode {
@@ -103,14 +105,6 @@ impl ModeCard {
                 1.0,
                 Color::new(primary_r, primary_g, primary_b, 1.0),
             );
-
-            draw_rectangle(
-                self.x,
-                self.y,
-                self.width,
-                self.height,
-                Color::new(primary_r, primary_g, primary_b, 0.15),
-            );
         } else if self.is_hovered {
             let (hover_r, hover_g, hover_b) = colors::to_normalized(colors::SURFACE_CONTAINER_HIGH);
             draw_rectangle(
@@ -135,7 +129,7 @@ impl ModeCard {
             Color::new(icon_r, icon_g, icon_b, 0.1),
         );
 
-        draw_text(
+        ply_fonts::draw_body(
             self.mode.icon(),
             content_x + 12.0,
             current_y + 34.0,
@@ -146,7 +140,7 @@ impl ModeCard {
         current_y += icon_bg_size + spacing::LG;
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_headline(
             self.mode.label(),
             content_x,
             current_y + 18.0,
@@ -157,23 +151,32 @@ impl ModeCard {
         current_y += 40.0;
 
         let (desc_r, desc_g, desc_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text_ex(
-            self.mode.description(),
-            content_x,
-            current_y,
-            TextParams {
-                font_size: 14,
-                color: Color::new(desc_r, desc_g, desc_b, 1.0),
-                ..Default::default()
-            },
-        );
 
-        current_y += 80.0;
+        let desc = self.mode.description();
+        let max_chars = 60;
+        let lines: Vec<&str> = if desc.len() > max_chars {
+            let mid = desc[..max_chars].rfind(' ').unwrap_or(max_chars);
+            vec![&desc[..mid], &desc[mid + 1..]]
+        } else {
+            vec![desc]
+        };
+
+        for (i, line) in lines.iter().enumerate() {
+            ply_fonts::draw_body(
+                line,
+                content_x,
+                current_y + i as f32 * 18.0,
+                12.0,
+                Color::new(desc_r, desc_g, desc_b, 1.0),
+            );
+        }
+
+        current_y += lines.len() as f32 * 18.0 + 30.0;
 
         let badges = self.mode.badges();
         let mut badge_x = content_x;
         for badge in badges {
-            let badge_width = measure_text(badge, None, 10, 1.0).width + 24.0;
+            let badge_width = measure_text(badge, ply_fonts::body_font(), 10, 1.0).width + 24.0;
             let badge_height = 24.0;
 
             let (badge_bg_r, badge_bg_g, badge_bg_b) =
@@ -199,7 +202,7 @@ impl ModeCard {
 
             let (badge_text_r, badge_text_g, badge_text_b) =
                 colors::to_normalized(colors::ON_SURFACE_VARIANT);
-            draw_text(
+            ply_fonts::draw_body(
                 badge,
                 badge_x + 12.0,
                 current_y + 16.0,

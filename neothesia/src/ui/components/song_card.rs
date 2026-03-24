@@ -1,6 +1,7 @@
+use crate::scene::ply_fonts;
 use crate::song_library::SongEntry;
 use macroquad::prelude::*;
-use neothesia_core::design::{colors, effects, radius, sizes, spacing};
+use neothesia_core::design::{colors, spacing};
 
 use super::progress_bar::ProgressBar;
 use super::star_rating::StarRating;
@@ -107,42 +108,33 @@ impl SongCard {
             Color::new(bg_r, bg_g, bg_b, bg_alpha),
         );
 
-        if self.is_hovered {
+        if self.is_hovered || self.is_selected {
             let (primary_r, primary_g, primary_b) = colors::to_normalized(colors::PRIMARY);
+            let border_width = if self.is_selected { 2.0 } else { 1.0 };
+            let border_alpha = if self.is_selected { 1.0 } else { 0.2 };
             draw_rectangle_lines(
                 self.x,
                 self.y,
                 self.width,
                 self.height,
-                1.0,
-                Color::new(primary_r, primary_g, primary_b, 0.2),
-            );
-        }
-
-        if self.is_selected {
-            let (primary_r, primary_g, primary_b) = colors::to_normalized(colors::PRIMARY);
-            draw_rectangle_lines(
-                self.x,
-                self.y,
-                self.width,
-                self.height,
-                2.0,
-                Color::new(primary_r, primary_g, primary_b, 1.0),
+                border_width,
+                Color::new(primary_r, primary_g, primary_b, border_alpha),
             );
 
-            let (shadow_r, shadow_g, shadow_b) = colors::to_normalized(colors::PRIMARY);
-            draw_rectangle(
-                self.x,
-                self.y,
-                self.width,
-                self.height,
-                Color::new(shadow_r, shadow_g, shadow_b, 0.1),
-            );
+            if self.is_selected {
+                draw_rectangle(
+                    self.x,
+                    self.y,
+                    self.width,
+                    self.height,
+                    Color::new(primary_r, primary_g, primary_b, 0.1),
+                );
+            }
         }
 
         let icon_x = self.x + spacing::LG;
         let icon_y = self.y + spacing::LG;
-        let icon_size = 48.0;
+        let icon_size = 40.0;
 
         let (icon_bg_r, icon_bg_g, icon_bg_b) = if self.is_hovered || self.is_selected {
             colors::to_normalized(colors::PRIMARY)
@@ -162,16 +154,16 @@ impl SongCard {
         } else {
             colors::to_normalized(colors::PRIMARY_DIM)
         };
-        draw_text(
+        ply_fonts::draw_body(
             "♪",
-            icon_x + 12.0,
-            icon_y + 34.0,
-            24.0,
+            icon_x + 10.0,
+            icon_y + 30.0,
+            22.0,
             Color::new(icon_r, icon_g, icon_b, 1.0),
         );
 
         let stars_x = self.x + self.width - spacing::LG - 80.0;
-        let stars_y = icon_y + 10.0;
+        let stars_y = icon_y + 8.0;
         let star_rating = StarRating::new(stars_x, stars_y)
             .rating(self.stars)
             .max_stars(5)
@@ -181,49 +173,54 @@ impl SongCard {
         let title_x = self.x + spacing::LG;
         let title_y = icon_y + icon_size + spacing::MD + 14.0;
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
-            &self.song.name,
+
+        let display_name = if self.song.name.len() > 28 {
+            format!("{}...", &self.song.name[..25])
+        } else {
+            self.song.name.clone()
+        };
+        ply_fonts::draw_headline(
+            &display_name,
             title_x,
             title_y,
-            18.0,
+            16.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
-        let meta_y = title_y + 22.0;
+        let meta_y = title_y + 20.0;
         let (meta_r, meta_g, meta_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
         let genre = self.song.genre.as_deref().unwrap_or("Classical");
         let duration = format_duration(self.song.duration_secs);
         let meta_text = format!("{} • {} • MIDI", genre, duration);
-        draw_text(
+        ply_fonts::draw_body(
             &meta_text,
             title_x,
             meta_y,
-            12.0,
+            11.0,
             Color::new(meta_r, meta_g, meta_b, 1.0),
         );
 
         let status_y = meta_y + 24.0;
         let (status_r, status_g, status_b) = self.status.color();
 
-        let dot_size = 8.0;
         draw_circle(
             title_x + 4.0,
-            status_y - 3.0,
-            dot_size / 2.0,
+            status_y - 4.0,
+            4.0,
             Color::new(status_r, status_g, status_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_body(
             self.status.label(),
-            title_x + 16.0,
+            title_x + 14.0,
             status_y,
             10.0,
             Color::new(status_r, status_g, status_b, 1.0),
         );
 
-        let pct_x = self.x + self.width - spacing::LG - 60.0;
+        let pct_x = self.x + self.width - spacing::LG - 50.0;
         let pct_text = format!("{:.0}%", self.progress * 100.0);
-        draw_text(
+        ply_fonts::draw_mono(
             &pct_text,
             pct_x,
             status_y,
@@ -231,7 +228,7 @@ impl SongCard {
             Color::new(meta_r, meta_g, meta_b, 1.0),
         );
 
-        let progress_y = status_y + 8.0;
+        let progress_y = status_y + 10.0;
         let progress_bar = ProgressBar::new(title_x, progress_y, self.width - spacing::LG * 2.0)
             .height(4.0)
             .progress(self.progress)

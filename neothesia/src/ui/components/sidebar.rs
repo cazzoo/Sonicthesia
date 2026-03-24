@@ -1,5 +1,7 @@
 use macroquad::prelude::*;
-use neothesia_core::design::{colors, radius, sizes, spacing};
+use neothesia_core::design::{colors, spacing};
+
+use crate::scene::ply_fonts;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SidebarSection {
@@ -12,7 +14,6 @@ pub enum SidebarSection {
 pub struct SmartPlaylist {
     pub id: String,
     pub label: String,
-    pub icon: String,
 }
 
 pub struct Sidebar {
@@ -30,17 +31,14 @@ impl Sidebar {
                 SmartPlaylist {
                     id: "recent".to_string(),
                     label: "Recent".to_string(),
-                    icon: "🕐".to_string(),
                 },
                 SmartPlaylist {
                     id: "favorites".to_string(),
                     label: "Favorites".to_string(),
-                    icon: "❤️".to_string(),
                 },
                 SmartPlaylist {
                     id: "difficult".to_string(),
                     label: "Difficult Songs".to_string(),
-                    icon: "⚡".to_string(),
                 },
             ],
             width: 256.0,
@@ -48,13 +46,16 @@ impl Sidebar {
         }
     }
 
-    pub fn active_section(mut self, section: SidebarSection) -> Self {
+    pub fn height(&self) -> f32 {
+        screen_height() - self.top_offset
+    }
+
+    pub fn set_active_section(&mut self, section: SidebarSection) {
         self.active_section = section;
-        self
     }
 
     pub fn render(&mut self, mx: f32, my: f32, mouse_pressed: bool) -> Option<SidebarSection> {
-        let sh = screen_height() - self.top_offset;
+        let sh = self.height();
 
         let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER_LOW);
         draw_rectangle(
@@ -80,7 +81,7 @@ impl Sidebar {
         let mut current_y = self.top_offset + spacing::XL + 20.0;
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_headline(
             "Library Explorer",
             content_x,
             current_y,
@@ -90,7 +91,7 @@ impl Sidebar {
 
         current_y += 24.0;
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "Manage MIDI Input",
             content_x,
             current_y,
@@ -98,15 +99,15 @@ impl Sidebar {
             Color::new(sub_r, sub_g, sub_b, 1.0),
         );
 
-        current_y += 32.0;
+        current_y += 36.0;
 
         let sections = [
-            (SidebarSection::MidiLibrary, "📁", "MIDI Library"),
-            (SidebarSection::SongLists, "🎵", "Song Lists"),
-            (SidebarSection::Recordings, "🎤", "Recordings"),
+            (SidebarSection::MidiLibrary, "MIDI Library"),
+            (SidebarSection::SongLists, "Song Lists"),
+            (SidebarSection::Recordings, "Recordings"),
         ];
 
-        for (section, icon, label) in sections.iter() {
+        for (section, label) in sections.iter() {
             let is_active = self.active_section == *section;
             let is_hovered =
                 mx >= 0.0 && mx <= self.width && my >= current_y && my <= current_y + 44.0;
@@ -150,17 +151,9 @@ impl Sidebar {
             };
             let (text_r, text_g, text_b) = colors::to_normalized(text_color);
 
-            draw_text(
-                icon,
-                content_x + spacing::SM,
-                current_y + 28.0,
-                18.0,
-                Color::new(text_r, text_g, text_b, 1.0),
-            );
-
-            draw_text(
+            ply_fonts::draw_body(
                 label,
-                content_x + 40.0,
+                content_x + spacing::MD,
                 current_y + 28.0,
                 14.0,
                 Color::new(text_r, text_g, text_b, 1.0),
@@ -176,7 +169,7 @@ impl Sidebar {
         current_y += 24.0;
 
         let (header_r, header_g, header_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_label(
             "SMART PLAYLISTS",
             content_x,
             current_y,
@@ -184,7 +177,7 @@ impl Sidebar {
             Color::new(header_r, header_g, header_b, 0.6),
         );
 
-        current_y += 24.0;
+        current_y += 28.0;
 
         for playlist in &self.smart_playlists {
             let is_hovered = mx >= content_x
@@ -198,17 +191,9 @@ impl Sidebar {
                 colors::to_normalized(colors::ON_SURFACE_VARIANT)
             };
 
-            draw_text(
-                &playlist.icon,
-                content_x + spacing::SM,
-                current_y + 18.0,
-                14.0,
-                Color::new(text_r, text_g, text_b, 1.0),
-            );
-
-            draw_text(
+            ply_fonts::draw_body(
                 &playlist.label,
-                content_x + 32.0,
+                content_x + spacing::MD,
                 current_y + 18.0,
                 13.0,
                 Color::new(text_r, text_g, text_b, 1.0),
