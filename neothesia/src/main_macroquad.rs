@@ -19,7 +19,7 @@ fn create_conf() -> Conf {
 // Use existing modules from crate root
 use crate::context_macroquad::MacroquadContext;
 use crate::song::Song;
-use crate::scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene, PlySongLibraryScene};
+use crate::scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySettingsScene, PlySongLibraryScene, PlyNewSongLibraryScene, PlySongSelectedScene};
 use crate::NeothesiaEvent;
 
 struct MacroquadNeothesia {
@@ -104,8 +104,12 @@ impl MacroquadNeothesia {
                 }
             }
             NeothesiaEvent::ShowSongLibrary(song) => {
-                let mut scene = PlySongLibraryScene::new(song);
+                let mut scene = PlyNewSongLibraryScene::new(song);
                 scene.load_songs(&mut self.context);
+                self.current_scene = Box::new(scene) as Box<dyn PlyScene>;
+            }
+            NeothesiaEvent::ShowSongSelected { song, entry: _ } => {
+                let scene = PlySongSelectedScene::new(song);
                 self.current_scene = Box::new(scene) as Box<dyn PlyScene>;
             }
             NeothesiaEvent::ShowScore { song, score_data } => {

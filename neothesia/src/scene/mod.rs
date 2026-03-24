@@ -1,7 +1,7 @@
 pub mod ply_fonts;
 pub mod ply_scene;
 pub mod ply_settings;
-pub use ply_scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySongLibraryScene};
+pub use ply_scene::{PlyScene, PlyMenuScene, PlyPlayingScene, PlyFreeplayScene, PlyScoreScene, PlySongLibraryScene, PlyNewSongLibraryScene, PlySongSelectedScene};
 pub use ply_settings::PlySettingsScene;
 
 use midi_file::midly::MidiMessage;
