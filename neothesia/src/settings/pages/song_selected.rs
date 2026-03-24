@@ -1,9 +1,11 @@
+use macroquad::prelude::*;
+use neothesia_core::design::{colors, spacing};
+
+use crate::scene::ply_fonts;
 use crate::song_library::SongEntry;
 use crate::ui::components::{
     GlassPanel, Header, ModeSelector, NavItem, PlayMode, SessionConfig, Sidebar, SidebarSection,
 };
-use macroquad::prelude::*;
-use neothesia_core::design::{colors, effects, radius, sizes, spacing};
 
 pub struct SongSelectedPage {
     pub header: Header,
@@ -65,18 +67,11 @@ impl SongSelectedPage {
             colors::to_normalized(colors::ON_SURFACE_VARIANT)
         };
 
-        draw_text(
-            "←",
+        ply_fonts::draw_body(
+            "← Back to Library",
             back_x,
             back_y,
-            14.0,
-            Color::new(back_r, back_g, back_b, 1.0),
-        );
-        draw_text(
-            "Back to Library",
-            back_x + 20.0,
-            back_y,
-            10.0,
+            12.0,
             Color::new(back_r, back_g, back_b, 1.0),
         );
 
@@ -87,11 +82,8 @@ impl SongSelectedPage {
         let badge_y = back_y + 30.0;
 
         let (tert_r, tert_g, tert_b) = colors::to_normalized(colors::TERTIARY_CONTAINER);
-        let (on_tert_r, on_tert_g, on_tert_b) =
-            colors::to_normalized(colors::ON_TERTIARY_CONTAINER);
-
         let badge_text = "MASTERPIECE";
-        let badge_width = measure_text(badge_text, None, 10, 1.0).width + 24.0;
+        let badge_width = measure_text(badge_text, ply_fonts::body_font(), 10, 1.0).width + 24.0;
         draw_rectangle(
             back_x,
             badge_y,
@@ -99,16 +91,16 @@ impl SongSelectedPage {
             24.0,
             Color::new(tert_r, tert_g, tert_b, 1.0),
         );
-        draw_text(
+        ply_fonts::draw_body(
             badge_text,
             back_x + 12.0,
             badge_y + 16.0,
             10.0,
-            Color::new(on_tert_r, on_tert_g, on_tert_b, 1.0),
+            Color::new(0.0, 0.0, 0.0, 1.0),
         );
 
         let (meta_r, meta_g, meta_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "Classical • Solo Piano",
             back_x + badge_width + 12.0,
             badge_y + 16.0,
@@ -123,17 +115,17 @@ impl SongSelectedPage {
             .song
             .as_ref()
             .map(|s| s.name.as_str())
-            .unwrap_or("Moonlight Sonata");
-        draw_text(
+            .unwrap_or("Song");
+        ply_fonts::draw_headline(
             song_name,
             back_x,
             title_y + 50.0,
-            48.0,
+            40.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
         let (artist_r, artist_g, artist_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_body(
             "Ludwig van Beethoven",
             back_x,
             title_y + 80.0,
@@ -156,22 +148,28 @@ impl SongSelectedPage {
         let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
         let (value_r, value_g, value_b) = colors::to_normalized(colors::ON_SURFACE);
 
-        draw_text(
+        ply_fonts::draw_label(
             "TOTAL NOTES",
             stats_x + 20.0,
             stats_y,
             10.0,
             Color::new(label_r, label_g, label_b, 1.0),
         );
-        draw_text(
-            "450 pts",
+
+        let note_count = self
+            .song
+            .as_ref()
+            .map(|s| s.duration_secs / 2)
+            .unwrap_or(450);
+        ply_fonts::draw_headline(
+            &format!("{} pts", note_count),
             stats_x + 20.0,
             stats_y + 28.0,
             24.0,
             Color::new(value_r, value_g, value_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_label(
             "HAND BREAKDOWN",
             stats_x + 20.0,
             stats_y + 70.0,
@@ -182,14 +180,14 @@ impl SongSelectedPage {
         let (lh_r, lh_g, lh_b) = colors::to_normalized(colors::PRIMARY);
         let (rh_r, rh_g, rh_b) = colors::to_normalized(colors::SECONDARY);
 
-        draw_text(
+        ply_fonts::draw_body(
             "LH",
             stats_x + 20.0,
             stats_y + 98.0,
             10.0,
             Color::new(lh_r, lh_g, lh_b, 1.0),
         );
-        draw_text(
+        ply_fonts::draw_headline(
             "180",
             stats_x + 20.0,
             stats_y + 118.0,
@@ -197,14 +195,14 @@ impl SongSelectedPage {
             Color::new(value_r, value_g, value_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_body(
             "RH",
             stats_x + 80.0,
             stats_y + 98.0,
             10.0,
             Color::new(rh_r, rh_g, rh_b, 1.0),
         );
-        draw_text(
+        ply_fonts::draw_headline(
             "270",
             stats_x + 80.0,
             stats_y + 118.0,
@@ -212,15 +210,26 @@ impl SongSelectedPage {
             Color::new(value_r, value_g, value_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_label(
             "DURATION",
             stats_x + 20.0,
             stats_y + 150.0,
             10.0,
             Color::new(label_r, label_g, label_b, 1.0),
         );
-        draw_text(
-            "05:42",
+
+        let duration = self
+            .song
+            .as_ref()
+            .map(|s| {
+                let mins = s.duration_secs / 60;
+                let secs = s.duration_secs % 60;
+                format!("{}:{:02}", mins, secs)
+            })
+            .unwrap_or_else(|| "5:42".to_string());
+
+        ply_fonts::draw_headline(
+            &duration,
             stats_x + 20.0,
             stats_y + 178.0,
             24.0,
@@ -235,7 +244,7 @@ impl SongSelectedPage {
         let title_y = 420.0;
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_headline(
             "Select Performance Mode",
             content_x,
             title_y,
@@ -244,7 +253,7 @@ impl SongSelectedPage {
         );
 
         let (desc_r, desc_g, desc_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "Choose how you want to interact with this composition.",
             content_x,
             title_y + 26.0,
@@ -278,8 +287,8 @@ impl SongSelectedPage {
         }
 
         let text = "START SESSION  ▶";
-        let text_width = measure_text(text, None, 18, 1.0).width;
-        draw_text(
+        let text_width = measure_text(text, ply_fonts::headline_font(), 18, 1.0).width;
+        ply_fonts::draw_headline(
             text,
             btn_x + (btn_w - text_width) / 2.0,
             cta_y + 38.0,
@@ -290,7 +299,7 @@ impl SongSelectedPage {
         let (fav_r, fav_g, fav_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
         let fav_y = cta_y + btn_h + 24.0;
         let fav_text = "❤ Add to Favorites";
-        let fav_width = measure_text(fav_text, None, 14, 1.0).width;
+        let fav_width = measure_text(fav_text, ply_fonts::body_font(), 14, 1.0).width;
         let fav_x = btn_x + (btn_w - fav_width) / 2.0;
 
         let is_fav_hovered =
@@ -301,7 +310,7 @@ impl SongSelectedPage {
             (fav_r, fav_g, fav_b)
         };
 
-        draw_text(
+        ply_fonts::draw_body(
             fav_text,
             fav_x,
             fav_y,
