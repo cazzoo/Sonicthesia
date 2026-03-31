@@ -30,11 +30,12 @@ struct MacroquadNeothesia {
 
 impl MacroquadNeothesia {
     fn new() -> Self {
-        let context = MacroquadContext::new();
+        let mut context = MacroquadContext::new();
         let song = Song::from_env_macroquad(&context);
         
-        // Start with the menu scene
-        let current_scene = Box::new(PlyMenuScene::new(song)) as Box<dyn PlyScene>;
+        let mut scene = PlyNewSongLibraryScene::new(song);
+        scene.load_songs(&mut context);
+        let current_scene = Box::new(scene) as Box<dyn PlyScene>;
 
         Self {
             context,

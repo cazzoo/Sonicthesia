@@ -1,5 +1,3 @@
-//! PLY Settings Scene - Interactive settings menu
-
 use crate::{context_macroquad::MacroquadContext, settings::SettingsPage, NeothesiaEvent};
 use std::time::Duration;
 
@@ -7,10 +5,12 @@ use macroquad::prelude::*;
 use neothesia_core::design::{colors, spacing};
 
 use super::PlyScene;
+use crate::ui::components::{Header, NavItem, Sidebar, SidebarSection};
 
-/// PLY Settings Scene - Interactive settings menu with all controls
 pub struct PlySettingsScene {
     pending_nav_event: Option<NeothesiaEvent>,
+    header: Header,
+    sidebar: Sidebar,
     settings_nav: crate::settings::SettingsNav,
     general_page: crate::settings::pages::GeneralPage,
     midi_page: crate::settings::pages::MidiPage,
@@ -21,8 +21,16 @@ pub struct PlySettingsScene {
 
 impl PlySettingsScene {
     pub fn new() -> Self {
+        let mut header = Header::new();
+        header.set_active_nav(NavItem::Settings);
+
+        let mut sidebar = Sidebar::new();
+        sidebar.set_active_section(SidebarSection::MidiLibrary);
+
         Self {
             pending_nav_event: None,
+            header,
+            sidebar,
             settings_nav: crate::settings::SettingsNav::new(),
             general_page: crate::settings::pages::GeneralPage::new(),
             midi_page: crate::settings::pages::MidiPage::new(),
@@ -38,77 +46,6 @@ impl PlySettingsScene {
             "Initializing settings with {} soundfont folders",
             folders.len()
         );
-    }
-
-    fn render_top_nav(
-        &self,
-        x: f32,
-        y: f32,
-        width: f32,
-        height: f32,
-        mx: f32,
-        my: f32,
-        mouse_pressed: bool,
-    ) -> Option<NeothesiaEvent> {
-        let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER);
-        draw_rectangle(x, y, width, height, Color::new(bg_r, bg_g, bg_b, 0.95));
-
-        let logo_x = x + spacing::XL;
-        let logo_y = y + height / 2.0 + 8.0;
-        let (logo_r, logo_g, logo_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
-            "Sonicthesia",
-            logo_x,
-            logo_y,
-            24.0,
-            Color::new(logo_r, logo_g, logo_b, 1.0),
-        );
-
-        let nav_items = ["Library", "Practice", "Settings"];
-        let mut nav_x = width - 400.0;
-        let mut clicked_event = None;
-
-        for item in nav_items.iter() {
-            let is_hovered = mx >= nav_x && mx <= nav_x + 80.0 && my >= y && my <= y + height;
-            let is_active = *item == "Settings";
-
-            let text_color = if is_active {
-                colors::PRIMARY
-            } else if is_hovered {
-                colors::ON_SURFACE
-            } else {
-                colors::ON_SURFACE_VARIANT
-            };
-
-            let (text_r, text_g, text_b) = colors::to_normalized(text_color);
-            draw_text(
-                item,
-                nav_x,
-                logo_y,
-                16.0,
-                Color::new(text_r, text_g, text_b, 1.0),
-            );
-
-            if is_active {
-                draw_rectangle(
-                    nav_x,
-                    y + height - 3.0,
-                    60.0,
-                    3.0,
-                    Color::new(text_r, text_g, text_b, 1.0),
-                );
-            }
-
-            if is_hovered && mouse_pressed {
-                clicked_event = match *item {
-                    "Library" => Some(NeothesiaEvent::ShowSongLibrary(None)),
-                    "Practice" => Some(NeothesiaEvent::ResumeFromSettings),
-                    _ => None,
-                };
-            }
-            nav_x += 100.0;
-        }
-        clicked_event
     }
 
     fn handle_settings_interaction(
@@ -150,7 +87,6 @@ impl PlySettingsScene {
                         log::error!("SoundFont file does not exist: {:?}", path);
                     } else if !ctx.output_manager.is_synth_output() {
                         log::warn!("Cannot switch soundfont: not connected to synth output");
-                        log::info!("Please select a synth output first (e.g., 'Buildin Synth')");
                     } else {
                         ctx.config
                             .synth_config
@@ -160,8 +96,6 @@ impl PlySettingsScene {
                             Err(e) => log::error!("Failed to switch soundfont: {}", e),
                         }
                     }
-                } else {
-                    log::warn!("No soundfont path found for index {}", idx);
                 }
                 ctx.config.save();
             }
@@ -268,7 +202,7 @@ impl PlyScene for PlySettingsScene {
     }
 
     fn render(&mut self, ctx: &mut MacroquadContext) {
-        clear_background(Color::from_rgba(14, 14, 19, 255));
+        clear_background(Color::new(0.055, 0.055, 0.075, 1.0));
 
         let screen_w = screen_width();
         let screen_h = screen_height();
@@ -277,21 +211,10 @@ impl PlyScene for PlySettingsScene {
         let mouse_pressed = is_mouse_button_pressed(MouseButton::Left);
         let mouse_down = is_mouse_button_down(MouseButton::Left);
 
-        if let Some(nav_event) =
-            self.render_top_nav(0.0, 0.0, screen_w, 64.0, mouse_x, mouse_y, mouse_pressed)
-        {
-            self.pending_nav_event = Some(nav_event);
-        }
-
-        let sidebar_w = 256.0;
-        let sidebar_h = screen_h - 64.0;
-        self.settings_nav
-            .render(0.0, 64.0, sidebar_w, mouse_x, mouse_y, mouse_pressed);
-
-        let content_x = sidebar_w;
-        let content_y = 64.0;
-        let content_w = screen_w - sidebar_w;
-        let content_h = sidebar_h;
+        let content_x = self.sidebar.width;
+        let content_y = self.header.height;
+        let content_w = screen_w - self.sidebar.width;
+        let content_h = screen_h - self.header.height;
 
         let interaction = match self.settings_nav.current_tab {
             crate::settings::SettingsTab::General => self.general_page.render(
@@ -354,7 +277,10 @@ impl PlyScene for PlySettingsScene {
         self.handle_settings_interaction(ctx, interaction);
 
         let mouse_wheel = mouse_wheel();
-        if mouse_wheel.1 != 0.0 {
+        if mouse_wheel.1 != 0.0
+            && !self.sidebar.contains_point(mouse_x, mouse_y)
+            && !self.header.contains_point(mouse_x, mouse_y)
+        {
             match self.settings_nav.current_tab {
                 crate::settings::SettingsTab::General => {
                     self.general_page.handle_scroll(mouse_wheel.1)
@@ -368,6 +294,144 @@ impl PlyScene for PlySettingsScene {
                     self.folders_page.handle_scroll(mouse_wheel.1)
                 }
             }
+        }
+
+        let header_nav = self.header.render(mouse_x, mouse_y, mouse_pressed);
+        if let Some(nav) = header_nav {
+            match nav {
+                NavItem::Library => {
+                    self.pending_nav_event = Some(NeothesiaEvent::ShowSongLibrary(None));
+                }
+                NavItem::Practice => {
+                    self.pending_nav_event = Some(NeothesiaEvent::ResumeFromSettings);
+                }
+                NavItem::Settings => {}
+            }
+        }
+
+        self.render_settings_sidebar(mouse_x, mouse_y, mouse_pressed);
+    }
+}
+
+impl PlySettingsScene {
+    fn render_settings_sidebar(&mut self, mx: f32, my: f32, mouse_pressed: bool) {
+        let screen_h = screen_height();
+        let sidebar_w = self.sidebar.width;
+        let top_offset = self.header.height;
+
+        let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER_LOW);
+        draw_rectangle(
+            0.0,
+            top_offset,
+            sidebar_w,
+            screen_h - top_offset,
+            Color::new(bg_r, bg_g, bg_b, 1.0),
+        );
+
+        let (border_r, border_g, border_b) = colors::to_normalized(colors::OUTLINE_VARIANT);
+        draw_rectangle(
+            sidebar_w - 1.0,
+            top_offset,
+            1.0,
+            screen_h - top_offset,
+            Color::new(border_r, border_g, border_b, 0.1),
+        );
+
+        use crate::scene::ply_fonts;
+
+        let content_x = spacing::LG;
+        let mut current_y = top_offset + spacing::XL + 20.0;
+
+        let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
+        ply_fonts::draw_headline(
+            "Settings",
+            content_x,
+            current_y,
+            18.0,
+            Color::new(title_r, title_g, title_b, 1.0),
+        );
+
+        current_y += 24.0;
+        let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
+        ply_fonts::draw_body(
+            "Configure Neothesia",
+            content_x,
+            current_y,
+            12.0,
+            Color::new(sub_r, sub_g, sub_b, 1.0),
+        );
+
+        current_y += 36.0;
+
+        use crate::settings::SettingsTab;
+        for tab in SettingsTab::all() {
+            let is_active = self.settings_nav.current_tab == tab;
+            let is_hovered =
+                mx >= 0.0 && mx <= sidebar_w && my >= current_y && my <= current_y + 44.0;
+
+            if is_active {
+                let (active_bg_r, active_bg_g, active_bg_b) =
+                    colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
+                draw_rectangle(
+                    spacing::SM,
+                    current_y,
+                    sidebar_w - spacing::LG,
+                    44.0,
+                    Color::new(active_bg_r, active_bg_g, active_bg_b, 1.0),
+                );
+
+                let (accent_r, accent_g, accent_b) = colors::to_normalized(colors::TERTIARY);
+                draw_rectangle(
+                    0.0,
+                    current_y,
+                    3.0,
+                    44.0,
+                    Color::new(accent_r, accent_g, accent_b, 1.0),
+                );
+            } else if is_hovered {
+                let (hover_r, hover_g, hover_b) = colors::to_normalized(colors::SURFACE_CONTAINER);
+                draw_rectangle(
+                    spacing::SM,
+                    current_y,
+                    sidebar_w - spacing::LG,
+                    44.0,
+                    Color::new(hover_r, hover_g, hover_b, 0.5),
+                );
+            }
+
+            let text_color = if is_active {
+                colors::PRIMARY
+            } else if is_hovered {
+                colors::ON_SURFACE
+            } else {
+                colors::ON_SURFACE_VARIANT
+            };
+            let (text_r, text_g, text_b) = colors::to_normalized(text_color);
+
+            let icon_x = content_x + spacing::SM;
+            let icon_y = current_y + 28.0;
+            ply_fonts::draw_body(
+                tab.icon(),
+                icon_x,
+                icon_y,
+                16.0,
+                Color::new(text_r, text_g, text_b, 1.0),
+            );
+
+            let label_x = icon_x + 28.0;
+            ply_fonts::draw_body(
+                tab.label(),
+                label_x,
+                icon_y,
+                14.0,
+                Color::new(text_r, text_g, text_b, 1.0),
+            );
+
+            if is_hovered && mouse_pressed {
+                self.settings_nav.current_tab = tab;
+            }
+
+            current_y += 48.0;
         }
     }
 }

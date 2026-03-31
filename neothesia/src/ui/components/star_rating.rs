@@ -1,5 +1,6 @@
+use crate::scene::ply_fonts;
 use macroquad::prelude::*;
-use neothesia_core::design::{colors, radius, sizes};
+use neothesia_core::design::colors;
 
 pub struct StarRating {
     pub x: f32,
@@ -52,7 +53,7 @@ impl StarRating {
             };
             let alpha = if is_filled { 1.0 } else { 0.6 };
 
-            draw_text(
+            ply_fonts::draw_body(
                 "★",
                 star_x,
                 self.y + self.star_size,

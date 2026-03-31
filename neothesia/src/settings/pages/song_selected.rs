@@ -330,23 +330,6 @@ impl SongSelectedPage {
     ) -> SongSelectedInteraction {
         clear_background(Color::new(0.055, 0.055, 0.075, 1.0));
 
-        let header_nav = self.header.render(mx, my, mouse_pressed);
-        if let Some(nav) = header_nav {
-            match nav {
-                NavItem::Library => return SongSelectedInteraction::NavigateBack,
-                NavItem::Practice => {}
-                NavItem::Settings => return SongSelectedInteraction::NavigateToSettings,
-            }
-        }
-
-        let sidebar_section = self.sidebar.render(mx, my, mouse_pressed);
-        if let Some(section) = sidebar_section {
-            match section {
-                SidebarSection::MidiLibrary => return SongSelectedInteraction::NavigateBack,
-                _ => {}
-            }
-        }
-
         if self.render_hero_section(mx, my, mouse_pressed) {
             return SongSelectedInteraction::NavigateBack;
         }
@@ -364,12 +347,30 @@ impl SongSelectedPage {
             return SongSelectedInteraction::StartSession;
         }
 
+        let header_nav = self.header.render(mx, my, mouse_pressed);
+        let sidebar_section = self.sidebar.render(mx, my, mouse_pressed);
+
         let mouse_wheel = mouse_wheel();
         if mouse_wheel.1 != 0.0
             && !self.sidebar.contains_point(mx, my)
             && !self.header.contains_point(mx, my)
         {
             self.scroll_offset = (self.scroll_offset - mouse_wheel.1 * 30.0).max(0.0);
+        }
+
+        if let Some(nav) = header_nav {
+            match nav {
+                NavItem::Library => return SongSelectedInteraction::NavigateBack,
+                NavItem::Practice => {}
+                NavItem::Settings => return SongSelectedInteraction::NavigateToSettings,
+            }
+        }
+
+        if let Some(section) = sidebar_section {
+            match section {
+                SidebarSection::MidiLibrary => return SongSelectedInteraction::NavigateBack,
+                _ => {}
+            }
         }
 
         SongSelectedInteraction::None

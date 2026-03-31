@@ -1,6 +1,7 @@
 use super::glass_panel::GlassPanel;
+use crate::scene::ply_fonts;
 use macroquad::prelude::*;
-use neothesia_core::design::{colors, effects, radius, sizes, spacing};
+use neothesia_core::design::{colors, spacing};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum DifficultyLevel {
@@ -53,33 +54,22 @@ impl SessionConfig {
         let content_y = self.y + spacing::XL;
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
-            "⚙",
-            current_x,
-            content_y + 16.0,
-            18.0,
-            Color::new(title_r, title_g, title_b, 1.0),
-        );
-
-        draw_text(
+        let title_color = Color::new(title_r, title_g, title_b, 1.0);
+        ply_fonts::draw_headline("⚙", current_x, content_y + 16.0, 18.0, title_color);
+        ply_fonts::draw_headline(
             "Session Configuration",
             current_x + 28.0,
             content_y + 16.0,
             18.0,
-            Color::new(title_r, title_g, title_b, 1.0),
+            title_color,
         );
 
         current_x = self.x + spacing::XL;
         let section_y = content_y + 50.0;
 
         let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            "DIFFICULTY LEVEL",
-            current_x,
-            section_y,
-            10.0,
-            Color::new(label_r, label_g, label_b, 1.0),
-        );
+        let label_color = Color::new(label_r, label_g, label_b, 1.0);
+        ply_fonts::draw_label("Difficulty Level", current_x, section_y, 10.0, label_color);
 
         let btn_y = section_y + 12.0;
         let btn_h = 32.0;
@@ -138,13 +128,14 @@ impl SessionConfig {
                 colors::ON_SURFACE
             };
             let (text_r, text_g, text_b) = colors::to_normalized(text_color);
-            let text_width = measure_text(level.label(), None, 12, 1.0).width;
-            draw_text(
+            let btn_text_color = Color::new(text_r, text_g, text_b, 1.0);
+            let text_width = measure_text(level.label(), ply_fonts::body_font(), 12, 1.0).width;
+            ply_fonts::draw_body(
                 level.label(),
                 btn_x + (btn_w - text_width) / 2.0,
                 btn_y + 22.0,
                 12.0,
-                Color::new(text_r, text_g, text_b, 1.0),
+                btn_text_color,
             );
 
             if is_hovered && mouse_pressed {
@@ -153,14 +144,7 @@ impl SessionConfig {
         }
 
         let speed_x = self.x + 250.0;
-        let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            "PLAYBACK SPEED",
-            speed_x,
-            section_y,
-            10.0,
-            Color::new(label_r, label_g, label_b, 1.0),
-        );
+        ply_fonts::draw_label("Playback Speed", speed_x, section_y, 10.0, label_color);
 
         let slider_x = speed_x;
         let slider_y = section_y + 16.0;
@@ -213,29 +197,16 @@ impl SessionConfig {
         for (i, label) in labels.iter().enumerate() {
             let label_x = slider_x + (slider_w / 4.0) * i as f32;
             let is_current = (self.speed - [0.5, 0.75, 1.0, 1.5][i]).abs() < 0.01;
-            let (lr, lg, lb) = if is_current {
-                colors::to_normalized(colors::PRIMARY)
+            let speed_color = if is_current {
+                Color::new(fill_r, fill_g, fill_b, 1.0)
             } else {
-                colors::to_normalized(colors::ON_SURFACE_VARIANT)
+                label_color
             };
-            draw_text(
-                label,
-                label_x,
-                slider_y + 32.0,
-                10.0,
-                Color::new(lr, lg, lb, 1.0),
-            );
+            ply_fonts::draw_mono(label, label_x, slider_y + 32.0, 10.0, speed_color);
         }
 
         let visual_x = speed_x + 230.0;
-        let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            "VISUAL ASSISTANCE",
-            visual_x,
-            section_y,
-            10.0,
-            Color::new(label_r, label_g, label_b, 1.0),
-        );
+        ply_fonts::draw_label("Visual Assistance", visual_x, section_y, 10.0, label_color);
 
         let toggle_y = section_y + 12.0;
         let toggle_w = 48.0;
@@ -263,39 +234,27 @@ impl SessionConfig {
             Color::new(1.0, 1.0, 1.0, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_body(
             "Fingering Numbers",
             visual_x,
             toggle_y + toggle_h + 18.0,
             12.0,
-            Color::new(label_r, label_g, label_b, 1.0),
+            label_color,
         );
 
         let input_x = visual_x + 200.0;
-        let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
-            "INPUT DEVICE",
-            input_x,
-            section_y,
-            10.0,
-            Color::new(label_r, label_g, label_b, 1.0),
-        );
+        ply_fonts::draw_label("Input Device", input_x, section_y, 10.0, label_color);
 
         let (device_r, device_g, device_b) = colors::to_normalized(colors::SECONDARY);
-        draw_text(
-            "🎹",
-            input_x,
-            section_y + 28.0,
-            14.0,
-            Color::new(device_r, device_g, device_b, 1.0),
-        );
+        let device_color = Color::new(device_r, device_g, device_b, 1.0);
+        ply_fonts::draw_body("🎹", input_x, section_y + 28.0, 14.0, device_color);
 
-        draw_text(
+        ply_fonts::draw_body(
             &format!("{} Connected", self.device_name),
             input_x + 24.0,
             section_y + 28.0,
             12.0,
-            Color::new(device_r, device_g, device_b, 1.0),
+            device_color,
         );
     }
 

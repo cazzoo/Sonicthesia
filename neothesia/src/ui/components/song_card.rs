@@ -98,6 +98,27 @@ impl SongCard {
         self.is_hovered =
             mx >= self.x && mx <= self.x + self.width && my >= self.y && my <= self.y + self.height;
 
+        let padding = 4.0;
+
+        if self.is_selected {
+            let (primary_r, primary_g, primary_b) = colors::to_normalized(colors::PRIMARY);
+            draw_rectangle(
+                self.x - padding,
+                self.y - padding,
+                self.width + padding * 2.0,
+                self.height + padding * 2.0,
+                Color::new(primary_r, primary_g, primary_b, 0.08),
+            );
+            draw_rectangle_lines(
+                self.x - padding,
+                self.y - padding,
+                self.width + padding * 2.0,
+                self.height + padding * 2.0,
+                2.0,
+                Color::new(primary_r, primary_g, primary_b, 1.0),
+            );
+        }
+
         let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
         let bg_alpha = if self.is_hovered { 0.8 } else { 0.6 };
         draw_rectangle(
@@ -108,28 +129,16 @@ impl SongCard {
             Color::new(bg_r, bg_g, bg_b, bg_alpha),
         );
 
-        if self.is_hovered || self.is_selected {
+        if self.is_hovered && !self.is_selected {
             let (primary_r, primary_g, primary_b) = colors::to_normalized(colors::PRIMARY);
-            let border_width = if self.is_selected { 2.0 } else { 1.0 };
-            let border_alpha = if self.is_selected { 1.0 } else { 0.2 };
             draw_rectangle_lines(
                 self.x,
                 self.y,
                 self.width,
                 self.height,
-                border_width,
-                Color::new(primary_r, primary_g, primary_b, border_alpha),
+                1.0,
+                Color::new(primary_r, primary_g, primary_b, 0.3),
             );
-
-            if self.is_selected {
-                draw_rectangle(
-                    self.x,
-                    self.y,
-                    self.width,
-                    self.height,
-                    Color::new(primary_r, primary_g, primary_b, 0.1),
-                );
-            }
         }
 
         let icon_x = self.x + spacing::LG;

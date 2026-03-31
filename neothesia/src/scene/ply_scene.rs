@@ -3280,10 +3280,10 @@ impl PlyScene for PlyScoreScene {
     }
 }
 
-/// PLY New Song Library Scene using the redesigned components
 pub struct PlyNewSongLibraryScene {
     song: Option<Song>,
     page: crate::settings::pages::song_library::SongLibraryPage,
+    pending_event: Option<NeothesiaEvent>,
 }
 
 impl PlyNewSongLibraryScene {
@@ -3291,6 +3291,7 @@ impl PlyNewSongLibraryScene {
         Self {
             song,
             page: crate::settings::pages::song_library::SongLibraryPage::new(),
+            pending_event: None,
         }
     }
 
@@ -3318,7 +3319,7 @@ impl PlyScene for PlyNewSongLibraryScene {
             return Some(NeothesiaEvent::MainMenu(self.song.take()));
         }
 
-        None
+        self.pending_event.take()
     }
 
     fn render(&mut self, _ctx: &mut MacroquadContext) {
@@ -3326,18 +3327,28 @@ impl PlyScene for PlyNewSongLibraryScene {
         let mouse_pressed = is_mouse_button_pressed(MouseButton::Left);
         let mouse_down = is_mouse_button_down(MouseButton::Left);
 
+        use crate::settings::pages::song_library::SongLibraryInteraction;
+
         match self.page.render(mx, my, mouse_pressed, mouse_down) {
-            crate::settings::pages::song_library::SongLibraryInteraction::SelectSong(entry) => {
-                // Handle song selection - this would need to be converted to an event
-                log::info!("Selected song: {}", entry.name);
+            SongLibraryInteraction::SelectSong(entry) => {
+                match midi_file::MidiFile::new(&entry.file_path) {
+                    Ok(midi_file) => {
+                        let mut song = Song::new(midi_file);
+                        song.song_id = Some(entry.id);
+                        self.pending_event = Some(NeothesiaEvent::ShowSongSelected { song, entry });
+                    }
+                    Err(e) => {
+                        log::error!("Failed to load song from {:?}: {}", entry.file_path, e);
+                    }
+                }
             }
-            crate::settings::pages::song_library::SongLibraryInteraction::NavigateToPractice => {
-                log::info!("Navigate to practice");
+            SongLibraryInteraction::NavigateToPractice => {
+                self.pending_event = Some(NeothesiaEvent::FreePlay(self.song.take()));
             }
-            crate::settings::pages::song_library::SongLibraryInteraction::NavigateToSettings => {
-                log::info!("Navigate to settings");
+            SongLibraryInteraction::NavigateToSettings => {
+                self.pending_event = Some(NeothesiaEvent::ShowSettings);
             }
-            crate::settings::pages::song_library::SongLibraryInteraction::None => {}
+            SongLibraryInteraction::None => {}
         }
     }
 }
@@ -3346,6 +3357,7 @@ impl PlyScene for PlyNewSongLibraryScene {
 pub struct PlySongSelectedScene {
     song: Option<Song>,
     page: Option<crate::settings::pages::song_selected::SongSelectedPage>,
+    pending_event: Option<NeothesiaEvent>,
 }
 
 impl PlySongSelectedScene {
@@ -3369,6 +3381,7 @@ impl PlySongSelectedScene {
         Self {
             song: Some(song),
             page: Some(crate::settings::pages::song_selected::SongSelectedPage::new(entry)),
+            pending_event: None,
         }
     }
 }
@@ -3378,10 +3391,10 @@ impl PlyScene for PlySongSelectedScene {
         use macroquad::prelude::*;
 
         if is_key_pressed(KeyCode::Escape) {
-            return Some(NeothesiaEvent::MainMenu(self.song.take()));
+            return Some(NeothesiaEvent::ShowSongLibrary(self.song.take()));
         }
 
-        None
+        self.pending_event.take()
     }
 
     fn render(&mut self, _ctx: &mut MacroquadContext) {
@@ -3390,20 +3403,24 @@ impl PlyScene for PlySongSelectedScene {
             let mouse_pressed = is_mouse_button_pressed(MouseButton::Left);
             let mouse_down = is_mouse_button_down(MouseButton::Left);
 
+            use crate::settings::pages::song_selected::SongSelectedInteraction;
+
             match page.render(mx, my, mouse_pressed, mouse_down) {
-                crate::settings::pages::song_selected::SongSelectedInteraction::NavigateBack => {
-                    log::info!("Navigate back");
+                SongSelectedInteraction::NavigateBack => {
+                    self.pending_event = Some(NeothesiaEvent::ShowSongLibrary(self.song.take()));
                 }
-                crate::settings::pages::song_selected::SongSelectedInteraction::NavigateToSettings => {
-                    log::info!("Navigate to settings");
+                SongSelectedInteraction::NavigateToSettings => {
+                    self.pending_event = Some(NeothesiaEvent::ShowSettings);
                 }
-                crate::settings::pages::song_selected::SongSelectedInteraction::ModeSelected(mode) => {
+                SongSelectedInteraction::ModeSelected(mode) => {
                     log::info!("Mode selected: {:?}", mode);
                 }
-                crate::settings::pages::song_selected::SongSelectedInteraction::StartSession => {
-                    log::info!("Start session");
+                SongSelectedInteraction::StartSession => {
+                    if let Some(song) = self.song.take() {
+                        self.pending_event = Some(NeothesiaEvent::Play(song));
+                    }
                 }
-                crate::settings::pages::song_selected::SongSelectedInteraction::None => {}
+                SongSelectedInteraction::None => {}
             }
         }
     }
