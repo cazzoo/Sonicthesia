@@ -64,8 +64,8 @@ impl MacroquadNeothesia {
     
     fn handle_event(&mut self, event: NeothesiaEvent) {
         match event {
-            NeothesiaEvent::Play(song) => {
-                log::info!("🎯 EVENT: Play song '{}'", song.file.name);
+            NeothesiaEvent::StartSession { song, config: _ } => {
+                log::info!("🎯 EVENT: StartSession '{}'", song.file.name);
                 self.context.resume_playback_time = None;
                 self.current_scene = Box::new(PlyPlayingScene::new(song)) as Box<dyn PlyScene>;
             }
@@ -127,8 +127,13 @@ impl MacroquadNeothesia {
     }
 
     fn render(&mut self) {
-        // Render current scene
+        clear_background(Color::new(0.0, 0.0, 0.0, 1.0));
+        crate::virtual_resolution::setup_camera();
+
         self.current_scene.render(&mut self.context);
+
+        set_default_camera();
+        crate::virtual_resolution::clear_letterbox();
     }
 }
 

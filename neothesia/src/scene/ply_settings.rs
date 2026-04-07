@@ -6,6 +6,7 @@ use neothesia_core::design::{colors, spacing};
 
 use super::PlyScene;
 use crate::ui::components::{Header, NavItem, Sidebar, SidebarSection};
+use crate::virtual_resolution::{vh, vmouse, vw};
 
 pub struct PlySettingsScene {
     pending_nav_event: Option<NeothesiaEvent>,
@@ -204,10 +205,10 @@ impl PlyScene for PlySettingsScene {
     fn render(&mut self, ctx: &mut MacroquadContext) {
         clear_background(Color::new(0.055, 0.055, 0.075, 1.0));
 
-        let screen_w = screen_width();
-        let screen_h = screen_height();
+        let screen_w = vw();
+        let screen_h = vh();
 
-        let (mouse_x, mouse_y) = mouse_position();
+        let (mouse_x, mouse_y) = vmouse();
         let mouse_pressed = is_mouse_button_pressed(MouseButton::Left);
         let mouse_down = is_mouse_button_down(MouseButton::Left);
 
@@ -299,8 +300,12 @@ impl PlyScene for PlySettingsScene {
         let header_nav = self.header.render(mouse_x, mouse_y, mouse_pressed);
         if let Some(nav) = header_nav {
             match nav {
+                NavItem::Back => {}
                 NavItem::Library => {
                     self.pending_nav_event = Some(NeothesiaEvent::ShowSongLibrary(None));
+                }
+                NavItem::FreePlay => {
+                    self.pending_nav_event = Some(NeothesiaEvent::FreePlay(None));
                 }
                 NavItem::Practice => {
                     self.pending_nav_event = Some(NeothesiaEvent::ResumeFromSettings);
@@ -315,7 +320,7 @@ impl PlyScene for PlySettingsScene {
 
 impl PlySettingsScene {
     fn render_settings_sidebar(&mut self, mx: f32, my: f32, mouse_pressed: bool) {
-        let screen_h = screen_height();
+        let screen_h = vh();
         let sidebar_w = self.sidebar.width;
         let top_offset = self.header.height;
 
