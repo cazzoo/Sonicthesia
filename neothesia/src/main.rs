@@ -13,6 +13,7 @@ mod scoring_data;
 mod utils;
 mod lumi_controller;
 
+mod virtual_resolution;
 mod render;
 mod scoring;
 mod achievements;
@@ -23,6 +24,10 @@ mod settings;
 mod ui;
 
 pub use common::NeothesiaEvent;
+pub use common::PlayMode;
+pub use common::SessionConfig;
+pub use common::HandSelection;
+pub use common::DifficultyLevel;
 pub use song::Song;
 
 // PLY Rendering (Macroquad) - DEFAULT
