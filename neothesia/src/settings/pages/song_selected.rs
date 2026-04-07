@@ -4,8 +4,10 @@ use neothesia_core::design::{colors, spacing};
 use crate::scene::ply_fonts;
 use crate::song_library::SongEntry;
 use crate::ui::components::{
-    GlassPanel, Header, ModeSelector, NavItem, PlayMode, SessionConfig, Sidebar, SidebarSection,
+    GlassPanel, Header, ModeSelector, NavItem, SessionConfig, Sidebar, SidebarSection,
 };
+use crate::virtual_resolution::{vh, vw};
+use crate::{DifficultyLevel, HandSelection, PlayMode, SessionConfig as SessionConfigData};
 
 pub struct SongSelectedPage {
     pub header: Header,
@@ -23,16 +25,30 @@ impl SongSelectedPage {
             header: Header::new(),
             sidebar: Sidebar::new(),
             song: Some(song),
-            mode_selector: ModeSelector::new(content_x, 360.0),
-            session_config: SessionConfig::new(content_x, 720.0),
+            mode_selector: ModeSelector::new(content_x, 64.0 + 360.0 + spacing::LG + 56.0),
+            session_config: SessionConfig::new(
+                content_x,
+                64.0 + 360.0 + spacing::LG + 56.0 + 56.0 + spacing::LG,
+            ),
             scroll_offset: 0.0,
         }
+    }
+
+    fn build_session_config(&self) -> SessionConfigData {
+        let mode = self.mode_selector.selected_mode;
+        let mut config = SessionConfigData::for_mode(mode);
+        config.speed = self.session_config.speed;
+        config.difficulty = self.session_config.difficulty;
+        config.fingering_enabled = self.session_config.fingering_enabled;
+        config.hand_selection = self.session_config.hand_selection;
+        config.midi_gain = self.session_config.midi_gain;
+        config
     }
 
     fn render_hero_section(&self, mx: f32, my: f32, mouse_pressed: bool) -> bool {
         let content_x = self.sidebar.width;
         let hero_y = self.header.height;
-        let hero_w = screen_width() - content_x;
+        let hero_w = vw() - content_x;
         let hero_h = 360.0;
 
         draw_rectangle(
@@ -82,7 +98,21 @@ impl SongSelectedPage {
         let badge_y = back_y + 30.0;
 
         let (tert_r, tert_g, tert_b) = colors::to_normalized(colors::TERTIARY_CONTAINER);
-        let badge_text = "MASTERPIECE";
+        let badge_text = self
+            .song
+            .as_ref()
+            .map(|s| {
+                if s.difficulty > 0 && s.difficulty < 3 {
+                    "EASY"
+                } else if s.difficulty < 5 {
+                    "Medium"
+                } else if s.difficulty < 7 {
+                    "Hard"
+                } else {
+                    "Expert"
+                }
+            })
+            .unwrap_or("MASTERPIECE");
         let badge_width = measure_text(badge_text, ply_fonts::body_font(), 10, 1.0).width + 24.0;
         draw_rectangle(
             back_x,
@@ -100,8 +130,21 @@ impl SongSelectedPage {
         );
 
         let (meta_r, meta_g, meta_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
+        let genre_text = self
+            .song
+            .as_ref()
+            .and_then(|s| s.genre.clone())
+            .unwrap_or_else(|| "MIDI".to_string());
+        let genre_display = self
+            .song
+            .as_ref()
+            .map(|s| {
+                let tracks = s.track_count;
+                format!("{} • {} tracks", genre_text, tracks)
+            })
+            .unwrap_or_else(|| genre_text);
         ply_fonts::draw_body(
-            "Classical • Solo Piano",
+            &genre_display,
             back_x + badge_width + 12.0,
             badge_y + 16.0,
             12.0,
@@ -125,15 +168,34 @@ impl SongSelectedPage {
         );
 
         let (artist_r, artist_g, artist_b) = colors::to_normalized(colors::PRIMARY);
+        let artist_text = self
+            .song
+            .as_ref()
+            .map(|s| {
+                let mut parts = Vec::new();
+                if let Some(ref genre) = s.genre {
+                    parts.push(genre.clone());
+                }
+                if s.difficulty > 0 {
+                    let stars = (0..s.difficulty).map(|_| "★").collect::<String>();
+                    parts.push(format!("Difficulty: {}", stars));
+                }
+                if parts.is_empty() {
+                    "MIDI File".to_string()
+                } else {
+                    parts.join(" • ")
+                }
+            })
+            .unwrap_or_else(|| "MIDI File".to_string());
         ply_fonts::draw_body(
-            "Ludwig van Beethoven",
+            &artist_text,
             back_x,
             title_y + 80.0,
-            20.0,
+            16.0,
             Color::new(artist_r, artist_g, artist_b, 0.8),
         );
 
-        let stats_x = screen_width() - 280.0;
+        let stats_x = content_x + hero_w - 260.0;
         let stats_y = hero_y + 120.0;
 
         let (border_r, border_g, border_b) = colors::to_normalized(colors::OUTLINE_VARIANT);
@@ -156,13 +218,9 @@ impl SongSelectedPage {
             Color::new(label_r, label_g, label_b, 1.0),
         );
 
-        let note_count = self
-            .song
-            .as_ref()
-            .map(|s| s.duration_secs / 2)
-            .unwrap_or(450);
+        let track_count = self.song.as_ref().map(|s| s.track_count).unwrap_or(0);
         ply_fonts::draw_headline(
-            &format!("{} pts", note_count),
+            &track_count.to_string(),
             stats_x + 20.0,
             stats_y + 28.0,
             24.0,
@@ -170,7 +228,7 @@ impl SongSelectedPage {
         );
 
         ply_fonts::draw_label(
-            "HAND BREAKDOWN",
+            "TRACK COUNT",
             stats_x + 20.0,
             stats_y + 70.0,
             10.0,
@@ -180,30 +238,33 @@ impl SongSelectedPage {
         let (lh_r, lh_g, lh_b) = colors::to_normalized(colors::PRIMARY);
         let (rh_r, rh_g, rh_b) = colors::to_normalized(colors::SECONDARY);
 
+        let play_count = self.song.as_ref().map(|s| s.play_count).unwrap_or(0);
         ply_fonts::draw_body(
-            "LH",
+            "Played",
             stats_x + 20.0,
             stats_y + 98.0,
             10.0,
             Color::new(lh_r, lh_g, lh_b, 1.0),
         );
         ply_fonts::draw_headline(
-            "180",
+            &play_count.to_string(),
             stats_x + 20.0,
             stats_y + 118.0,
             20.0,
             Color::new(value_r, value_g, value_b, 1.0),
         );
 
+        let difficulty = self.song.as_ref().map(|s| s.difficulty).unwrap_or(0);
+        let diff_stars = (0..difficulty).map(|_| "★").collect::<String>();
         ply_fonts::draw_body(
-            "RH",
+            "Level",
             stats_x + 80.0,
             stats_y + 98.0,
             10.0,
             Color::new(rh_r, rh_g, rh_b, 1.0),
         );
         ply_fonts::draw_headline(
-            "270",
+            &diff_stars,
             stats_x + 80.0,
             stats_y + 118.0,
             20.0,
@@ -241,7 +302,7 @@ impl SongSelectedPage {
 
     fn render_mode_title(&self) {
         let content_x = self.sidebar.width + spacing::XL;
-        let title_y = 420.0;
+        let title_y = self.header.height + 360.0 + spacing::LG;
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
         ply_fonts::draw_headline(
@@ -263,12 +324,12 @@ impl SongSelectedPage {
     }
 
     fn render_cta_section(&self, mx: f32, my: f32, mouse_pressed: bool) -> bool {
-        let cta_y = 1060.0;
+        let cta_y = self.session_config.y + self.session_config.height() + spacing::XL;
         let btn_w = 280.0;
         let btn_h = 60.0;
         let btn_x = self.sidebar.width
             + spacing::XL
-            + (screen_width() - self.sidebar.width - spacing::XL * 2.0 - btn_w) / 2.0;
+            + (vw() - self.sidebar.width - spacing::XL * 2.0 - btn_w) / 2.0;
 
         let (primary_r, primary_g, primary_b) = colors::to_normalized(colors::PRIMARY);
 
@@ -340,11 +401,15 @@ impl SongSelectedPage {
             return SongSelectedInteraction::ModeSelected(mode);
         }
 
+        self.session_config
+            .set_mode(self.mode_selector.selected_mode);
         self.session_config.render(mx, my, mouse_pressed);
         self.session_config.handle_speed_drag(mx, my, mouse_down);
+        self.session_config.handle_gain_drag(mx, my, mouse_down);
 
         if self.render_cta_section(mx, my, mouse_pressed) {
-            return SongSelectedInteraction::StartSession;
+            let config = self.build_session_config();
+            return SongSelectedInteraction::StartSession { config };
         }
 
         let header_nav = self.header.render(mx, my, mouse_pressed);
@@ -360,7 +425,9 @@ impl SongSelectedPage {
 
         if let Some(nav) = header_nav {
             match nav {
+                NavItem::Back => return SongSelectedInteraction::NavigateBack,
                 NavItem::Library => return SongSelectedInteraction::NavigateBack,
+                NavItem::FreePlay => return SongSelectedInteraction::NavigateToFreePlay,
                 NavItem::Practice => {}
                 NavItem::Settings => return SongSelectedInteraction::NavigateToSettings,
             }
@@ -380,7 +447,8 @@ impl SongSelectedPage {
 pub enum SongSelectedInteraction {
     None,
     NavigateBack,
+    NavigateToFreePlay,
     NavigateToSettings,
     ModeSelected(PlayMode),
-    StartSession,
+    StartSession { config: SessionConfigData },
 }

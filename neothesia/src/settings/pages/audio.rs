@@ -954,6 +954,7 @@ impl SettingsPage for AudioPage {
 
         let content_x = x + spacing::XL;
         let content_width = width - spacing::XL * 2.0;
+        let scroll_y = my + self.scroll_offset;
         let mut current_y = self.render_header(content_x, y - self.scroll_offset, content_width);
 
         let (next_y, interaction) = self.render_engine_section(
@@ -962,7 +963,7 @@ impl SettingsPage for AudioPage {
             content_width,
             config,
             mx,
-            my,
+            scroll_y,
             mouse_pressed,
         );
         if !matches!(interaction, SettingsInteraction::None) {
@@ -976,7 +977,7 @@ impl SettingsPage for AudioPage {
             content_width,
             config,
             mx,
-            my,
+            scroll_y,
             mouse_pressed,
             mouse_down,
         );
@@ -991,7 +992,7 @@ impl SettingsPage for AudioPage {
             content_width,
             config,
             mx,
-            my,
+            scroll_y,
             mouse_pressed,
             mouse_down,
         );

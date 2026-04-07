@@ -6,6 +6,7 @@ use crate::song_library::{FilterState, SongEntry, SortPreference};
 use crate::ui::components::{
     GlassPanel, Header, NavItem, ProgressBar, Sidebar, SidebarSection, SongCard,
 };
+use crate::virtual_resolution::{vh, vw};
 
 struct SongLibraryLayout {
     header_h: f32,
@@ -93,7 +94,7 @@ impl SongLibraryPage {
         let content_x = self.sidebar.width + spacing::XL;
         let start_y = layout.cards_y;
 
-        let columns = ((screen_width() - content_x - spacing::XL) / (card_w + gap))
+        let columns = ((vw() - content_x - spacing::XL) / (card_w + gap))
             .floor()
             .max(1.0) as usize;
 
@@ -142,7 +143,7 @@ impl SongLibraryPage {
     fn render_header_section(&self, stats: &LibraryStats) {
         let layout = self.layout();
         let content_x = self.sidebar.width + spacing::XL;
-        let content_width = screen_width() - self.sidebar.width - spacing::XL * 2.0;
+        let content_width = vw() - self.sidebar.width - spacing::XL * 2.0;
 
         let panel = GlassPanel::new(
             content_x,
@@ -210,7 +211,7 @@ impl SongLibraryPage {
     fn render_bento_section(&self, stats: &LibraryStats) {
         let layout = self.layout();
         let content_x = self.sidebar.width + spacing::XL;
-        let total_width = screen_width() - content_x - spacing::XL * 2.0;
+        let total_width = vw() - content_x - spacing::XL * 2.0;
         let panel_w = total_width * 0.7;
         let quick_w = total_width * 0.3 - 24.0;
 
@@ -408,14 +409,14 @@ impl SongLibraryPage {
 
     fn render_footer(&self) {
         let layout = self.layout();
-        let footer_y = screen_height() - layout.footer_h;
+        let footer_y = vh() - layout.footer_h;
         let content_x = self.sidebar.width + spacing::XL;
 
         let (border_r, border_g, border_b) = colors::to_normalized(colors::OUTLINE_VARIANT);
         draw_rectangle(
             content_x,
             footer_y,
-            screen_width() - content_x,
+            vw() - content_x,
             1.0,
             Color::new(border_r, border_g, border_b, 0.2),
         );
@@ -466,7 +467,7 @@ impl SongLibraryPage {
         let layout = self.layout();
         let stats = self.compute_stats();
         let content_top = layout.cards_y;
-        let content_bottom = screen_height() - layout.footer_h;
+        let content_bottom = vh() - layout.footer_h;
 
         let mut clicked_song = None;
         self.hovered_song_index = None;
@@ -500,7 +501,9 @@ impl SongLibraryPage {
         let header_nav = self.header.render(mx, my, mouse_pressed);
         if let Some(nav) = header_nav {
             match nav {
+                NavItem::Back => {}
                 NavItem::Library => {}
+                NavItem::FreePlay => nav_event = Some(SongLibraryInteraction::NavigateToFreePlay),
                 NavItem::Practice => nav_event = Some(SongLibraryInteraction::NavigateToPractice),
                 NavItem::Settings => nav_event = Some(SongLibraryInteraction::NavigateToSettings),
             }
@@ -557,6 +560,7 @@ fn format_relative_time(dt: chrono::DateTime<chrono::Utc>) -> String {
 pub enum SongLibraryInteraction {
     None,
     SelectSong(SongEntry),
+    NavigateToFreePlay,
     NavigateToPractice,
     NavigateToSettings,
 }
