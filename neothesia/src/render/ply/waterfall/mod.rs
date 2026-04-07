@@ -1,3 +1,4 @@
+use crate::virtual_resolution::{vh, vw};
 use midi_file::{MidiNote, MidiTrack};
 use neothesia_core::config;
 use neothesia_core::waterfall::{NoteList, TrackChannelConfig};
@@ -236,7 +237,7 @@ impl PlyWaterfallRenderer {
             .collect()
     }
 
-    pub fn render_ply(&self) {
+    pub fn render_ply(&self, cx: f32, cy: f32, cw: f32, ch: f32) {
         if !self.initialized {
             return;
         }
@@ -248,12 +249,10 @@ impl PlyWaterfallRenderer {
             None => return,
         };
 
-        let screen_w = screen_width();
-        let screen_h = screen_height();
-        let keyboard_height = screen_h * 0.2;
-        let keyboard_top = screen_h - keyboard_height - 20.0;
-        let keyboard_width = screen_w * 0.95;
-        let keyboard_x = (screen_w - keyboard_width) / 2.0;
+        let keyboard_height = ch * 0.2;
+        let keyboard_top = cy + ch - keyboard_height - 20.0;
+        let keyboard_width = cw * 0.95;
+        let keyboard_x = cx + (cw - keyboard_width) / 2.0;
         let pixels_per_second = self.config.animation_speed;
         let scale_x = keyboard_width / layout.width;
 
@@ -269,8 +268,8 @@ impl PlyWaterfallRenderer {
                 let note_start = note.start.as_secs_f32();
                 let note_duration = note.duration.as_secs_f32();
                 let time_until_start = note_start - self.current_time;
-                let y = keyboard_top - (time_until_start * pixels_per_second);
                 let height = note_duration * pixels_per_second;
+                let y = keyboard_top - (time_until_start * pixels_per_second) - height;
 
                 let x = keyboard_x + key.x() * scale_x;
                 let w = key.width() * scale_x - 1.0;
@@ -279,7 +278,7 @@ impl PlyWaterfallRenderer {
                 let clipped_bottom = note_bottom.min(keyboard_top);
                 let clipped_height = (clipped_bottom - y).max(0.0);
 
-                if clipped_height <= 0.0 || y > keyboard_top || y + clipped_height < 0.0 {
+                if clipped_height <= 0.0 || y > keyboard_top || y + clipped_height < cy {
                     continue;
                 }
 
@@ -305,6 +304,12 @@ impl PlyWaterfallRenderer {
                 draw_rectangle(x, y, w, highlight_height, Color::from_rgba(hr, hg, hb, 160));
             }
         }
+    }
+    pub fn render_ply_fullscreen(&self) {
+        use macroquad::prelude::*;
+        let sw = vw();
+        let sh = vh();
+        self.render_ply(0.0, 0.0, sw, sh);
     }
 }
 

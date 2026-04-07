@@ -7,6 +7,7 @@
 //! - Theme/style customization
 //! - Keyboard input synchronization
 
+use crate::virtual_resolution::{vh, vw};
 use macroquad::prelude::*;
 use neothesia_core::config::Config;
 use piano_layout::KeyboardLayout;
@@ -819,8 +820,8 @@ pub struct PianoKeyboardRenderer {
 impl PianoKeyboardRenderer {
     /// Create a new piano keyboard renderer
     pub fn new(layout: KeyboardLayout, config: &Config) -> Self {
-        let window_width = screen_width();
-        let window_height = screen_height();
+        let window_width = vw();
+        let window_height = vh();
 
         let (width, height) = Self::calculate_keyboard_size(window_width, window_height);
         let (x, y) = Self::calculate_keyboard_position(width, height, window_height);
@@ -883,8 +884,8 @@ impl PianoKeyboardRenderer {
 
     /// Update window size and recalculate positions
     pub fn update_window_size(&mut self) {
-        let new_width = screen_width();
-        let new_height = screen_height();
+        let new_width = vw();
+        let new_height = vh();
 
         if new_width != self.window_width || new_height != self.window_height {
             self.window_width = new_width;
@@ -900,6 +901,14 @@ impl PianoKeyboardRenderer {
         }
     }
 
+    pub fn set_position_and_size(&mut self, x: f32, y: f32, w: f32, h: f32) {
+        self.window_width = vw();
+        self.window_height = vh();
+        self.size = (w, h);
+        self.position = (x, y);
+        self.keys = Self::build_visual_keys(&self.layout, x, y, w, h);
+    }
+
     /// Calculate keyboard size based on window dimensions
     fn calculate_keyboard_size(window_width: f32, window_height: f32) -> (f32, f32) {
         let width = window_width * 0.95; // 95% of window width
@@ -909,7 +918,7 @@ impl PianoKeyboardRenderer {
 
     /// Calculate keyboard position (bottom center)
     fn calculate_keyboard_position(width: f32, height: f32, window_height: f32) -> (f32, f32) {
-        let x = (screen_width() - width) / 2.0;
+        let x = (vw() - width) / 2.0;
         let y = window_height - height - 20.0; // 20px from bottom
         (x, y)
     }

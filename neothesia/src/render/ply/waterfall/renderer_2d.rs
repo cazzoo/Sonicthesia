@@ -2,6 +2,7 @@ use macroquad::prelude::*;
 use piano_layout::KeyboardLayout;
 
 use super::{NoteVisual, WaterfallConfig, WaterfallNote, WaterfallRenderer};
+use crate::virtual_resolution::{vh, vw};
 
 pub struct Waterfall2D {
     notes: Vec<WaterfallNote>,
@@ -16,7 +17,7 @@ pub struct Waterfall2D {
 
 impl Waterfall2D {
     pub fn new(notes: &[WaterfallNote], config: &WaterfallConfig, layout: &KeyboardLayout) -> Self {
-        let screen_h = screen_height();
+        let screen_h = vh();
         let keyboard_height = screen_h * 0.2;
         let keyboard_top = screen_h - keyboard_height - 20.0;
 
@@ -88,7 +89,7 @@ impl WaterfallRenderer for Waterfall2D {
         self.current_time = time;
         self.layout = layout.clone();
 
-        let screen_h = screen_height();
+        let screen_h = vh();
         self.keyboard_height = screen_h * 0.2;
         self.keyboard_top = screen_h - self.keyboard_height - 20.0;
 
