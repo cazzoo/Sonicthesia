@@ -15,9 +15,9 @@ pub mod theme_card;
 pub use color_picker::ColorPicker;
 pub use glass_panel::GlassPanel;
 pub use header::{Header, NavItem};
-pub use mode_selector::{ModeSelector, PlayMode};
+pub use mode_selector::ModeSelector;
 pub use progress_bar::{ProgressBar, ProgressRing};
-pub use session_config::{DifficultyLevel, SessionConfig};
+pub use session_config::SessionConfig;
 pub use settings_ui::{
     ColorPickerRow, Dropdown, PrimaryButton, SecondaryButton, SectionHeader, SettingCard, Slider,
     ToggleSwitch,

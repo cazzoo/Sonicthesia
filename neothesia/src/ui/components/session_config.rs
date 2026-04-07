@@ -1,24 +1,8 @@
 use super::glass_panel::GlassPanel;
+use crate::common::{DifficultyLevel, HandSelection, PlayMode};
 use crate::scene::ply_fonts;
 use macroquad::prelude::*;
 use neothesia_core::design::{colors, spacing};
-
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum DifficultyLevel {
-    Easy,
-    Medium,
-    Hard,
-}
-
-impl DifficultyLevel {
-    pub fn label(&self) -> &'static str {
-        match self {
-            DifficultyLevel::Easy => "EASY",
-            DifficultyLevel::Medium => "MED",
-            DifficultyLevel::Hard => "HARD",
-        }
-    }
-}
 
 pub struct SessionConfig {
     pub x: f32,
@@ -29,6 +13,9 @@ pub struct SessionConfig {
     pub fingering_enabled: bool,
     pub device_connected: bool,
     pub device_name: String,
+    pub hand_selection: HandSelection,
+    pub midi_gain: f32,
+    pub active_mode: PlayMode,
 }
 
 impl SessionConfig {
@@ -42,13 +29,31 @@ impl SessionConfig {
             fingering_enabled: true,
             device_connected: true,
             device_name: "Obsidian-88 MKII".to_string(),
+            hand_selection: HandSelection::Both,
+            midi_gain: 1.0,
+            active_mode: PlayMode::Practice,
+        }
+    }
+
+    pub fn height(&self) -> f32 {
+        280.0
+    }
+
+    pub fn set_mode(&mut self, mode: PlayMode) {
+        self.active_mode = mode;
+        if mode == PlayMode::Play {
+            self.hand_selection = HandSelection::Both;
         }
     }
 
     pub fn render(&mut self, mx: f32, my: f32, mouse_pressed: bool) {
-        let panel_height = 200.0;
+        let panel_height = 280.0;
         let panel = GlassPanel::new(self.x, self.y, self.width, panel_height);
         panel.render();
+
+        let is_play_mode = self.active_mode == PlayMode::Play;
+        let speed_alpha = if is_play_mode { 0.3 } else { 1.0 };
+        let hand_alpha = if is_play_mode { 0.3 } else { 1.0 };
 
         let mut current_x = self.x + spacing::XL;
         let content_y = self.y + spacing::XL;
@@ -144,7 +149,15 @@ impl SessionConfig {
         }
 
         let speed_x = self.x + 250.0;
-        ply_fonts::draw_label("Playback Speed", speed_x, section_y, 10.0, label_color);
+        let speed_label_color =
+            Color::new(label_color.r, label_color.g, label_color.b, speed_alpha);
+        ply_fonts::draw_label(
+            "Playback Speed",
+            speed_x,
+            section_y,
+            10.0,
+            speed_label_color,
+        );
 
         let slider_x = speed_x;
         let slider_y = section_y + 16.0;
@@ -157,7 +170,7 @@ impl SessionConfig {
             slider_y,
             slider_w,
             slider_h,
-            Color::new(track_r, track_g, track_b, 1.0),
+            Color::new(track_r, track_g, track_b, speed_alpha),
         );
 
         let fill_w = slider_w * ((self.speed - 0.5) / 1.0);
@@ -167,7 +180,7 @@ impl SessionConfig {
             slider_y,
             fill_w,
             slider_h,
-            Color::new(fill_r, fill_g, fill_b, 1.0),
+            Color::new(fill_r, fill_g, fill_b, speed_alpha),
         );
 
         let thumb_x = slider_x + fill_w - 6.0;
@@ -177,7 +190,7 @@ impl SessionConfig {
             thumb_x + thumb_size / 2.0,
             thumb_y + thumb_size / 2.0,
             thumb_size / 2.0,
-            Color::new(fill_r, fill_g, fill_b, 1.0),
+            Color::new(fill_r, fill_g, fill_b, speed_alpha),
         );
 
         let marks = [0.5, 0.75, 1.0, 1.25, 1.5];
@@ -189,7 +202,7 @@ impl SessionConfig {
                 slider_y + 8.0,
                 1.0,
                 4.0,
-                Color::new(mark_r, mark_g, mark_b, 1.0),
+                Color::new(mark_r, mark_g, mark_b, speed_alpha),
             );
         }
 
@@ -198,9 +211,9 @@ impl SessionConfig {
             let label_x = slider_x + (slider_w / 4.0) * i as f32;
             let is_current = (self.speed - [0.5, 0.75, 1.0, 1.5][i]).abs() < 0.01;
             let speed_color = if is_current {
-                Color::new(fill_r, fill_g, fill_b, 1.0)
+                Color::new(fill_r, fill_g, fill_b, speed_alpha)
             } else {
-                label_color
+                Color::new(label_color.r, label_color.g, label_color.b, speed_alpha)
             };
             ply_fonts::draw_mono(label, label_x, slider_y + 32.0, 10.0, speed_color);
         }
@@ -256,9 +269,160 @@ impl SessionConfig {
             12.0,
             device_color,
         );
+
+        let row2_y = content_y + 130.0;
+
+        let hand_label_color = Color::new(label_color.r, label_color.g, label_color.b, hand_alpha);
+        ply_fonts::draw_label(
+            "Hand Selection",
+            current_x,
+            row2_y - 12.0,
+            10.0,
+            hand_label_color,
+        );
+
+        let hand_btn_y = row2_y;
+        let hand_btn_h = 32.0;
+        let hand_btn_w = 72.0;
+        let hand_btn_gap = 8.0;
+
+        for (i, hand) in [
+            HandSelection::Left,
+            HandSelection::Right,
+            HandSelection::Both,
+        ]
+        .iter()
+        .enumerate()
+        {
+            let btn_x = current_x + i as f32 * (hand_btn_w + hand_btn_gap);
+            let is_active = self.hand_selection == *hand;
+            let is_hovered = mx >= btn_x
+                && mx <= btn_x + hand_btn_w
+                && my >= hand_btn_y
+                && my <= hand_btn_y + hand_btn_h;
+
+            if is_active {
+                let (active_r, active_g, active_b) = colors::to_normalized(colors::PRIMARY);
+                draw_rectangle(
+                    btn_x,
+                    hand_btn_y,
+                    hand_btn_w,
+                    hand_btn_h,
+                    Color::new(active_r, active_g, active_b, hand_alpha),
+                );
+            } else {
+                let (border_r, border_g, border_b) = colors::to_normalized(colors::OUTLINE_VARIANT);
+                draw_rectangle_lines(
+                    btn_x,
+                    hand_btn_y,
+                    hand_btn_w,
+                    hand_btn_h,
+                    1.0,
+                    Color::new(border_r, border_g, border_b, 0.3 * hand_alpha),
+                );
+
+                if is_hovered {
+                    let (hover_r, hover_g, hover_b) = colors::to_normalized(colors::PRIMARY);
+                    draw_rectangle_lines(
+                        btn_x,
+                        hand_btn_y,
+                        hand_btn_w,
+                        hand_btn_h,
+                        1.0,
+                        Color::new(hover_r, hover_g, hover_b, 0.5 * hand_alpha),
+                    );
+                }
+            }
+
+            let text_color = if is_active {
+                colors::BLACK
+            } else {
+                colors::ON_SURFACE
+            };
+            let (text_r, text_g, text_b) = colors::to_normalized(text_color);
+            let btn_text_color = Color::new(text_r, text_g, text_b, hand_alpha);
+            let text_width = measure_text(hand.label(), ply_fonts::body_font(), 12, 1.0).width;
+            ply_fonts::draw_body(
+                hand.label(),
+                btn_x + (hand_btn_w - text_width) / 2.0,
+                hand_btn_y + 22.0,
+                12.0,
+                btn_text_color,
+            );
+
+            if is_hovered && mouse_pressed && !is_play_mode {
+                self.hand_selection = *hand;
+            }
+        }
+
+        let gain_x = self.x + 320.0;
+        ply_fonts::draw_label("MIDI Gain", gain_x, row2_y - 12.0, 10.0, label_color);
+
+        let gain_slider_y = row2_y + 4.0;
+        let gain_slider_w = 180.0;
+        let gain_slider_h = 4.0;
+
+        let (gtrack_r, gtrack_g, gtrack_b) =
+            colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
+        draw_rectangle(
+            gain_x,
+            gain_slider_y,
+            gain_slider_w,
+            gain_slider_h,
+            Color::new(gtrack_r, gtrack_g, gtrack_b, 1.0),
+        );
+
+        let gain_fill_w = gain_slider_w * self.midi_gain;
+        let (gfill_r, gfill_g, gfill_b) = colors::to_normalized(colors::PRIMARY);
+        draw_rectangle(
+            gain_x,
+            gain_slider_y,
+            gain_fill_w,
+            gain_slider_h,
+            Color::new(gfill_r, gfill_g, gfill_b, 1.0),
+        );
+
+        let gain_thumb_x = gain_x + gain_fill_w - 6.0;
+        let gain_thumb_y = gain_slider_y - 4.0;
+        let gain_thumb_size = 12.0;
+        draw_circle(
+            gain_thumb_x + gain_thumb_size / 2.0,
+            gain_thumb_y + gain_thumb_size / 2.0,
+            gain_thumb_size / 2.0,
+            Color::new(gfill_r, gfill_g, gfill_b, 1.0),
+        );
+
+        let gain_marks = [0.0, 0.25, 0.5, 0.75, 1.0];
+        for mark in gain_marks.iter() {
+            let mark_x = gain_x + gain_slider_w * mark;
+            let (mark_r, mark_g, mark_b) = colors::to_normalized(colors::OUTLINE_VARIANT);
+            draw_rectangle(
+                mark_x,
+                gain_slider_y + 8.0,
+                1.0,
+                4.0,
+                Color::new(mark_r, mark_g, mark_b, 1.0),
+            );
+        }
+
+        let gain_labels = ["0%", "25%", "50%", "75%", "100%"];
+        for (i, label) in gain_labels.iter().enumerate() {
+            let label_x = gain_x + (gain_slider_w / 4.0) * i as f32;
+            let is_current = (self.midi_gain - [0.0, 0.25, 0.5, 0.75, 1.0][i]).abs() < 0.01;
+            let gain_color = if is_current {
+                Color::new(gfill_r, gfill_g, gfill_b, 1.0)
+            } else {
+                label_color
+            };
+            ply_fonts::draw_mono(label, label_x, gain_slider_y + 32.0, 10.0, gain_color);
+        }
     }
 
     pub fn handle_speed_drag(&mut self, mx: f32, my: f32, mouse_down: bool) {
+        if self.active_mode == PlayMode::Play {
+            return;
+        }
+
         let slider_x = self.x + 250.0;
         let slider_y = self.y + spacing::XL + 50.0 + 16.0;
         let slider_w = 180.0;
@@ -266,6 +430,17 @@ impl SessionConfig {
         if mouse_down && my >= slider_y - 10.0 && my <= slider_y + 14.0 {
             let ratio = ((mx - slider_x) / slider_w).clamp(0.0, 1.0);
             self.speed = 0.5 + ratio * 1.0;
+        }
+    }
+
+    pub fn handle_gain_drag(&mut self, mx: f32, my: f32, mouse_down: bool) {
+        let row2_y = self.y + spacing::XL + 50.0 + 80.0 + 4.0;
+        let slider_x = self.x + 320.0;
+        let slider_w = 180.0;
+
+        if mouse_down && my >= row2_y - 10.0 && my <= row2_y + 14.0 {
+            let ratio = ((mx - slider_x) / slider_w).clamp(0.0, 1.0);
+            self.midi_gain = ratio;
         }
     }
 }

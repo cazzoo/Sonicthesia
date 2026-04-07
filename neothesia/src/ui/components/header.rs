@@ -2,10 +2,13 @@ use macroquad::prelude::*;
 use neothesia_core::design::{colors, spacing};
 
 use crate::scene::ply_fonts;
+use crate::virtual_resolution::{vh, vw};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum NavItem {
+    Back,
     Library,
+    FreePlay,
     Practice,
     Settings,
 }
@@ -13,6 +16,7 @@ pub enum NavItem {
 pub struct Header {
     pub active_nav: NavItem,
     pub height: f32,
+    pub show_back_button: bool,
 }
 
 impl Header {
@@ -20,6 +24,7 @@ impl Header {
         Self {
             active_nav: NavItem::Library,
             height: 64.0,
+            show_back_button: false,
         }
     }
 
@@ -28,8 +33,8 @@ impl Header {
     }
 
     pub fn render(&mut self, mx: f32, my: f32, mouse_pressed: bool) -> Option<NavItem> {
-        let sw = screen_width();
-        let sh = screen_height();
+        let sw = vw();
+        let _sh = vh();
 
         let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER_LOW);
         draw_rectangle(0.0, 0.0, sw, self.height, Color::new(bg_r, bg_g, bg_b, 1.0));
@@ -45,7 +50,43 @@ impl Header {
 
         let mut clicked_nav = None;
 
-        let logo_x = spacing::XL;
+        let mut logo_x = spacing::XL;
+
+        if self.show_back_button {
+            let btn_x = 8.0;
+            let btn_y = self.height / 2.0 - 14.0;
+            let btn_size = 28.0;
+
+            let is_back_hovered =
+                mx >= btn_x && mx <= btn_x + btn_size && my >= btn_y && my <= btn_y + btn_size;
+
+            let (btn_r, btn_g, btn_b) = colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
+            if is_back_hovered {
+                draw_rectangle(
+                    btn_x,
+                    btn_y,
+                    btn_size,
+                    btn_size,
+                    Color::new(btn_r, btn_g, btn_b, 0.6),
+                );
+            }
+
+            let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::ON_SURFACE);
+            ply_fonts::draw_body(
+                "←",
+                btn_x + 8.0,
+                btn_y + 19.0,
+                18.0,
+                Color::new(icon_r, icon_g, icon_b, 1.0),
+            );
+
+            if is_back_hovered && mouse_pressed {
+                clicked_nav = Some(NavItem::Back);
+            }
+
+            logo_x = btn_x + btn_size + 8.0;
+        }
+
         let logo_y = self.height / 2.0 + 8.0;
         let (text_r, text_g, text_b) = colors::to_normalized(colors::ON_SURFACE);
         ply_fonts::draw_headline(
@@ -60,7 +101,7 @@ impl Header {
         let nav_y = self.height / 2.0 + 6.0;
         let nav_items = [
             (NavItem::Library, "Library"),
-            (NavItem::Practice, "Practice"),
+            (NavItem::FreePlay, "🎹 Free Play"),
             (NavItem::Settings, "Settings"),
         ];
 

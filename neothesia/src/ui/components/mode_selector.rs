@@ -3,51 +3,22 @@ use neothesia_core::design::{colors, spacing};
 
 use crate::scene::ply_fonts;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PlayMode {
-    Listen,
-    Learn,
-    Play,
-}
+use crate::common::PlayMode;
 
 impl PlayMode {
-    pub fn label(&self) -> &'static str {
+    pub fn short_description(&self) -> &'static str {
         match self {
-            PlayMode::Listen => "Listen",
-            PlayMode::Learn => "Learn",
-            PlayMode::Play => "Play",
-        }
-    }
-
-    pub fn description(&self) -> &'static str {
-        match self {
-            PlayMode::Listen => "Experience a cinematic 3D visualizer. Perfect for analysis or background immersion.",
-            PlayMode::Learn => "Interactive pedagogy tools. Adjust speed, set loops, and toggle fingering guides.",
-            PlayMode::Play => "Full performance tracking. Record your session, track accuracy, and build streaks.",
-        }
-    }
-
-    pub fn icon(&self) -> &'static str {
-        match self {
-            PlayMode::Listen => "▶",
-            PlayMode::Learn => "🎓",
-            PlayMode::Play => "🎮",
+            PlayMode::Learn => "Note-by-note with guides",
+            PlayMode::Practice => "Falling notes at your pace",
+            PlayMode::Play => "Full performance scoring",
         }
     }
 
     pub fn color(&self) -> (f32, f32, f32) {
         match self {
-            PlayMode::Listen => colors::to_normalized(colors::SECONDARY),
+            PlayMode::Practice => colors::to_normalized(colors::SECONDARY),
             PlayMode::Learn => colors::to_normalized(colors::PRIMARY),
             PlayMode::Play => colors::to_normalized(colors::TERTIARY),
-        }
-    }
-
-    pub fn badges(&self) -> &[&str] {
-        match self {
-            PlayMode::Listen => &["4K Visuals", "Spatial Audio"],
-            PlayMode::Learn => &["Falling Notes", "Looping"],
-            PlayMode::Play => &["Score HUD", "Game Mode"],
         }
     }
 }
@@ -67,8 +38,8 @@ impl ModeCard {
         Self {
             x,
             y,
-            width: 280.0,
-            height: 320.0,
+            width: 180.0,
+            height: 56.0,
             mode,
             is_selected: false,
             is_hovered: false,
@@ -79,7 +50,14 @@ impl ModeCard {
         self.is_hovered =
             mx >= self.x && mx <= self.x + self.width && my >= self.y && my <= self.y + self.height;
 
-        let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER);
+        let (bg_r, bg_g, bg_b) = if self.is_selected {
+            let (r, g, b) = self.mode.color();
+            (r * 0.15, g * 0.15, b * 0.15)
+        } else if self.is_hovered {
+            colors::to_normalized(colors::SURFACE_CONTAINER_HIGH)
+        } else {
+            colors::to_normalized(colors::SURFACE_CONTAINER)
+        };
         draw_rectangle(
             self.x,
             self.y,
@@ -89,13 +67,13 @@ impl ModeCard {
         );
 
         if self.is_selected {
-            let (primary_r, primary_g, primary_b) = colors::to_normalized(colors::PRIMARY);
+            let (pr, pg, pb) = self.mode.color();
             draw_rectangle(
                 self.x,
                 self.y,
-                self.width,
+                3.0,
                 self.height,
-                Color::new(primary_r, primary_g, primary_b, 0.1),
+                Color::new(pr, pg, pb, 1.0),
             );
             draw_rectangle_lines(
                 self.x,
@@ -103,120 +81,50 @@ impl ModeCard {
                 self.width,
                 self.height,
                 1.0,
-                Color::new(primary_r, primary_g, primary_b, 1.0),
-            );
-        } else if self.is_hovered {
-            let (hover_r, hover_g, hover_b) = colors::to_normalized(colors::SURFACE_CONTAINER_HIGH);
-            draw_rectangle(
-                self.x,
-                self.y,
-                self.width,
-                self.height,
-                Color::new(hover_r, hover_g, hover_b, 1.0),
+                Color::new(pr, pg, pb, 0.6),
             );
         }
 
-        let content_x = self.x + spacing::XL;
-        let mut current_y = self.y + spacing::XL;
+        let cx = self.x + 14.0;
+        let icon_y = self.y + self.height / 2.0 - 10.0;
 
         let (icon_r, icon_g, icon_b) = self.mode.color();
-        let icon_bg_size = 48.0;
-        draw_rectangle(
-            content_x,
-            current_y,
-            icon_bg_size,
-            icon_bg_size,
-            Color::new(icon_r, icon_g, icon_b, 0.1),
-        );
-
         ply_fonts::draw_body(
             self.mode.icon(),
-            content_x + 12.0,
-            current_y + 34.0,
-            24.0,
+            cx,
+            icon_y + 10.0,
+            20.0,
             Color::new(icon_r, icon_g, icon_b, 1.0),
         );
 
-        current_y += icon_bg_size + spacing::LG;
-
-        let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        ply_fonts::draw_headline(
+        let text_x = cx + 32.0;
+        let (title_r, title_g, title_b) = if self.is_selected {
+            self.mode.color()
+        } else {
+            colors::to_normalized(colors::ON_SURFACE)
+        };
+        ply_fonts::draw_body(
             self.mode.label(),
-            content_x,
-            current_y + 18.0,
-            24.0,
+            text_x,
+            self.y + 18.0,
+            14.0,
             Color::new(title_r, title_g, title_b, 1.0),
         );
 
-        current_y += 40.0;
-
         let (desc_r, desc_g, desc_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-
-        let desc = self.mode.description();
-        let max_chars = 60;
-        let lines: Vec<&str> = if desc.len() > max_chars {
-            let mid = desc[..max_chars].rfind(' ').unwrap_or(max_chars);
-            vec![&desc[..mid], &desc[mid + 1..]]
-        } else {
-            vec![desc]
-        };
-
-        for (i, line) in lines.iter().enumerate() {
-            ply_fonts::draw_body(
-                line,
-                content_x,
-                current_y + i as f32 * 18.0,
-                12.0,
-                Color::new(desc_r, desc_g, desc_b, 1.0),
-            );
-        }
-
-        current_y += lines.len() as f32 * 18.0 + 30.0;
-
-        let badges = self.mode.badges();
-        let mut badge_x = content_x;
-        for badge in badges {
-            let badge_width = measure_text(badge, ply_fonts::body_font(), 10, 1.0).width + 24.0;
-            let badge_height = 24.0;
-
-            let (badge_bg_r, badge_bg_g, badge_bg_b) =
-                colors::to_normalized(colors::SURFACE_CONTAINER_HIGHEST);
-            draw_rectangle(
-                badge_x,
-                current_y,
-                badge_width,
-                badge_height,
-                Color::new(badge_bg_r, badge_bg_g, badge_bg_b, 1.0),
-            );
-
-            let (badge_border_r, badge_border_g, badge_border_b) =
-                colors::to_normalized(colors::OUTLINE_VARIANT);
-            draw_rectangle_lines(
-                badge_x,
-                current_y,
-                badge_width,
-                badge_height,
-                1.0,
-                Color::new(badge_border_r, badge_border_g, badge_border_b, 0.2),
-            );
-
-            let (badge_text_r, badge_text_g, badge_text_b) =
-                colors::to_normalized(colors::ON_SURFACE_VARIANT);
-            ply_fonts::draw_body(
-                badge,
-                badge_x + 12.0,
-                current_y + 16.0,
-                10.0,
-                Color::new(badge_text_r, badge_text_g, badge_text_b, 1.0),
-            );
-
-            badge_x += badge_width + 8.0;
-        }
+        let desc_alpha = if self.is_selected { 0.9 } else { 0.6 };
+        ply_fonts::draw_body(
+            self.mode.short_description(),
+            text_x,
+            self.y + 34.0,
+            10.0,
+            Color::new(desc_r, desc_g, desc_b, desc_alpha),
+        );
 
         self.is_hovered
     }
 
-    pub fn was_clicked(&self, mx: f32, my: f32, mouse_pressed: bool) -> bool {
+    pub fn was_clicked(&self, _mx: f32, _my: f32, mouse_pressed: bool) -> bool {
         self.is_hovered && mouse_pressed
     }
 }
@@ -231,10 +139,12 @@ pub struct ModeSelector {
 
 impl ModeSelector {
     pub fn new(x: f32, y: f32) -> Self {
+        let card_w = 180.0;
+        let gap = 12.0;
         let modes = vec![
-            ModeCard::new(x, y, PlayMode::Listen),
-            ModeCard::new(x + 280.0 + 24.0, y, PlayMode::Learn),
-            ModeCard::new(x + (280.0 + 24.0) * 2.0, y, PlayMode::Play),
+            ModeCard::new(x, y, PlayMode::Learn),
+            ModeCard::new(x + card_w + gap, y, PlayMode::Practice),
+            ModeCard::new(x + (card_w + gap) * 2.0, y, PlayMode::Play),
         ];
 
         Self {
@@ -242,7 +152,7 @@ impl ModeSelector {
             y,
             modes,
             selected_mode: PlayMode::Learn,
-            gap: 24.0,
+            gap,
         }
     }
 
@@ -266,10 +176,10 @@ impl ModeSelector {
     }
 
     pub fn width(&self) -> f32 {
-        self.modes.len() as f32 * 280.0 + (self.modes.len() - 1) as f32 * self.gap
+        self.modes.len() as f32 * 180.0 + (self.modes.len() - 1) as f32 * self.gap
     }
 
     pub fn height(&self) -> f32 {
-        320.0
+        56.0
     }
 }

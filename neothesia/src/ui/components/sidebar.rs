@@ -2,6 +2,7 @@ use macroquad::prelude::*;
 use neothesia_core::design::{colors, spacing};
 
 use crate::scene::ply_fonts;
+use crate::virtual_resolution::{vh, vw};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SidebarSection {
@@ -47,7 +48,7 @@ impl Sidebar {
     }
 
     pub fn height(&self) -> f32 {
-        screen_height() - self.top_offset
+        vh() - self.top_offset
     }
 
     pub fn set_active_section(&mut self, section: SidebarSection) {
