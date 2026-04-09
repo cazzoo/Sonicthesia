@@ -119,6 +119,20 @@ pub struct SynthConfigV2 {
     pub playback_gain: f32,
     #[serde(default = "default_keyboard_gain")]
     pub keyboard_gain: f32,
+    #[serde(default)]
+    pub velocity_enabled: bool,
+    #[serde(default = "default_velocity_min")]
+    pub velocity_min: f32,
+    #[serde(default = "default_velocity_max")]
+    pub velocity_max: f32,
+}
+
+fn default_velocity_min() -> f32 {
+    0.0
+}
+
+fn default_velocity_max() -> f32 {
+    1.0
 }
 
 impl From<SynthConfigV1> for SynthConfigV2 {
@@ -130,6 +144,9 @@ impl From<SynthConfigV1> for SynthConfigV2 {
             audio_gain: v1.audio_gain,
             playback_gain: default_playback_gain(),
             keyboard_gain: default_keyboard_gain(),
+            velocity_enabled: false,
+            velocity_min: default_velocity_min(),
+            velocity_max: default_velocity_max(),
         }
     }
 }
@@ -143,6 +160,9 @@ impl Default for SynthConfigV2 {
             audio_gain: default_audio_gain(),
             playback_gain: default_playback_gain(),
             keyboard_gain: default_keyboard_gain(),
+            velocity_enabled: false,
+            velocity_min: default_velocity_min(),
+            velocity_max: default_velocity_max(),
         }
     }
 }

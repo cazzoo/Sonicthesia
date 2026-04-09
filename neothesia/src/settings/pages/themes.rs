@@ -1,3 +1,4 @@
+use crate::scene::ply_fonts;
 use crate::settings::interaction::SettingsInteraction;
 use crate::settings::page::SettingsPage;
 use crate::ui::components::{ColorPicker, GlassPanel, ThemeCard};
@@ -26,7 +27,7 @@ impl ThemesPage {
 
     fn render_header(&self, x: f32, y: f32, width: f32) -> f32 {
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_headline(
             "Theme Settings",
             x,
             y + 28.0,
@@ -66,7 +67,7 @@ impl ThemesPage {
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_headline(
             "Keyboard Theme Presets",
             x + spacing::XL,
             y + spacing::XL + 16.0,
@@ -75,7 +76,7 @@ impl ThemesPage {
         );
 
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "Choose a preset theme for your piano keyboard",
             x + spacing::XL,
             y + spacing::XL + 36.0,
@@ -128,7 +129,7 @@ impl ThemesPage {
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_headline(
             "Theme Creator",
             x + spacing::XL,
             y + spacing::XL + 16.0,
@@ -137,7 +138,7 @@ impl ThemesPage {
         );
 
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "Create your own custom theme",
             x + spacing::XL,
             y + spacing::XL + 36.0,
@@ -153,7 +154,7 @@ impl ThemesPage {
         let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE);
 
         // Theme name input
-        draw_text(
+        ply_fonts::draw_body(
             "Theme Name",
             form_x,
             form_y + 20.0,
@@ -170,7 +171,7 @@ impl ThemesPage {
             32.0,
             Color::new(input_r, input_g, input_b, 1.0),
         );
-        draw_text(
+        ply_fonts::draw_body(
             "My Custom Theme",
             form_x + spacing::MD,
             input_y + 22.0,
@@ -181,7 +182,7 @@ impl ThemesPage {
         form_y += row_h + spacing::SM;
 
         // Primary color picker
-        draw_text(
+        ply_fonts::draw_body(
             "Primary Color",
             form_x,
             form_y + 20.0,
@@ -195,7 +196,7 @@ impl ThemesPage {
         form_y += row_h + spacing::SM;
 
         // Secondary color picker
-        draw_text(
+        ply_fonts::draw_body(
             "Secondary Color",
             form_x,
             form_y + 20.0,
@@ -209,7 +210,7 @@ impl ThemesPage {
         form_y += row_h + spacing::SM;
 
         // Accent color picker
-        draw_text(
+        ply_fonts::draw_body(
             "Accent Color",
             form_x,
             form_y + 20.0,
@@ -223,7 +224,7 @@ impl ThemesPage {
         form_y += row_h + spacing::SM;
 
         // Glow intensity slider
-        draw_text(
+        ply_fonts::draw_body(
             "Glow Intensity",
             form_x,
             form_y + 20.0,
@@ -280,7 +281,7 @@ impl ThemesPage {
 
         let (preview_label_r, preview_label_g, preview_label_b) =
             colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "Live Preview",
             preview_x + spacing::MD,
             preview_y + 20.0,
@@ -372,8 +373,8 @@ impl ThemesPage {
             Color::new(btn_r, btn_g, btn_b, 0.5),
         );
 
-        let btn_text_w = measure_text("Full Screen Preview", None, 13, 1.0).width;
-        draw_text(
+        let btn_text_w = measure_text("Full Screen Preview", ply_fonts::body_font(), 13, 1.0).width;
+        ply_fonts::draw_body(
             "Full Screen Preview",
             btn_x + (btn_w - btn_text_w) / 2.0,
             btn_y + 24.0,
@@ -413,8 +414,8 @@ impl ThemesPage {
             1.0,
             Color::new(reset_r, reset_g, reset_b, 0.3),
         );
-        let reset_text_w = measure_text("Reset to Default", None, 14, 1.0).width;
-        draw_text(
+        let reset_text_w = measure_text("Reset to Default", ply_fonts::body_font(), 14, 1.0).width;
+        ply_fonts::draw_body(
             "Reset to Default",
             reset_x + (btn_w - reset_text_w) / 2.0,
             btn_y + 26.0,
@@ -439,8 +440,8 @@ impl ThemesPage {
                 if is_save_hovered { 1.0 } else { 0.8 },
             ),
         );
-        let save_text_w = measure_text("Save Theme", None, 14, 1.0).width;
-        draw_text(
+        let save_text_w = measure_text("Save Theme", ply_fonts::body_font(), 14, 1.0).width;
+        ply_fonts::draw_body(
             "Save Theme",
             save_x + (btn_w - save_text_w) / 2.0,
             btn_y + 26.0,
@@ -483,6 +484,7 @@ impl SettingsPage for ThemesPage {
     ) -> SettingsInteraction {
         let content_x = x + spacing::XL;
         let content_width = width - spacing::XL * 2.0;
+        let my = my + self.scroll_offset;
         let mut current_y = self.render_header(content_x, y - self.scroll_offset, content_width);
 
         let (next_y, interaction) = self.render_presets_section(

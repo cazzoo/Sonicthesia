@@ -3,6 +3,7 @@
 //! This replaces the WGPU-dependent Context with a macroquad-based version.
 
 use crate::{
+    midi_input_macroquad::MacroquadMidiInputManager,
     output_manager::OutputManager,
     song_library::{SongLibraryDatabase, SongRepository},
 };
@@ -47,7 +48,8 @@ pub struct MacroquadContext {
     /// Last frame timestamp
     pub frame_timestamp: std::time::Instant,
 
-    /// Resume playback time when returning to play scene
+    pub midi_input: MacroquadMidiInputManager,
+
     pub resume_playback_time: Option<f32>,
 
     /// Song to resume when returning from settings
@@ -97,19 +99,31 @@ impl MacroquadContext {
             log::info!("Connected to synth output");
         }
 
-        Self {
+        let midi_input = MacroquadMidiInputManager::new();
+
+        let mut ctx = Self {
             window_state,
             output_manager,
             ply_input_handler,
             config,
             song_library_db,
             frame_timestamp: std::time::Instant::now(),
+            midi_input,
             resume_playback_time: None,
             resume_song: None,
 
             #[cfg(debug_assertions)]
             fps_ticker: MacroquadFpsTicker::new(),
+        };
+
+        if let Some(input_name) = ctx.config.input() {
+            log::info!("[CTX] Auto-connecting MIDI input: '{}'", input_name);
+            ctx.midi_input.connect_input(input_name);
+        } else {
+            log::info!("[CTX] No MIDI input configured, skipping auto-connect");
         }
+
+        ctx
     }
 
     pub fn resize(&mut self) {

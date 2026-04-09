@@ -260,6 +260,69 @@ impl Config {
         }
     }
 
+    pub fn velocity_enabled(&self) -> bool {
+        match &self.synth_config {
+            SynthConfig::V1(_) => false,
+            SynthConfig::V2(v2) => v2.velocity_enabled,
+        }
+    }
+
+    pub fn set_velocity_enabled(&mut self, enabled: bool) {
+        match &mut self.synth_config {
+            SynthConfig::V1(_) => {
+                let mut v2 = SynthConfigV2::default();
+                v2.audio_gain = self.audio_gain();
+                v2.playback_gain = self.playback_gain();
+                v2.keyboard_gain = self.keyboard_gain();
+                v2.velocity_enabled = enabled;
+                self.synth_config = SynthConfig::V2(v2);
+            }
+            SynthConfig::V2(v2) => v2.velocity_enabled = enabled,
+        }
+    }
+
+    pub fn velocity_min(&self) -> f32 {
+        match &self.synth_config {
+            SynthConfig::V1(_) => 0.0,
+            SynthConfig::V2(v2) => v2.velocity_min,
+        }
+    }
+
+    pub fn set_velocity_min(&mut self, val: f32) {
+        match &mut self.synth_config {
+            SynthConfig::V1(_) => {
+                let mut v2 = SynthConfigV2::default();
+                v2.audio_gain = self.audio_gain();
+                v2.playback_gain = self.playback_gain();
+                v2.keyboard_gain = self.keyboard_gain();
+                v2.velocity_min = val.clamp(0.0, 1.0);
+                self.synth_config = SynthConfig::V2(v2);
+            }
+            SynthConfig::V2(v2) => v2.velocity_min = val.clamp(0.0, 1.0),
+        }
+    }
+
+    pub fn velocity_max(&self) -> f32 {
+        match &self.synth_config {
+            SynthConfig::V1(_) => 1.0,
+            SynthConfig::V2(v2) => v2.velocity_max,
+        }
+    }
+
+    pub fn set_velocity_max(&mut self, val: f32) {
+        match &mut self.synth_config {
+            SynthConfig::V1(_) => {
+                let mut v2 = SynthConfigV2::default();
+                v2.audio_gain = self.audio_gain();
+                v2.playback_gain = self.playback_gain();
+                v2.keyboard_gain = self.keyboard_gain();
+                v2.velocity_max = val.clamp(0.0, 1.0);
+                self.synth_config = SynthConfig::V2(v2);
+            }
+            SynthConfig::V2(v2) => v2.velocity_max = val.clamp(0.0, 1.0),
+        }
+    }
+
     pub fn animation_offset(&self) -> f32 {
         self.waterfall.animation_offset
     }

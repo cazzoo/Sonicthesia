@@ -1,5 +1,6 @@
 #![allow(clippy::collapsible_match, clippy::single_match)]
 
+mod midi_input_macroquad;
 mod common;
 mod context_macroquad;
 mod icons;

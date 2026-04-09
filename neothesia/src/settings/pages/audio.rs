@@ -1,3 +1,4 @@
+use crate::scene::ply_fonts;
 use crate::settings::interaction::SettingsInteraction;
 use crate::settings::page::SettingsPage;
 use crate::ui::components::GlassPanel;
@@ -71,7 +72,7 @@ impl AudioPage {
 
     fn render_header(&self, x: f32, y: f32, width: f32) -> f32 {
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_headline(
             "Audio",
             x,
             y + 28.0,
@@ -107,7 +108,7 @@ impl AudioPage {
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_headline(
             "Audio Engine",
             x + spacing::XL,
             y + spacing::XL + 16.0,
@@ -118,7 +119,7 @@ impl AudioPage {
         let row_width = width - spacing::XL * 2.0;
 
         // Buffer size dropdown
-        let buffer_hovered = self.render_dropdown_row(
+        let _buffer_hovered = self.render_dropdown_row(
             x + spacing::XL,
             y + 60.0,
             row_width,
@@ -165,7 +166,7 @@ impl AudioPage {
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_headline(
             "SoundFont Manager",
             x + spacing::XL,
             y + spacing::XL + 16.0,
@@ -174,7 +175,7 @@ impl AudioPage {
         );
 
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             &format!("{} SoundFonts available", self.soundfont_names.len()),
             x + spacing::XL,
             y + spacing::XL + 36.0,
@@ -210,7 +211,7 @@ impl AudioPage {
         );
 
         let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::SECONDARY);
-        draw_text(
+        ply_fonts::draw_body(
             "🎵",
             x + spacing::XL + spacing::MD,
             selector_y + 40.0,
@@ -219,7 +220,7 @@ impl AudioPage {
         );
 
         let (text_r, text_g, text_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_body(
             &current_name,
             x + spacing::XL + 56.0,
             selector_y + 30.0,
@@ -236,7 +237,7 @@ impl AudioPage {
                 self.soundfont_names.len()
             )
         };
-        draw_text(
+        ply_fonts::draw_body(
             &index_text,
             x + spacing::XL + 56.0,
             selector_y + 50.0,
@@ -287,7 +288,7 @@ impl AudioPage {
             colors::ON_SURFACE
         };
         let (lt_r, lt_g, lt_b) = colors::to_normalized(left_text_color);
-        draw_text(
+        ply_fonts::draw_body(
             "◀",
             left_arrow_x + 14.0,
             arrow_y + 27.0,
@@ -318,7 +319,7 @@ impl AudioPage {
             colors::ON_SURFACE
         };
         let (rt_r, rt_g, rt_b) = colors::to_normalized(right_text_color);
-        draw_text(
+        ply_fonts::draw_body(
             "▶",
             right_arrow_x + 14.0,
             arrow_y + 27.0,
@@ -338,7 +339,7 @@ impl AudioPage {
         }
 
         let kb_label_y = selector_y + selector_height + spacing::MD;
-        draw_text(
+        ply_fonts::draw_body(
             "Test SoundFont",
             x + spacing::XL,
             kb_label_y,
@@ -452,7 +453,7 @@ impl AudioPage {
 
             let note_names = ["C", "D", "E", "F", "G", "A", "B"];
             let (nr, ng, nb) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-            draw_text(
+            ply_fonts::draw_body(
                 note_names[i],
                 kx + white_key_w / 2.0 - 4.0,
                 kb_y + kb_h - 10.0,
@@ -518,7 +519,7 @@ impl AudioPage {
         } else {
             colors::to_normalized(colors::ON_SURFACE)
         };
-        draw_text(
+        ply_fonts::draw_body(
             "+ Add Folder",
             add_btn_x + spacing::MD,
             add_btn_y + 24.0,
@@ -532,7 +533,7 @@ impl AudioPage {
 
         let folder_label_y = add_btn_y + add_btn_h + spacing::LG;
         let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "SoundFont Folders",
             x + spacing::XL,
             folder_label_y,
@@ -544,7 +545,7 @@ impl AudioPage {
         let (text_r, text_g, text_b) = colors::to_normalized(colors::ON_SURFACE);
 
         if folders.is_empty() {
-            draw_text(
+            ply_fonts::draw_body(
                 "No folders configured",
                 x + spacing::XL,
                 item_y + 14.0,
@@ -576,7 +577,7 @@ impl AudioPage {
             );
 
             let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::SECONDARY);
-            draw_text(
+            ply_fonts::draw_body(
                 "📁",
                 x + spacing::XL + spacing::SM,
                 item_y + 21.0,
@@ -592,7 +593,7 @@ impl AudioPage {
                 folder_str.to_string()
             };
 
-            draw_text(
+            ply_fonts::draw_body(
                 &display,
                 x + spacing::XL + 28.0,
                 item_y + 20.0,
@@ -610,7 +611,7 @@ impl AudioPage {
                 let del_hovered =
                     mx >= del_x && mx <= del_x + 20.0 && my >= item_y + 6.0 && my <= item_y + 26.0;
                 let (del_r, del_g, del_b) = colors::to_normalized(colors::ERROR);
-                draw_text(
+                ply_fonts::draw_body(
                     "×",
                     del_x,
                     item_y + 21.0,
@@ -644,7 +645,7 @@ impl AudioPage {
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_headline(
             "Obsidian Mixer",
             x + spacing::XL,
             y + spacing::XL + 16.0,
@@ -653,7 +654,7 @@ impl AudioPage {
         );
 
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "Real-time audio control",
             x + spacing::XL,
             y + spacing::XL + 36.0,
@@ -775,7 +776,7 @@ impl AudioPage {
             }
 
             let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-            draw_text(
+            ply_fonts::draw_body(
                 channel_names[i],
                 ch_x + 2.0,
                 viz_y + viz_h + 14.0,
@@ -818,7 +819,7 @@ impl AudioPage {
         );
 
         let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_body(
             label,
             x + spacing::MD,
             y + 22.0,
@@ -827,7 +828,7 @@ impl AudioPage {
         );
 
         let (value_r, value_g, value_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             value,
             x + spacing::MD,
             y + 42.0,
@@ -835,7 +836,7 @@ impl AudioPage {
             Color::new(value_r, value_g, value_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_body(
             "▼",
             x + width - 24.0,
             y + 32.0,
@@ -894,7 +895,7 @@ impl AudioPage {
         );
 
         let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             label,
             x,
             y + height - 4.0,
@@ -903,8 +904,8 @@ impl AudioPage {
         );
 
         let pct = format!("{}%", (value * 100.0).round());
-        let pct_w = measure_text(&pct, None, 11, 1.0).width;
-        draw_text(
+        let pct_w = measure_text(&pct, ply_fonts::body_font(), 11, 1.0).width;
+        ply_fonts::draw_body(
             &pct,
             x + (width - pct_w) / 2.0,
             y + 12.0,
@@ -954,7 +955,7 @@ impl SettingsPage for AudioPage {
 
         let content_x = x + spacing::XL;
         let content_width = width - spacing::XL * 2.0;
-        let scroll_y = my + self.scroll_offset;
+        let my = my + self.scroll_offset;
         let mut current_y = self.render_header(content_x, y - self.scroll_offset, content_width);
 
         let (next_y, interaction) = self.render_engine_section(
@@ -963,7 +964,7 @@ impl SettingsPage for AudioPage {
             content_width,
             config,
             mx,
-            scroll_y,
+            my,
             mouse_pressed,
         );
         if !matches!(interaction, SettingsInteraction::None) {
@@ -977,7 +978,7 @@ impl SettingsPage for AudioPage {
             content_width,
             config,
             mx,
-            scroll_y,
+            my,
             mouse_pressed,
             mouse_down,
         );
@@ -992,7 +993,7 @@ impl SettingsPage for AudioPage {
             content_width,
             config,
             mx,
-            scroll_y,
+            my,
             mouse_pressed,
             mouse_down,
         );

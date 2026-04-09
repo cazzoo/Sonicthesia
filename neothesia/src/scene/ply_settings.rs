@@ -101,10 +101,17 @@ impl PlySettingsScene {
                 ctx.config.save();
             }
             SettingsInteraction::InputDeviceSelected(device) => {
-                ctx.config.set_input(Some(device));
+                log::info!("[SETTINGS] Input device selected: '{}'", device);
+                ctx.config.set_input(Some(&device));
                 ctx.config.save();
+                ctx.midi_input.connect_input(&device);
             }
             SettingsInteraction::OutputDeviceSelected(device) => {
+                log::info!("Output device selected: {}", device);
+                let outputs = ctx.output_manager.outputs();
+                if let Some(desc) = outputs.into_iter().find(|o| o.to_string() == device) {
+                    ctx.output_manager.connect(desc);
+                }
                 ctx.config.set_output(Some(device));
                 ctx.config.save();
             }
@@ -144,6 +151,18 @@ impl PlySettingsScene {
                 ctx.config.set_separate_channels(enabled);
                 ctx.config.save();
             }
+            SettingsInteraction::VelocityEnabledToggled(enabled) => {
+                ctx.config.set_velocity_enabled(enabled);
+                ctx.config.save();
+            }
+            SettingsInteraction::VelocityMinChanged(val) => {
+                ctx.config.set_velocity_min(val);
+                ctx.config.save();
+            }
+            SettingsInteraction::VelocityMaxChanged(val) => {
+                ctx.config.set_velocity_max(val);
+                ctx.config.save();
+            }
             SettingsInteraction::PlayNote(key, vel) => {
                 use midi_file::midly::{num::u7, MidiMessage};
                 let message = MidiMessage::NoteOn {
@@ -169,10 +188,19 @@ impl PlySettingsScene {
             }
             SettingsInteraction::OpenPopup(popup_type) => match popup_type.as_str() {
                 "input" => {
-                    log::info!("Opening input selector popup");
+                    self.cycle_input_device(ctx);
                 }
                 "output" => {
-                    log::info!("Opening output selector popup");
+                    self.cycle_output_device(ctx);
+                }
+                "goto_midi" => {
+                    self.settings_nav.current_tab = crate::settings::SettingsTab::Midi;
+                }
+                "goto_audio" => {
+                    self.settings_nav.current_tab = crate::settings::SettingsTab::Audio;
+                }
+                "goto_themes" => {
+                    self.settings_nav.current_tab = crate::settings::SettingsTab::Themes;
                 }
                 _ => {}
             },
@@ -181,11 +209,64 @@ impl PlySettingsScene {
     }
 
     fn pick_song_directory(&mut self, ctx: &mut MacroquadContext) {
-        log::info!("pick_song_directory called - file picker integration needed");
+        if let Some(folder) = rfd::FileDialog::new().pick_folder() {
+            log::info!("Selected song directory: {:?}", folder);
+            ctx.config.add_song_directory(folder);
+            ctx.config.save();
+        }
     }
 
     fn pick_soundfont_folder(&mut self, ctx: &mut MacroquadContext) {
-        log::info!("pick_soundfont_folder called - file picker integration needed");
+        if let Some(folder) = rfd::FileDialog::new().pick_folder() {
+            log::info!("Selected soundfont folder: {:?}", folder);
+            ctx.config.synth_config.add_soundfont_folder(folder);
+            ctx.config.save();
+        }
+    }
+
+    fn cycle_input_device(&mut self, ctx: &mut MacroquadContext) {
+        let ports = ctx.midi_input.inputs();
+        if ports.is_empty() {
+            log::info!("No MIDI input devices available");
+            return;
+        }
+
+        let current = ctx.config.input().unwrap_or("");
+        let next = if let Some(idx) = ports.iter().position(|n| n == current) {
+            ports[(idx + 1) % ports.len()].clone()
+        } else {
+            ports[0].clone()
+        };
+
+        log::info!("Switching input device to: {}", next);
+        ctx.config.set_input(Some(&next));
+        ctx.config.save();
+        ctx.midi_input.connect_input(&next);
+    }
+
+    fn cycle_output_device(&mut self, ctx: &mut MacroquadContext) {
+        let outputs = ctx.output_manager.outputs();
+        if outputs.is_empty() {
+            log::info!("No MIDI output devices available");
+            return;
+        }
+
+        let current = ctx.config.output().unwrap_or("");
+        let output_names: Vec<String> = outputs.iter().map(|o| o.to_string()).collect();
+
+        let next = if let Some(idx) = output_names.iter().position(|n| n == current) {
+            output_names[(idx + 1) % output_names.len()].clone()
+        } else {
+            output_names[0].clone()
+        };
+
+        log::info!("Switching output device to: {}", next);
+
+        let descriptor = outputs.into_iter().find(|o| o.to_string() == next).unwrap();
+
+        ctx.output_manager.connect(descriptor);
+        ctx.config.set_output(Some(next));
+        ctx.config.save();
     }
 }
 
@@ -229,17 +310,28 @@ impl PlyScene for PlySettingsScene {
                 mouse_pressed,
                 mouse_down,
             ),
-            crate::settings::SettingsTab::Midi => self.midi_page.render(
-                content_x,
-                content_y,
-                content_w,
-                content_h,
-                &ctx.config,
-                mouse_x,
-                mouse_y,
-                mouse_pressed,
-                mouse_down,
-            ),
+            crate::settings::SettingsTab::Midi => {
+                self.midi_page.input_devices = ctx.midi_input.inputs();
+                self.midi_page.output_devices = ctx
+                    .output_manager
+                    .outputs()
+                    .iter()
+                    .map(|o| o.to_string())
+                    .collect();
+                self.midi_page.pressure_history = ctx.midi_input.pressure_history().to_vec();
+                self.midi_page.active_pressure = ctx.midi_input.active_note_pressure();
+                self.midi_page.render(
+                    content_x,
+                    content_y,
+                    content_w,
+                    content_h,
+                    &ctx.config,
+                    mouse_x,
+                    mouse_y,
+                    mouse_pressed,
+                    mouse_down,
+                )
+            }
             crate::settings::SettingsTab::Audio => self.audio_page.render(
                 content_x,
                 content_y,

@@ -1,3 +1,4 @@
+use crate::scene::ply_fonts;
 use crate::settings::interaction::SettingsInteraction;
 use crate::settings::page::SettingsPage;
 use crate::ui::components::{GlassPanel, StorageIndicator};
@@ -16,7 +17,7 @@ impl FoldersPage {
 
     fn render_header(&self, x: f32, y: f32, width: f32) -> f32 {
         let (title_r, title_g, title_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_headline(
             "Library Management",
             x,
             y + 28.0,
@@ -55,7 +56,7 @@ impl FoldersPage {
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_headline(
             "MIDI Song Directories",
             x + spacing::XL,
             y + spacing::XL + 16.0,
@@ -64,7 +65,7 @@ impl FoldersPage {
         );
 
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             &format!("{} directories configured", directories.len()),
             x + spacing::XL,
             y + spacing::XL + 36.0,
@@ -91,7 +92,7 @@ impl FoldersPage {
             );
 
             let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::PRIMARY);
-            draw_text(
+            ply_fonts::draw_body(
                 "📁",
                 x + spacing::XL + spacing::MD,
                 item_y + 36.0,
@@ -108,7 +109,7 @@ impl FoldersPage {
             };
 
             let (text_r, text_g, text_b) = colors::to_normalized(colors::ON_SURFACE);
-            draw_text(
+            ply_fonts::draw_body(
                 &display_path,
                 x + spacing::XL + 40.0,
                 item_y + 28.0,
@@ -117,7 +118,7 @@ impl FoldersPage {
             );
 
             let (meta_r, meta_g, meta_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-            draw_text(
+            ply_fonts::draw_body(
                 "Default source for recordings and imports",
                 x + spacing::XL + 40.0,
                 item_y + 46.0,
@@ -132,7 +133,7 @@ impl FoldersPage {
                     mx >= del_x && mx <= del_x + 24.0 && my >= del_y && my <= del_y + 24.0;
 
                 let (del_r, del_g, del_b) = colors::to_normalized(colors::ERROR);
-                draw_text(
+                ply_fonts::draw_body(
                     "×",
                     del_x,
                     del_y + 18.0,
@@ -169,7 +170,7 @@ impl FoldersPage {
             1.0,
             Color::new(btn_r, btn_g, btn_b, 0.3),
         );
-        draw_text(
+        ply_fonts::draw_body(
             "+ Add MIDI Folder",
             btn_x + spacing::MD,
             btn_y + 26.0,
@@ -205,7 +206,7 @@ impl FoldersPage {
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_headline(
             "SoundFont Libraries",
             x + spacing::XL,
             y + spacing::XL + 16.0,
@@ -214,7 +215,7 @@ impl FoldersPage {
         );
 
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             &format!("{} folders configured", soundfont_folders.len()),
             x + spacing::XL,
             y + spacing::XL + 36.0,
@@ -241,7 +242,7 @@ impl FoldersPage {
             );
 
             let (icon_r, icon_g, icon_b) = colors::to_normalized(colors::SECONDARY);
-            draw_text(
+            ply_fonts::draw_body(
                 "🎵",
                 x + spacing::XL + spacing::MD,
                 item_y + 36.0,
@@ -258,7 +259,7 @@ impl FoldersPage {
             };
 
             let (text_r, text_g, text_b) = colors::to_normalized(colors::ON_SURFACE);
-            draw_text(
+            ply_fonts::draw_body(
                 &display_path,
                 x + spacing::XL + 40.0,
                 item_y + 28.0,
@@ -267,7 +268,7 @@ impl FoldersPage {
             );
 
             let (meta_r, meta_g, meta_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-            draw_text(
+            ply_fonts::draw_body(
                 "Global SoundFont directory (.sf2)",
                 x + spacing::XL + 40.0,
                 item_y + 46.0,
@@ -282,7 +283,7 @@ impl FoldersPage {
                     mx >= del_x && mx <= del_x + 24.0 && my >= del_y && my <= del_y + 24.0;
 
                 let (del_r, del_g, del_b) = colors::to_normalized(colors::ERROR);
-                draw_text(
+                ply_fonts::draw_body(
                     "×",
                     del_x,
                     del_y + 18.0,
@@ -319,7 +320,7 @@ impl FoldersPage {
             1.0,
             Color::new(btn_r, btn_g, btn_b, 0.3),
         );
-        draw_text(
+        ply_fonts::draw_body(
             "+ Import SoundFont Pack",
             btn_x + spacing::MD,
             btn_y + 26.0,
@@ -351,7 +352,7 @@ impl FoldersPage {
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
-        draw_text(
+        ply_fonts::draw_headline(
             "Global Operations",
             x + spacing::XL,
             y + spacing::XL + 16.0,
@@ -379,8 +380,8 @@ impl FoldersPage {
                 if is_scan_hovered { 0.3 } else { 0.15 },
             ),
         );
-        let scan_text_w = measure_text("Scan All", None, 13, 1.0).width;
-        draw_text(
+        let scan_text_w = measure_text("Scan All", ply_fonts::body_font(), 13, 1.0).width;
+        ply_fonts::draw_body(
             "Scan All",
             scan_x + (btn_w - scan_text_w) / 2.0,
             btn_y + 24.0,
@@ -404,8 +405,8 @@ impl FoldersPage {
                 if is_clear_hovered { 0.3 } else { 0.15 },
             ),
         );
-        let clear_text_w = measure_text("Clear Cache", None, 13, 1.0).width;
-        draw_text(
+        let clear_text_w = measure_text("Clear Cache", ply_fonts::body_font(), 13, 1.0).width;
+        ply_fonts::draw_body(
             "Clear Cache",
             clear_x + (btn_w - clear_text_w) / 2.0,
             btn_y + 24.0,
@@ -425,8 +426,8 @@ impl FoldersPage {
             1.0,
             Color::new(opt_r, opt_g, opt_b, 0.3),
         );
-        let opt_text_w = measure_text("Optimize", None, 13, 1.0).width;
-        draw_text(
+        let opt_text_w = measure_text("Optimize", ply_fonts::body_font(), 13, 1.0).width;
+        ply_fonts::draw_body(
             "Optimize",
             optimize_x + (btn_w - opt_text_w) / 2.0,
             btn_y + 24.0,
@@ -449,7 +450,7 @@ impl FoldersPage {
         panel.render();
 
         let (label_r, label_g, label_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
-        draw_text(
+        ply_fonts::draw_body(
             "Last scan:",
             x + spacing::XL,
             y + 28.0,
@@ -458,7 +459,7 @@ impl FoldersPage {
         );
 
         let (value_r, value_g, value_b) = colors::to_normalized(colors::ON_SURFACE);
-        draw_text(
+        ply_fonts::draw_body(
             "2 minutes ago",
             x + spacing::XL + 70.0,
             y + 28.0,
@@ -466,7 +467,7 @@ impl FoldersPage {
             Color::new(value_r, value_g, value_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_body(
             "Status:",
             x + spacing::XL,
             y + 48.0,
@@ -475,7 +476,7 @@ impl FoldersPage {
         );
 
         let (status_r, status_g, status_b) = colors::to_normalized(colors::SECONDARY);
-        draw_text(
+        ply_fonts::draw_body(
             "● All synced",
             x + spacing::XL + 50.0,
             y + 48.0,
@@ -483,14 +484,14 @@ impl FoldersPage {
             Color::new(status_r, status_g, status_b, 1.0),
         );
 
-        draw_text(
+        ply_fonts::draw_body(
             "Files indexed:",
             x + spacing::XL,
             y + 68.0,
             12.0,
             Color::new(label_r, label_g, label_b, 1.0),
         );
-        draw_text(
+        ply_fonts::draw_body(
             "1,247 MIDI files",
             x + spacing::XL + 90.0,
             y + 68.0,
@@ -525,6 +526,7 @@ impl SettingsPage for FoldersPage {
     ) -> SettingsInteraction {
         let content_x = x + spacing::XL;
         let content_width = width - spacing::XL * 2.0;
+        let my = my + self.scroll_offset;
         let mut current_y = self.render_header(content_x, y - self.scroll_offset, content_width);
 
         let (next_y, interaction) = self.render_midi_directories_section(

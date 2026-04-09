@@ -55,6 +55,65 @@ impl MacroquadNeothesia {
         if let Some(event) = self.current_scene.update(&mut self.context, delta) {
             self.event_queue.push(event);
         }
+
+        // Poll MIDI input events and route to current scene
+        for (channel, message) in self.context.midi_input.poll_events() {
+
+            let remapped = if self.context.config.velocity_enabled() {
+                use midi_file::midly::MidiMessage;
+                let vmin = self.context.config.velocity_min();
+                let vmax = self.context.config.velocity_max();
+                match message {
+                    MidiMessage::NoteOn { key, vel } => {
+                        let normalized = vel.as_int() as f32 / 127.0;
+                        let mapped = vmin + normalized * (vmax - vmin);
+                        let new_vel = (mapped * 127.0).round().clamp(1.0, 127.0) as u8;
+                        MidiMessage::NoteOn { key, vel: midi_file::midly::num::u7::new(new_vel) }
+                    }
+                    MidiMessage::ChannelAftertouch { vel } => {
+                        let normalized = vel.as_int() as f32 / 127.0;
+                        let mapped = vmin + normalized * (vmax - vmin);
+                        let new_val = (mapped * 127.0).round().clamp(0.0, 127.0) as u8;
+                        MidiMessage::ChannelAftertouch { vel: midi_file::midly::num::u7::new(new_val) }
+                    }
+                    MidiMessage::Aftertouch { key, vel } => {
+                        let normalized = vel.as_int() as f32 / 127.0;
+                        let mapped = vmin + normalized * (vmax - vmin);
+                        let new_val = (mapped * 127.0).round().clamp(0.0, 127.0) as u8;
+                        MidiMessage::Aftertouch { key, vel: midi_file::midly::num::u7::new(new_val) }
+                    }
+                    other => other,
+                }
+            } else {
+                message
+            };
+
+            self.current_scene.handle_midi_event(channel, &remapped);
+            self.context
+                .output_manager
+                .keyboard_connection()
+                .midi_event(channel.into(), remapped);
+
+            // Convert aftertouch to Expression CC11 — most SoundFonts lack aftertouch modulators but respond to CC11
+            if self.context.config.velocity_enabled() {
+                use midi_file::midly::MidiMessage;
+                let expression_val = match &remapped {
+                    MidiMessage::ChannelAftertouch { vel } => Some(vel.as_int()),
+                    MidiMessage::Aftertouch { vel, .. } => Some(vel.as_int()),
+                    _ => None,
+                };
+                if let Some(val) = expression_val {
+                    let cc = MidiMessage::Controller {
+                        controller: midi_file::midly::num::u7::new(11),
+                        value: midi_file::midly::num::u7::new(val),
+                    };
+                    self.context
+                        .output_manager
+                        .keyboard_connection()
+                        .midi_event(channel.into(), cc);
+                }
+            }
+        }
         
         // Process events
         while let Some(event) = self.event_queue.pop() {
