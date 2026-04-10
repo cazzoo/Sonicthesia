@@ -1,3 +1,4 @@
+use std::collections::{HashMap, HashSet};
 use std::sync::mpsc::{self, Receiver, Sender};
 
 use midi_file::midly::{self, live::LiveEvent, MidiMessage};
@@ -10,7 +11,9 @@ pub struct MacroquadMidiInputManager {
     rx: Receiver<(u8, MidiMessage)>,
     tx: Sender<(u8, MidiMessage)>,
     pressure_history: Vec<f32>,
-    active_notes: std::collections::HashMap<u8, f32>,
+    pressed_notes: HashSet<u8>,
+    note_pressures: HashMap<u8, f32>,
+    known_ports: HashSet<String>,
 }
 
 impl MacroquadMidiInputManager {
@@ -30,13 +33,20 @@ impl MacroquadMidiInputManager {
             .map_err(|e| log::error!("[MIDI-IN] Failed to init: {}", e))
             .ok();
 
+        let known_ports: HashSet<String> = input
+            .as_ref()
+            .map(|m| m.inputs().iter().map(|p| p.to_string()).collect())
+            .unwrap_or_default();
+
         Self {
             input,
             current_connection: None,
             rx,
             tx,
             pressure_history: vec![0.0; PRESSURE_HISTORY_LEN],
-            active_notes: std::collections::HashMap::new(),
+            pressed_notes: HashSet::new(),
+            note_pressures: HashMap::new(),
+            known_ports,
         }
     }
 
@@ -54,20 +64,39 @@ impl MacroquadMidiInputManager {
         };
 
         let ports = mgr.inputs();
+        let port_strings: Vec<String> = ports.iter().map(|p| p.to_string()).collect();
         log::info!(
             "[MIDI-IN] connect_input('{}'), available ports: {:?}",
             port_name,
-            ports.iter().map(|p| p.to_string()).collect::<Vec<_>>()
+            port_strings
         );
 
         let port = match ports.iter().find(|p| p.to_string() == port_name) {
             Some(p) => p.clone(),
             None => {
-                log::warn!(
-                    "[MIDI-IN] Port '{}' not found in available ports",
-                    port_name
-                );
-                return;
+                let search_lower = port_name.to_lowercase();
+                let fuzzy = ports.iter().find(|p| {
+                    let p_lower = p.to_string().to_lowercase();
+                    p_lower.contains(&search_lower) || search_lower.contains(&p_lower)
+                });
+                match fuzzy {
+                    Some(p) => {
+                        log::info!(
+                            "[MIDI-IN] Exact match failed, fuzzy matched '{}' to '{}'",
+                            port_name,
+                            p.to_string()
+                        );
+                        p.clone()
+                    }
+                    None => {
+                        log::warn!(
+                            "[MIDI-IN] Port '{}' not found in available ports: {:?}",
+                            port_name,
+                            port_strings
+                        );
+                        return;
+                    }
+                }
             }
         };
 
@@ -112,25 +141,45 @@ impl MacroquadMidiInputManager {
         }
     }
 
+    pub fn poll_hotplug(&mut self) -> Option<String> {
+        let mgr = self.input.as_ref()?;
+        let current_ports: HashSet<String> = mgr.inputs().iter().map(|p| p.to_string()).collect();
+
+        let new_ports: Vec<String> = current_ports
+            .difference(&self.known_ports)
+            .cloned()
+            .collect();
+
+        self.known_ports = current_ports;
+
+        if new_ports.is_empty() {
+            return None;
+        }
+
+        log::info!("[MIDI-IN] New ports detected: {:?}", new_ports);
+
+        new_ports.into_iter().next()
+    }
+
     pub fn poll_events(&mut self) -> Vec<(u8, MidiMessage)> {
         let mut events = Vec::new();
         while let Ok(event) = self.rx.try_recv() {
             match &event.1 {
-                MidiMessage::NoteOn { key, vel } => {
-                    self.active_notes
-                        .insert(key.as_int(), vel.as_int() as f32 / 127.0);
+                MidiMessage::NoteOn { key, vel: _ } => {
+                    self.pressed_notes.insert(key.as_int());
                 }
                 MidiMessage::NoteOff { key, .. } => {
-                    self.active_notes.remove(&key.as_int());
+                    self.pressed_notes.remove(&key.as_int());
+                    self.note_pressures.remove(&key.as_int());
                 }
                 MidiMessage::Aftertouch { key, vel } => {
-                    self.active_notes
+                    self.note_pressures
                         .insert(key.as_int(), vel.as_int() as f32 / 127.0);
                 }
                 MidiMessage::ChannelAftertouch { vel } => {
                     let pressure = vel.as_int() as f32 / 127.0;
-                    for (_key, v) in self.active_notes.iter_mut() {
-                        *v = pressure;
+                    for note in &self.pressed_notes {
+                        self.note_pressures.insert(*note, pressure);
                     }
                 }
                 _ => {}
@@ -138,7 +187,7 @@ impl MacroquadMidiInputManager {
             events.push(event);
         }
 
-        let max_pressure = self.active_notes.values().copied().fold(0.0f32, f32::max);
+        let max_pressure = self.note_pressures.values().copied().fold(0.0f32, f32::max);
         self.pressure_history.push(max_pressure);
         if self.pressure_history.len() > PRESSURE_HISTORY_LEN {
             self.pressure_history.remove(0);
@@ -152,6 +201,6 @@ impl MacroquadMidiInputManager {
     }
 
     pub fn active_note_pressure(&self) -> f32 {
-        self.active_notes.values().copied().fold(0.0f32, f32::max)
+        self.note_pressures.values().copied().fold(0.0f32, f32::max)
     }
 }
