@@ -125,6 +125,8 @@ pub struct SynthConfigV2 {
     pub velocity_min: f32,
     #[serde(default = "default_velocity_max")]
     pub velocity_max: f32,
+    #[serde(default = "default_pressure_sensitivity")]
+    pub pressure_sensitivity: f32,
 }
 
 fn default_velocity_min() -> f32 {
@@ -132,6 +134,10 @@ fn default_velocity_min() -> f32 {
 }
 
 fn default_velocity_max() -> f32 {
+    1.0
+}
+
+fn default_pressure_sensitivity() -> f32 {
     1.0
 }
 
@@ -147,6 +153,7 @@ impl From<SynthConfigV1> for SynthConfigV2 {
             velocity_enabled: false,
             velocity_min: default_velocity_min(),
             velocity_max: default_velocity_max(),
+            pressure_sensitivity: default_pressure_sensitivity(),
         }
     }
 }
@@ -163,6 +170,7 @@ impl Default for SynthConfigV2 {
             velocity_enabled: false,
             velocity_min: default_velocity_min(),
             velocity_max: default_velocity_max(),
+            pressure_sensitivity: default_pressure_sensitivity(),
         }
     }
 }

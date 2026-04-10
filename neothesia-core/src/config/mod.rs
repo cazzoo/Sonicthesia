@@ -323,6 +323,27 @@ impl Config {
         }
     }
 
+    pub fn pressure_sensitivity(&self) -> f32 {
+        match &self.synth_config {
+            SynthConfig::V1(_) => 1.0,
+            SynthConfig::V2(v2) => v2.pressure_sensitivity,
+        }
+    }
+
+    pub fn set_pressure_sensitivity(&mut self, val: f32) {
+        match &mut self.synth_config {
+            SynthConfig::V1(_) => {
+                let mut v2 = SynthConfigV2::default();
+                v2.audio_gain = self.audio_gain();
+                v2.playback_gain = self.playback_gain();
+                v2.keyboard_gain = self.keyboard_gain();
+                v2.pressure_sensitivity = val.clamp(0.0, 2.0);
+                self.synth_config = SynthConfig::V2(v2);
+            }
+            SynthConfig::V2(v2) => v2.pressure_sensitivity = val.clamp(0.0, 2.0),
+        }
+    }
+
     pub fn animation_offset(&self) -> f32 {
         self.waterfall.animation_offset
     }
