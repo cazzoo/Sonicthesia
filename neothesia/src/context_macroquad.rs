@@ -6,6 +6,7 @@ use crate::{
     midi_input_macroquad::MacroquadMidiInputManager,
     output_manager::OutputManager,
     song_library::{SongLibraryDatabase, SongRepository},
+    ui::toast::ToastManager,
 };
 
 use neothesia_core::config::Config;
@@ -54,6 +55,8 @@ pub struct MacroquadContext {
 
     /// Song to resume when returning from settings
     pub resume_song: Option<crate::Song>,
+
+    pub toast: ToastManager,
 
     #[cfg(debug_assertions)]
     pub fps_ticker: MacroquadFpsTicker,
@@ -111,6 +114,7 @@ impl MacroquadContext {
             midi_input,
             resume_playback_time: None,
             resume_song: None,
+            toast: ToastManager::new(),
 
             #[cfg(debug_assertions)]
             fps_ticker: MacroquadFpsTicker::new(),
