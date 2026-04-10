@@ -721,55 +721,35 @@ impl KeyAnimation {
     }
 
     fn update(&mut self, dt: f32, is_actually_pressed: bool) {
-        // DEBUG: Log animation update entry
-        log::debug!(
-            "[DEBUG] [KeyAnimation::update] Entry\n  - Context: dt={:.4}, is_actually_pressed={}, current_value={:.3}, current_target={:.3}",
-            dt, is_actually_pressed, self.value, self.target
-        );
-
-        // If the key is actually pressed by any input source, ensure target is 1.0
-        // This prevents the animation from fading out while still pressed
         if is_actually_pressed {
-            self.target = 1.0;
-            // Immediately set to pressed state for instant visual feedback
-            // This matches the behavior of the press() method
-            self.value = 1.0;
-            log::debug!(
-                "[DEBUG] [KeyAnimation::update] Action: Setting value to 1.0 (key pressed)\n  - New state: value={:.3}, target={:.3}",
-                self.value, self.target
-            );
+            if self.target < 0.01 {
+                self.target = 1.0;
+            }
+            if self.value < 0.01 {
+                self.value = self.target;
+            }
         } else {
             self.target = 0.0;
-            // Interpolate toward 0.0 for smooth release animation
             let diff = self.target - self.value;
             self.value += diff * self.speed * dt;
-            log::debug!(
-                "[DEBUG] [KeyAnimation::update] Action: Interpolating toward 0.0 (key released)\n  - diff={:.3}, new_value={:.3}, target={:.3}",
-                diff, self.value, self.target
-            );
         }
 
         self.value = self.value.clamp(0.0, 1.0);
-
-        // DEBUG: Log animation state changes
-        if self.value < 0.99 && is_actually_pressed {
-            log::warn!(
-                "[DEBUG] [KeyAnimation::update] WARNING: Key is pressed but animation value is {:.3} (target: {:.3})",
-                self.value, self.target
-            );
-        }
-
-        log::debug!(
-            "[DEBUG] [KeyAnimation::update] Exit\n  - Final state: value={:.3}, target={:.3}",
-            self.value,
-            self.target
-        );
     }
 
     fn press(&mut self) {
         self.target = 1.0;
-        // Immediately set to pressed state for instant visual feedback
         self.value = 1.0;
+    }
+
+    fn press_deferred(&mut self) {
+        self.target = 1.0;
+    }
+
+    fn press_with_pressure(&mut self, pressure: f32) {
+        let p = pressure.clamp(0.0, 1.0);
+        self.target = p;
+        self.value = p;
     }
 
     fn release(&mut self) {
@@ -805,16 +785,14 @@ pub struct PianoKeyboardRenderer {
     window_width: f32,
     window_height: f32,
 
-    // Mouse interaction state
     mouse_pressed_keys: HashMap<u8, bool>,
     mouse_is_down: bool,
 
-    // Keyboard input state (sync with MIDI events)
     keyboard_pressed_notes: HashMap<u8, bool>,
 
-    // Unified pressed state tracking
-    // Maps note -> set of input sources that have this key pressed
     pressed_keys_sources: HashMap<u8, HashSet<InputSource>>,
+
+    pressure_sensitive: bool,
 }
 
 impl PianoKeyboardRenderer {
@@ -850,6 +828,7 @@ impl PianoKeyboardRenderer {
             mouse_is_down: false,
             keyboard_pressed_notes: HashMap::new(),
             pressed_keys_sources: HashMap::new(),
+            pressure_sensitive: false,
         }
     }
 
@@ -870,6 +849,7 @@ impl PianoKeyboardRenderer {
         let (x, y) = self.position;
 
         self.keys = Self::build_visual_keys(&layout, x, y, width, height);
+        self.restore_pressed_state();
         self.layout = layout;
     }
 
@@ -882,12 +862,29 @@ impl PianoKeyboardRenderer {
         self.set_layout(layout);
     }
 
+    fn restore_pressed_state(&mut self) {
+        let pressed: Vec<u8> = self.pressed_keys_sources.keys().copied().collect();
+        for note in pressed {
+            if let Some(key) = self.get_render_key_mut(note) {
+                key.animation.target = 1.0;
+                key.animation.value = 1.0;
+            }
+        }
+    }
+
     /// Update window size and recalculate positions
     pub fn update_window_size(&mut self) {
         let new_width = vw();
         let new_height = vh();
 
         if new_width != self.window_width || new_height != self.window_height {
+            log::debug!(
+                "[KB] REBUILD in update_window_size: {}x{} -> {}x{}",
+                self.window_width,
+                self.window_height,
+                new_width,
+                new_height
+            );
             self.window_width = new_width;
             self.window_height = new_height;
 
@@ -898,15 +895,37 @@ impl PianoKeyboardRenderer {
             self.position = (x, y);
 
             self.keys = Self::build_visual_keys(&self.layout, x, y, width, height);
+            self.restore_pressed_state();
         }
     }
 
     pub fn set_position_and_size(&mut self, x: f32, y: f32, w: f32, h: f32) {
-        self.window_width = vw();
-        self.window_height = vh();
+        let new_ww = vw();
+        let new_wh = vh();
+        if (self.position.0 - x).abs() < 0.1
+            && (self.position.1 - y).abs() < 0.1
+            && (self.size.0 - w).abs() < 0.1
+            && (self.size.1 - h).abs() < 0.1
+            && (self.window_width - new_ww).abs() < 0.1
+            && (self.window_height - new_wh).abs() < 0.1
+        {
+            return;
+        }
+        log::debug!(
+            "[KB] REBUILD in set_position_and_size: pos=({},{}) size=({},{}) window=({},{})",
+            x,
+            y,
+            w,
+            h,
+            new_ww,
+            new_wh
+        );
+        self.window_width = new_ww;
+        self.window_height = new_wh;
         self.size = (w, h);
         self.position = (x, y);
         self.keys = Self::build_visual_keys(&self.layout, x, y, w, h);
+        self.restore_pressed_state();
     }
 
     /// Calculate keyboard size based on window dimensions
@@ -1129,66 +1148,77 @@ impl PianoKeyboardRenderer {
     }
 
     fn set_key_pressed(&mut self, note: u8, pressed: bool) {
-        // DEBUG: Log when set_key_pressed is called
-        let is_actually_pressed = self.is_key_pressed(note);
-        log::debug!(
-            "🎹 set_key_pressed(note={}, pressed={}, is_actually_pressed={})",
-            note,
-            pressed,
-            is_actually_pressed
-        );
-
+        let use_deferred = self.pressure_sensitive;
         if let Some(key) = self.get_render_key_mut(note) {
             if pressed {
-                log::debug!(
-                    "🎹   → Calling animation.press(), current value={:.3}",
-                    key.animation.value
-                );
-                key.animation.press();
+                if use_deferred {
+                    key.animation.press_deferred();
+                } else {
+                    key.animation.press();
+                }
             } else {
-                log::debug!(
-                    "🎹   → Calling animation.release(), current value={:.3}",
-                    key.animation.value
-                );
                 key.animation.release();
             }
         }
     }
 
+    pub fn set_key_pressure(&mut self, note: u8, pressure: f32) {
+        if !self.pressure_sensitive {
+            return;
+        }
+        if let Some(key) = self.get_render_key_mut(note) {
+            key.animation.press_with_pressure(pressure);
+        }
+    }
+
+    pub fn set_all_keys_pressure(&mut self, pressure: f32) {
+        if !self.pressure_sensitive {
+            return;
+        }
+        let p = pressure.clamp(0.0, 1.0);
+        let notes: Vec<u8> = self.pressed_keys_sources.keys().copied().collect();
+        for note in notes {
+            if let Some(key) = self.get_render_key_mut(note) {
+                key.animation.press_with_pressure(p);
+            }
+        }
+    }
+
+    pub fn set_pressure_sensitive(&mut self, enabled: bool) {
+        self.pressure_sensitive = enabled;
+    }
+
     /// Handle keyboard MIDI note events
     pub fn handle_note_event(&mut self, note: u8, velocity: u8) {
         let pressed = velocity > 0;
-
+        let key_range_start = self.keys.first().map(|k| k.note).unwrap_or(255);
+        let key_range_end = self.keys.last().map(|k| k.note).unwrap_or(0);
+        let found = self.keys.iter().any(|k| k.note == note);
         log::debug!(
-            "[DEBUG] [handle_note_event] Entry\n  - Context: note={}, velocity={}, pressed={}",
+            "[KB-EVENT] note={} vel={} pressed={} keys={}-{} found={}",
             note,
             velocity,
-            pressed
+            pressed,
+            key_range_start,
+            key_range_end,
+            found
         );
 
-        // Update keyboard state tracking
         if pressed {
             self.keyboard_pressed_notes.insert(note, true);
-            // Add to unified pressed state
-            log::debug!(
-                "[DEBUG] [handle_note_event] Action: Calling add_input_source(note={}, source=Midi)",
-                note
-            );
             self.add_input_source(note, InputSource::Midi);
         } else {
             self.keyboard_pressed_notes.remove(&note);
-            // Remove from unified pressed state
-            log::debug!(
-                "[DEBUG] [handle_note_event] Action: Calling remove_input_source(note={}, source=Midi)",
-                note
-            );
             self.remove_input_source(note, InputSource::Midi);
         }
 
-        log::debug!(
-            "[DEBUG] [handle_note_event] Exit\n  - Result: pressed_keys_sources={:?}",
-            self.pressed_keys_sources
-        );
+        if let Some(key) = self.get_render_key_mut(note) {
+            if pressed {
+                key.animation.press();
+            } else {
+                key.animation.release();
+            }
+        }
     }
 
     /// Highlight a key visually without triggering audio (for learn mode)
@@ -1198,120 +1228,44 @@ impl PianoKeyboardRenderer {
 
     /// Add an input source for a pressed key
     fn add_input_source(&mut self, note: u8, source: InputSource) {
-        log::debug!(
-            "[DEBUG] [add_input_source] Entry\n  - Context: note={}, source={:?}",
-            note,
-            source
-        );
-
         self.pressed_keys_sources
             .entry(note)
             .or_insert_with(HashSet::new)
             .insert(source);
-
-        // Log the updated state (clone to avoid borrow checker issues)
-        let sources = self.pressed_keys_sources.get(&note).cloned();
-        let all_keys = self.pressed_keys_sources.clone();
-        log::debug!(
-            "[DEBUG] [add_input_source] Action: Added source\n  - Result: note={} now has {:?} sources\n  - All pressed keys: {:?}",
-            note, sources, all_keys
-        );
     }
 
     /// Remove an input source for a pressed key
     fn remove_input_source(&mut self, note: u8, source: InputSource) {
-        log::debug!(
-            "[DEBUG] [remove_input_source] Entry\n  - Context: note={}, source={:?}",
-            note,
-            source
-        );
-
         if let Some(sources) = self.pressed_keys_sources.get_mut(&note) {
-            let before_count = sources.len();
             sources.remove(&source);
-            let after_count = sources.len();
-
-            log::debug!(
-                "[DEBUG] [remove_input_source] Action: Removed source\n  - Result: source count went from {} to {}",
-                before_count, after_count
-            );
-
             if sources.is_empty() {
                 self.pressed_keys_sources.remove(&note);
-                let all_keys = self.pressed_keys_sources.clone();
-                log::debug!(
-                    "[DEBUG] [remove_input_source] Action: No more sources for note={}, removing from pressed_keys_sources\n  - Remaining pressed keys: {:?}",
-                    note, all_keys
-                );
-            } else {
-                let sources_clone = sources.clone();
-                let all_keys = self.pressed_keys_sources.clone();
-                log::debug!(
-                    "[DEBUG] [remove_input_source] Result: note={} still has {:?} sources\n  - All pressed keys: {:?}",
-                    note, sources_clone, all_keys
-                );
             }
-        } else {
-            log::debug!(
-                "[DEBUG] [remove_input_source] Warning: note={} not found in pressed_keys_sources",
-                note
-            );
         }
     }
 
     /// Check if a key is pressed by any input source
     fn is_key_pressed(&self, note: u8) -> bool {
-        let is_pressed = self.pressed_keys_sources.contains_key(&note);
-        let sources = self.pressed_keys_sources.get(&note);
-
-        log::debug!(
-            "[DEBUG] [is_key_pressed] Called\n  - Context: note={}\n  - Result: is_pressed={}, sources={:?}",
-            note, is_pressed, sources
-        );
-
-        is_pressed
+        self.pressed_keys_sources.contains_key(&note)
     }
 
     /// Update animations
     pub fn update(&mut self, dt: f32) {
-        log::debug!(
-            "[DEBUG] [PianoKeyboardRenderer::update] Entry\n  - Context: dt={:.4}, total_keys={}",
-            dt,
-            self.keys.len()
-        );
-
         self.update_window_size();
 
-        // Collect pressed states first to avoid borrow checker issues
-        let pressed_notes: std::collections::HashSet<u8> =
-            self.pressed_keys_sources.keys().copied().collect();
+        let pressed_notes: Vec<u8> = self.pressed_keys_sources.keys().copied().collect();
 
-        // DEBUG: Log pressed state
-        if !pressed_notes.is_empty() {
-            log::debug!(
-                "[DEBUG] [PianoKeyboardRenderer::update] Render Loop\n  - Action: Updating {} keys\n  - Pressed notes: {:?}\n  - Pressed keys sources: {:?}",
-                pressed_notes.len(), pressed_notes, self.pressed_keys_sources
-            );
-        } else {
-            log::debug!(
-                "[DEBUG] [PianoKeyboardRenderer::update] Render Loop\n  - Action: Updating {} keys\n  - No keys currently pressed",
-                self.keys.len()
-            );
-        }
-
+        let mut diagnostics = Vec::new();
         for key in &mut self.keys {
             let is_actually_pressed = pressed_notes.contains(&key.note);
-            log::debug!(
-                "[DEBUG] [PianoKeyboardRenderer::update] Calling animation.update()\n  - Context: note={}, is_actually_pressed={}, current_animation_value={:.3}",
-                key.note, is_actually_pressed, key.animation.value
-            );
+            if is_actually_pressed && key.animation.value < 0.01 {
+                diagnostics.push((key.note, key.animation.value));
+            }
             key.animation.update(dt, is_actually_pressed);
         }
-
-        log::debug!(
-            "[DEBUG] [PianoKeyboardRenderer::update] Exit\n  - Action: Completed update for {} keys",
-            self.keys.len()
-        );
+        for (note, val) in diagnostics {
+            log::debug!("[KB-UPDATE] note={} pressed but anim={:.3}!", note, val);
+        }
     }
 
     pub fn render(&self) {

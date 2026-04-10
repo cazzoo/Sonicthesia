@@ -52,8 +52,7 @@ pub trait PlyScene {
 
     /// Handle MIDI input events (for visual feedback on virtual piano)
     fn handle_midi_event(&mut self, _channel: u8, _message: &midi_file::midly::MidiMessage) {
-        // Default implementation does nothing
-        // Scenes can override this to show visual feedback
+        log::debug!("[SCENE-MIDI] Default (no-op) handler called - scene has no MIDI override");
     }
 }
 
@@ -2272,6 +2271,8 @@ impl PlyScene for PlyPlayingScene {
             }
         }
 
+        self.piano_keyboard
+            .set_pressure_sensitive(ctx.config.velocity_enabled());
         self.piano_keyboard.update(dt);
 
         // ── Piano keyboard mouse input ──
@@ -2347,6 +2348,8 @@ impl PlyScene for PlyPlayingScene {
     fn handle_midi_event(&mut self, _channel: u8, message: &midi_file::midly::MidiMessage) {
         use midi_file::midly::MidiMessage;
 
+        log::debug!("[SCENE-MIDI] PlayingScene got: {:?}", message);
+
         match message {
             MidiMessage::NoteOn { key, vel } => {
                 let note = key.as_int();
@@ -2355,6 +2358,14 @@ impl PlyScene for PlyPlayingScene {
             }
             MidiMessage::NoteOff { key, .. } => {
                 self.piano_keyboard.handle_note_event(key.as_int(), 0);
+            }
+            MidiMessage::ChannelAftertouch { vel } => {
+                let pressure = vel.as_int() as f32 / 127.0;
+                self.piano_keyboard.set_all_keys_pressure(pressure);
+            }
+            MidiMessage::Aftertouch { key, vel } => {
+                let pressure = vel.as_int() as f32 / 127.0;
+                self.piano_keyboard.set_key_pressure(key.as_int(), pressure);
             }
             _ => {}
         }
@@ -2785,12 +2796,15 @@ impl PlyScene for PlyFreeplayScene {
         }
 
         self.mouse_was_pressed = mouse_down;
+        self.piano_keyboard
+            .set_pressure_sensitive(ctx.config.velocity_enabled());
         self.piano_keyboard.update(dt);
         None
     }
 
     fn handle_midi_event(&mut self, _channel: u8, message: &midi_file::midly::MidiMessage) {
         use midi_file::midly::MidiMessage;
+        log::debug!("[SCENE-MIDI] FreeplayScene got: {:?}", message);
         match message {
             MidiMessage::NoteOn { key, vel } => {
                 self.piano_keyboard
@@ -2798,6 +2812,14 @@ impl PlyScene for PlyFreeplayScene {
             }
             MidiMessage::NoteOff { key, .. } => {
                 self.piano_keyboard.handle_note_event(key.as_int(), 0);
+            }
+            MidiMessage::ChannelAftertouch { vel } => {
+                let pressure = vel.as_int() as f32 / 127.0;
+                self.piano_keyboard.set_all_keys_pressure(pressure);
+            }
+            MidiMessage::Aftertouch { key, vel } => {
+                let pressure = vel.as_int() as f32 / 127.0;
+                self.piano_keyboard.set_key_pressure(key.as_int(), pressure);
             }
             _ => {}
         }
