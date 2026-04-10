@@ -22,6 +22,7 @@ pub enum SettingsInteraction {
     VelocityEnabledToggled(bool),
     VelocityMinChanged(f32),
     VelocityMaxChanged(f32),
+    PressureSensitivityChanged(f32),
     PlayNote(u8, u8),
     StopNote(u8),
     ResetToDefaults,

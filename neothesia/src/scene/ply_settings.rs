@@ -163,6 +163,10 @@ impl PlySettingsScene {
                 ctx.config.set_velocity_max(val);
                 ctx.config.save();
             }
+            SettingsInteraction::PressureSensitivityChanged(val) => {
+                ctx.config.set_pressure_sensitivity(val);
+                ctx.config.save();
+            }
             SettingsInteraction::PlayNote(key, vel) => {
                 use midi_file::midly::{num::u7, MidiMessage};
                 let message = MidiMessage::NoteOn {

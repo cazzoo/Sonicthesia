@@ -433,7 +433,7 @@ impl MidiPage {
         mouse_down: bool,
     ) -> (f32, SettingsInteraction) {
         let enabled = config.velocity_enabled();
-        let panel_h = if enabled { 340.0 } else { 120.0 };
+        let panel_h = if enabled { 400.0 } else { 120.0 };
         let panel = GlassPanel::new(x, y, width, panel_h);
         panel.render();
 
@@ -511,8 +511,23 @@ impl MidiPage {
                 interaction = SettingsInteraction::VelocityMaxChanged(v);
             }
 
+            let (sens_val, sens_interaction) = self.render_hslider(
+                slider_x,
+                slider_y + 112.0,
+                slider_w,
+                "Pressure Sensitivity",
+                config.pressure_sensitivity() / 2.0,
+                mx,
+                my,
+                mouse_pressed,
+                mouse_down,
+            );
+            if let Some(v) = sens_interaction {
+                interaction = SettingsInteraction::PressureSensitivityChanged(v * 2.0);
+            }
+
             let graph_x = slider_x;
-            let graph_y = slider_y + 120.0;
+            let graph_y = slider_y + 176.0;
             let graph_w = slider_w;
             let graph_h = 80.0;
 
