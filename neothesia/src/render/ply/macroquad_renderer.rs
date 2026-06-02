@@ -9,7 +9,7 @@ use neothesia_core::config::Config;
 use piano_layout::KeyboardLayout;
 use std::rc::Rc;
 
-use super::piano_keyboard::PianoKeyboardRenderer;
+use super::piano_keyboard::{KeyboardTheme, PianoKeyboardRenderer};
 
 /// Macroquad-based waterfall renderer
 pub struct MacroquadWaterfallRenderer {
@@ -27,13 +27,18 @@ struct WaterfallConfig {
 
 impl MacroquadWaterfallRenderer {
     pub fn new(notes: Rc<[MidiNote]>, layout: KeyboardLayout, config: &Config) -> Self {
-        let colors = config
-            .color_schema()
+        let theme_name = config.piano_theme_name();
+        let theme = KeyboardTheme::get_theme(theme_name).unwrap_or_else(|| {
+            KeyboardTheme::modern()
+        });
+        let pressed_colors = theme.pressed_colors();
+
+        let colors = pressed_colors
             .iter()
-            .map(|c| Color {
-                r: c.base.0 as f32 / 255.0,
-                g: c.base.1 as f32 / 255.0,
-                b: c.base.2 as f32 / 255.0,
+            .map(|(r, g, b)| Color {
+                r: *r as f32 / 255.0,
+                g: *g as f32 / 255.0,
+                b: *b as f32 / 255.0,
                 a: 1.0,
             })
             .collect();
@@ -60,7 +65,7 @@ impl MacroquadWaterfallRenderer {
             if self.layout.range.contains(note.note) && note.channel != 9 {
                 let key = &self.layout.keys[note.note as usize - range_start];
 
-                let color_idx = note.track_color_id % self.config.colors.len();
+                let color_idx = (note.note % 12) as usize % self.config.colors.len();
                 let color = self.config.colors[color_idx];
 
                 let x = key.x();

@@ -129,15 +129,15 @@ pub struct SynthConfigV2 {
     pub pressure_sensitivity: f32,
 }
 
-fn default_velocity_min() -> f32 {
-    0.0
-}
-
-fn default_velocity_max() -> f32 {
+fn default_pressure_sensitivity() -> f32 {
     1.0
 }
 
-fn default_pressure_sensitivity() -> f32 {
+fn default_velocity_min() -> f32 {
+    0.8
+}
+
+fn default_velocity_max() -> f32 {
     1.0
 }
 

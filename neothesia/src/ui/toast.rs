@@ -37,10 +37,10 @@ impl Toast {
         let screen_w = vw();
         let screen_h = vh();
 
-        let text_w = measure_text(&self.message, ply_fonts::body_font(), 14, 1.0).width;
+        let text_dims = measure_text(&self.message, ply_fonts::body_font(), 14, 1.0);
         let padding_x = 20.0;
         let padding_y = 12.0;
-        let toast_w = text_w + padding_x * 2.0;
+        let toast_w = text_dims.width + text_dims.height * 0.3 + padding_x * 2.0;
         let toast_h = 40.0;
         let toast_x = (screen_w - toast_w) / 2.0;
         let toast_y = screen_h - toast_h - 80.0;

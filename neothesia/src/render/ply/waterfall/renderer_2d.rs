@@ -61,7 +61,7 @@ impl Waterfall2D {
             return None;
         }
 
-        let color_idx = note.track_color_id % self.config.colors.len();
+        let color_idx = (note.note % 12) as usize % self.config.colors.len();
         let base_color = self.config.colors[color_idx];
 
         let is_right_hand = note.channel == 0;

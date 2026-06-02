@@ -26,7 +26,6 @@ struct MacroquadNeothesia {
     context: MacroquadContext,
     current_scene: Box<dyn PlyScene>,
     event_queue: Vec<NeothesiaEvent>,
-    cc11_floor: u8,
 }
 
 impl MacroquadNeothesia {
@@ -42,7 +41,6 @@ impl MacroquadNeothesia {
             context,
             current_scene,
             event_queue: Vec::new(),
-            cc11_floor: 127,
         }
     }
 
@@ -56,15 +54,10 @@ impl MacroquadNeothesia {
         }
 
         if let Some(new_port) = self.context.midi_input.poll_hotplug() {
-            let configured = self.context.config.input();
-            let should_autoconnect = configured.is_none()
-                || configured.map_or(false, |c| {
-                    let c_lower = c.to_lowercase();
-                    let p_lower = new_port.to_lowercase();
-                    p_lower.contains(&c_lower) || c_lower.contains(&p_lower)
-                });
-
-            if should_autoconnect {
+            if let Some(configured) = self.context.config.input() {
+                self.context.midi_input.connect_input(configured);
+                self.context.toast.show(format!("🎹 MIDI: {}", configured));
+            } else {
                 self.context.midi_input.connect_input(&new_port);
                 self.context.toast.show(format!("🎹 MIDI: {}", new_port));
             }
@@ -72,108 +65,10 @@ impl MacroquadNeothesia {
 
         // Poll MIDI input events and route to current scene
         for (channel, message) in self.context.midi_input.poll_events() {
-            use midi_file::midly::MidiMessage;
+            self.current_scene.handle_midi_event(channel, &message);
 
-            let remapped = if self.context.config.velocity_enabled() {
-                let sensitivity = self.context.config.pressure_sensitivity();
-                match message {
-                    MidiMessage::NoteOn { key, vel } => {
-                        let vmin = self.context.config.velocity_min();
-                        let vmax = self.context.config.velocity_max();
-                        let normalized = vel.as_int() as f32 / 127.0;
-                        let mapped = vmin + normalized * (vmax - vmin);
-                        let new_vel = (mapped * 127.0).round().clamp(1.0, 127.0) as u8;
-                        MidiMessage::NoteOn { key, vel: midi_file::midly::num::u7::new(new_vel) }
-                    }
-                    MidiMessage::ChannelAftertouch { vel } => {
-                        let raw = vel.as_int() as f32 / 127.0;
-                        let scaled = (raw * sensitivity).clamp(0.0, 1.0);
-                        let new_val = (scaled * 127.0).round().clamp(0.0, 127.0) as u8;
-                        MidiMessage::ChannelAftertouch { vel: midi_file::midly::num::u7::new(new_val) }
-                    }
-                    MidiMessage::Aftertouch { key, vel } => {
-                        let raw = vel.as_int() as f32 / 127.0;
-                        let scaled = (raw * sensitivity).clamp(0.0, 1.0);
-                        let new_val = (scaled * 127.0).round().clamp(0.0, 127.0) as u8;
-                        MidiMessage::Aftertouch { key, vel: midi_file::midly::num::u7::new(new_val) }
-                    }
-                    other => other,
-                }
-            } else {
-                message
-            };
-
-            self.current_scene.handle_midi_event(channel, &remapped);
-
-            if self.context.config.velocity_enabled() {
-                match &remapped {
-                    MidiMessage::NoteOn { vel, .. } => {
-                        self.cc11_floor = vel.as_int().max(64);
-                        self.context
-                            .output_manager
-                            .keyboard_connection()
-                            .midi_event(channel.into(), remapped);
-                        let cc = MidiMessage::Controller {
-                            controller: midi_file::midly::num::u7::new(11),
-                            value: midi_file::midly::num::u7::new(127),
-                        };
-                        self.context
-                            .output_manager
-                            .keyboard_connection()
-                            .midi_event(channel.into(), cc);
-                    }
-                    MidiMessage::NoteOff { .. } => {
-                        self.context
-                            .output_manager
-                            .keyboard_connection()
-                            .midi_event(channel.into(), remapped);
-                    }
-                    MidiMessage::ChannelAftertouch { vel } => {
-                        let val = vel.as_int().max(self.cc11_floor);
-                        let cc = MidiMessage::Controller {
-                            controller: midi_file::midly::num::u7::new(11),
-                            value: midi_file::midly::num::u7::new(val),
-                        };
-                        self.context
-                            .output_manager
-                            .keyboard_connection()
-                            .midi_event(channel.into(), cc);
-                    }
-                    MidiMessage::Aftertouch { vel, .. } => {
-                        let val = vel.as_int().max(self.cc11_floor);
-                        let cc = MidiMessage::Controller {
-                            controller: midi_file::midly::num::u7::new(11),
-                            value: midi_file::midly::num::u7::new(val),
-                        };
-                        self.context
-                            .output_manager
-                            .keyboard_connection()
-                            .midi_event(channel.into(), cc);
-                    }
-                    _ => {
-                        self.context
-                            .output_manager
-                            .keyboard_connection()
-                            .midi_event(channel.into(), remapped);
-                    }
-                }
-            } else {
-                self.context
-                    .output_manager
-                    .keyboard_connection()
-                    .midi_event(channel.into(), remapped);
-
-                if let MidiMessage::NoteOn { .. } = &remapped {
-                    let cc = MidiMessage::Controller {
-                        controller: midi_file::midly::num::u7::new(11),
-                        value: midi_file::midly::num::u7::new(127),
-                    };
-                    self.context
-                        .output_manager
-                        .keyboard_connection()
-                        .midi_event(channel.into(), cc);
-                }
-            }
+            let conn = self.context.output_manager.connection();
+            conn.midi_event(channel.into(), message);
         }
         
         // Process events

@@ -433,13 +433,13 @@ impl MidiPage {
         mouse_down: bool,
     ) -> (f32, SettingsInteraction) {
         let enabled = config.velocity_enabled();
-        let panel_h = if enabled { 400.0 } else { 120.0 };
+        let panel_h = if enabled { 340.0 } else { 120.0 };
         let panel = GlassPanel::new(x, y, width, panel_h);
         panel.render();
 
         let (title_r, title_g, title_b) = colors::to_normalized(colors::PRIMARY);
         ply_fonts::draw_headline(
-            "Velocity Sensitivity",
+            "Pressure Sensitivity",
             x + spacing::XL,
             y + spacing::XL + 16.0,
             20.0,
@@ -448,7 +448,7 @@ impl MidiPage {
 
         let (sub_r, sub_g, sub_b) = colors::to_normalized(colors::ON_SURFACE_VARIANT);
         ply_fonts::draw_body(
-            "Remap key pressure to velocity range",
+            "Control volume and expression from key pressure",
             x + spacing::XL,
             y + spacing::XL + 36.0,
             14.0,
@@ -481,39 +481,24 @@ impl MidiPage {
             let slider_w = row_w;
             let slider_y = row_y + row_h + spacing::LG;
 
-            let (min_val, min_interaction) = self.render_hslider(
+            let (_, base_interaction) = self.render_hslider(
                 slider_x,
                 slider_y,
                 slider_w,
-                "Min Velocity",
+                "Base Volume",
                 config.velocity_min(),
                 mx,
                 my,
                 mouse_pressed,
                 mouse_down,
             );
-            if let Some(v) = min_interaction {
+            if let Some(v) = base_interaction {
                 interaction = SettingsInteraction::VelocityMinChanged(v);
             }
 
-            let (max_val, max_interaction) = self.render_hslider(
+            let (_, sens_interaction) = self.render_hslider(
                 slider_x,
                 slider_y + 56.0,
-                slider_w,
-                "Max Velocity",
-                config.velocity_max(),
-                mx,
-                my,
-                mouse_pressed,
-                mouse_down,
-            );
-            if let Some(v) = max_interaction {
-                interaction = SettingsInteraction::VelocityMaxChanged(v);
-            }
-
-            let (sens_val, sens_interaction) = self.render_hslider(
-                slider_x,
-                slider_y + 112.0,
                 slider_w,
                 "Pressure Sensitivity",
                 config.pressure_sensitivity() / 2.0,
@@ -527,17 +512,17 @@ impl MidiPage {
             }
 
             let graph_x = slider_x;
-            let graph_y = slider_y + 176.0;
+            let graph_y = slider_y + 120.0;
             let graph_w = slider_w;
             let graph_h = 80.0;
 
-            self.render_pressure_graph(graph_x, graph_y, graph_w, graph_h, min_val, max_val);
+            self.render_pressure_graph(graph_x, graph_y, graph_w, graph_h);
         }
 
         (y + panel_h + spacing::LG, interaction)
     }
 
-    fn render_pressure_graph(&self, x: f32, y: f32, w: f32, h: f32, vmin: f32, vmax: f32) {
+    fn render_pressure_graph(&self, x: f32, y: f32, w: f32, h: f32) {
         let (bg_r, bg_g, bg_b) = colors::to_normalized(colors::SURFACE_CONTAINER);
         draw_rectangle(x, y, w, h, Color::new(bg_r, bg_g, bg_b, 0.6));
 
@@ -549,38 +534,6 @@ impl MidiPage {
             h,
             1.0,
             Color::new(border_r, border_g, border_b, 0.2),
-        );
-
-        let vmin_y = y + h - vmin * h;
-        let vmax_y = y + h - vmax * h;
-
-        let (thresh_r, thresh_g, thresh_b) = colors::to_normalized(colors::TERTIARY);
-        let thresh_color = Color::new(thresh_r, thresh_g, thresh_b, 0.4);
-        draw_rectangle(
-            x,
-            vmax_y,
-            w,
-            vmin_y - vmax_y,
-            Color::new(thresh_r, thresh_g, thresh_b, 0.08),
-        );
-
-        draw_rectangle(x, vmin_y, w, 1.0, thresh_color);
-        draw_rectangle(x, vmax_y, w, 1.0, thresh_color);
-
-        let (label_r, label_g, label_b) = colors::to_normalized(colors::TERTIARY);
-        ply_fonts::draw_body(
-            &format!("{}%", (vmin * 100.0).round() as u8),
-            x + 4.0,
-            vmin_y + 2.0,
-            9.0,
-            Color::new(label_r, label_g, label_b, 0.7),
-        );
-        ply_fonts::draw_body(
-            &format!("{}%", (vmax * 100.0).round() as u8),
-            x + 4.0,
-            vmax_y - 12.0,
-            9.0,
-            Color::new(label_r, label_g, label_b, 0.7),
         );
 
         let history = &self.pressure_history;

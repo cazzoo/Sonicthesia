@@ -600,7 +600,6 @@ impl KeyboardTheme {
         ]
     }
 
-    /// Get theme by name
     pub fn get_theme(name: &str) -> Option<Self> {
         match name {
             "Classic" => Some(Self::classic()),
@@ -609,8 +608,20 @@ impl KeyboardTheme {
             "Rainbow" => Some(Self::rainbow()),
             "Neon" => Some(Self::neon()),
             "Pastel" => Some(Self::pastel()),
+            "sonic_obsidian" => Some(Self::neon()),
+            "classic_light" => Some(Self::classic()),
+            "dark_pro" => Some(Self::modern()),
+            "high_contrast" => Some(Self::rainbow()),
             _ => None,
         }
+    }
+
+    pub fn pressed_colors(&self) -> [(u8, u8, u8); 12] {
+        let mut colors = [(0u8, 0u8, 0u8); 12];
+        for i in 0..12 {
+            colors[i] = self.octave_theme.notes[i].pressed;
+        }
+        colors
     }
 }
 

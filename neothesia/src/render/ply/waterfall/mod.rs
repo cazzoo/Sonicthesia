@@ -6,6 +6,8 @@ use piano_layout::KeyboardLayout;
 use std::rc::Rc;
 use std::time::Duration;
 
+use crate::render::ply::piano_keyboard::KeyboardTheme;
+
 pub mod renderer_2d;
 
 pub use renderer_2d::Waterfall2D;
@@ -262,7 +264,7 @@ impl PlyWaterfallRenderer {
             if layout.range.contains(note.note) && note.channel != 9 {
                 let key = &layout.keys[note.note as usize - range_start];
 
-                let color_idx = note.track_color_id % self.config.color_scheme.len();
+                let color_idx = (note.note % 12) as usize % self.config.color_scheme.len();
                 let ply_color = &self.config.color_scheme[color_idx];
 
                 let note_start = note.start.as_secs_f32();
@@ -337,12 +339,21 @@ impl RenderConfig {
         config: &neothesia_core::config::Config,
         layout: &piano_layout::KeyboardLayout,
     ) -> Self {
+        let theme_name = config.piano_theme_name();
+        let theme = KeyboardTheme::get_theme(theme_name).unwrap_or_else(|| {
+            log::warn!(
+                "Unknown theme name '{}' for waterfall, falling back to Modern",
+                theme_name
+            );
+            KeyboardTheme::modern()
+        });
+        let pressed_colors = theme.pressed_colors();
+
         Self {
             animation_speed: config.animation_speed(),
-            color_scheme: config
-                .color_schema()
+            color_scheme: pressed_colors
                 .iter()
-                .map(|c| ply_engine::color::Color::u_rgba(c.base.0, c.base.1, c.base.2, 255))
+                .map(|(r, g, b)| ply_engine::color::Color::u_rgba(*r, *g, *b, 255))
                 .collect(),
             background_color: {
                 let bg = config.background_color();
